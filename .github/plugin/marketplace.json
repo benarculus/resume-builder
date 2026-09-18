@@ -1,0 +1,32 @@
+{
+  "name": "resume-builder",
+  "metadata": {
+    "description": "Anti-fabrication GitHub Copilot CLI skills for evidence-based resume building",
+    "version": "0.1.0"
+  },
+  "owner": {
+    "name": "benarculus",
+    "url": "https://github.com/benarculus"
+  },
+  "plugins": [
+    {
+      "name": "resume-builder",
+      "source": ".",
+      "description": "Build a verified career document, plan job requirements, and draft an evidence-grounded Word resume",
+      "version": "0.1.0",
+      "author": {
+        "name": "benarculus",
+        "url": "https://github.com/benarculus"
+      },
+      "homepage": "https://github.com/benarculus/resume-builder",
+      "repository": "https://github.com/benarculus/resume-builder",
+      "license": "MIT",
+      "keywords": [
+        "resume",
+        "career",
+        "copilot-cli",
+        "skills"
+      ]
+    }
+  ]
+}

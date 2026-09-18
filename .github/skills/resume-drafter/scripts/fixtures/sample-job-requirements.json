@@ -1,0 +1,28 @@
+{
+  "source": {
+    "url": "https://example.com/jobs/product-manager",
+    "title": "Product Manager",
+    "capturedAt": "2026-09-18"
+  },
+  "requiredQualifications": [
+    {
+      "id": "RQ-001",
+      "text": "Experience leading cross-functional launches",
+      "source": "https://example.com/jobs/product-manager#qualifications"
+    }
+  ],
+  "preferredQualifications": [],
+  "responsibilities": [
+    {
+      "id": "RESP-001",
+      "text": "Define and communicate product roadmaps",
+      "source": "https://example.com/jobs/product-manager#responsibilities"
+    }
+  ],
+  "constraints": {
+    "compensation": null,
+    "level": "Senior",
+    "location": "Remote",
+    "source": "https://example.com/jobs/product-manager#details"
+  }
+}

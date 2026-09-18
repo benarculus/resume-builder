@@ -1,0 +1,32 @@
+{
+  "basics": {
+    "name": "Alex Example",
+    "email": "alex@example.com",
+    "location": "Remote"
+  },
+  "summary": "Product leader with verified experience delivering customer-facing platforms.",
+  "experience": [
+    {
+      "company": "Example Co",
+      "title": "Product Manager",
+      "dates": "2020-2024",
+      "bullets": [
+        "Led a cross-functional launch supported by the career document."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "Example University",
+      "degree": "B.S. in Business"
+    }
+  ],
+  "skills": ["Roadmapping", "Stakeholder management"],
+  "awards": [
+    {
+      "title": "Customer Impact Award",
+      "details": "Recognized for customer impact."
+    }
+  ],
+  "unmetRequirements": ["RQ-002"]
+}
