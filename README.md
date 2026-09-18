@@ -19,13 +19,9 @@ The same directories can be installed under `~/.copilot/skills` for user-wide us
 
 ### Plugin bundle
 
-This repository also includes `.github/plugin/marketplace.json`, following the marketplace convention used by this environment:
+This repository also includes `.github/plugin/marketplace.json`, following the marketplace convention used by this environment. The manifest is metadata for hosts that explicitly support this convention; it is not an official GitHub CLI install format, and there is no portable `resume-builder` command that can load it across hosts.
 
-```bash
-git clone https://github.com/benarculus/resume-builder.git
-```
-
-The `marketplace.json` format is an application convention, not an official GitHub specification. Prefer the plain Agent Skills path if your host does not support this bundle convention.
+The plain Agent Skills procedure above is the only self-service installation path documented by this repository. If your host supports this bundle convention, use that host's documented **Import marketplace/plugin from a repository** action with `https://github.com/benarculus/resume-builder`; verify that it reads `.github/plugin/marketplace.json`, then invoke the skills by their names. If the host does not provide that importer, use the portable copy procedure instead.
 
 ## How the skills fit together
 

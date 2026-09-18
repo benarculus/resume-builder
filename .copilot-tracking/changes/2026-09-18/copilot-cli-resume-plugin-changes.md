@@ -90,6 +90,16 @@ Implemented and validated the public `resume-builder` GitHub Copilot CLI plugin.
 
 ## Implementation-Time Plan Updates
 
+### Resolving review finding RV-001
+
+* Affected plan area or markers: `P01-T02`, `P05-T01`, `FR-005`, `NFR-004`
+* What changed: narrowed the README's bundle section to identify the plain `.github/skills` procedure as the only self-service installation path and described `.github/plugin/marketplace.json` as an optional host-specific import convention.
+* Why: the review found that the previous bundle section stopped at `git clone` and did not provide a portable way to load the application-specific manifest.
+* Triggering evidence: `RV-001` accepted for implementation under parent decision `RD-005`.
+* User answer or decision: user selected the suggested `rpi-implement` correction route through the review walkthrough.
+* Reconciliation performed: README installation claims now match the evidence boundary; no source behavior, packaging files, or active plan scope changed.
+* Planning and critique state: review correction only; no plan revision or new decision required.
+
 ### License selection under unavailable user response
 
 * Affected plan area or markers: `P01-T01`, `P01-T02`, `P06-T02`
