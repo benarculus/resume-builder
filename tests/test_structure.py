@@ -315,6 +315,60 @@ def test_malware_workflow_requires_trusted_checker_source(
         validator.validate_dependency_check_workflows()
 
 
+def test_malware_workflow_rejects_custom_checker_shell(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "advisory-malware.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/advisory-malware.yml")
+        .read_text(encoding="utf-8")
+        .replace("        shell: bash\n", "        shell: bash -c 'true {0}'\n"),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="must use bash"):
+        validator.validate_dependency_check_workflows()
+
+
+def test_malware_workflow_rejects_default_shell_override(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "advisory-malware.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/advisory-malware.yml")
+        .read_text(encoding="utf-8")
+        .replace("permissions:\n", "defaults:\n  run:\n    shell: bash -c 'true {0}'\n\npermissions:\n"),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="default shell"):
+        validator.validate_dependency_check_workflows()
+
+
+def test_malware_workflow_rejects_job_default_shell_override(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "advisory-malware.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/advisory-malware.yml")
+        .read_text(encoding="utf-8")
+        .replace(
+            "  advisory-malware:\n",
+            "  advisory-malware:\n    defaults:\n      run:\n        shell: bash -c 'true {0}'\n",
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="default shell"):
+        validator.validate_dependency_check_workflows()
+
+
 def test_dependency_workflows_reject_conditional_job(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

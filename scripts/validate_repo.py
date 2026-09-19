@@ -177,11 +177,15 @@ def validate_dependency_check_workflows() -> None:
             raise AssertionError(f"{name} workflow must run on pull_request")
         if workflow.get("permissions") != {"contents": "read"}:
             raise AssertionError(f"{name} workflow must use contents: read permissions")
+        if "defaults" in workflow:
+            raise AssertionError(f"{name} workflow must not override the default shell")
         for job in workflow.get("jobs", {}).values():
             if not isinstance(job, dict):
                 continue
             if "permissions" in job:
                 raise AssertionError(f"{name} workflow must not override permissions at job scope")
+            if "defaults" in job:
+                raise AssertionError(f"{name} workflow job must not override the default shell")
             if "if" in job:
                 raise AssertionError(f"{name} workflow job must not be conditional")
             if job.get("continue-on-error") not in (None, "false"):
@@ -208,10 +212,11 @@ def validate_dependency_check_workflows() -> None:
         for step in malware_steps
         if isinstance(step, dict) and step.get("uses", "").startswith("actions/checkout@")
     ]
-    command = next(
-        (step.get("run") for step in malware_steps if isinstance(step, dict) and "run" in step),
-        "",
+    checker_step = next(
+        (step for step in malware_steps if isinstance(step, dict) and "run" in step),
+        {},
     )
+    command = checker_step.get("run", "")
     if not checkouts or any(
         checkout.get("with", {}).get("persist-credentials") != "false"
         for checkout in checkouts
@@ -229,6 +234,8 @@ def validate_dependency_check_workflows() -> None:
     )
     if not isinstance(command, str) or " ".join(command.split()) != expected_command:
         raise AssertionError("malware advisory workflow must run the repository-owned checker")
+    if checker_step.get("shell") != "bash":
+        raise AssertionError("malware advisory checker must use bash")
     if any(
         isinstance(step, dict) and step.get("continue-on-error") not in (None, "false")
         for step in malware_steps
