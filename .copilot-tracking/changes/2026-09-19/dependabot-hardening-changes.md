@@ -66,7 +66,7 @@ Implemented the approved Dependabot policy, added known-vulnerability and known-
 * Files:
   * [scripts/check_malware_advisories.py](../../../scripts/check_malware_advisories.py)
   * [tests/test_check_malware_advisories.py](../../../tests/test_check_malware_advisories.py)
-* What changed and why: Removed the workflow token injection and checker Authorization handling so the PR-controlled checker can only make unauthenticated public advisory requests; added the missing deterministic changed-dependency/no-advisory `main()` test.
+* What changed and why: Removed the workflow token injection and checker Authorization handling so the trusted checker extracted from the pull request base revision (or immutable bootstrap fallback) can only make unauthenticated public advisory requests; added the missing deterministic changed-dependency/no-advisory `main()` test.
 * Completion evidence: The request test asserts no Authorization header and the new fixture verifies exit `0` plus the bounded no-match message for a changed direct pin.
 * Validation: `python3 -m pytest -q tests/test_check_malware_advisories.py tests/test_structure.py` passed with 39 tests; the full suite passed with 41 tests after the final include-handling, advisory-pagination, and shell-policy regressions were added.
 
