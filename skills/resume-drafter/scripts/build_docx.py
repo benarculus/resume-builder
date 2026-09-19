@@ -27,11 +27,14 @@ def load_payload(path: Path) -> dict[str, Any]:
     for index, item in enumerate(education):
         if not isinstance(item, dict):
             raise ValueError(f"education entry {index} must be an object")
-        if item.get("abbreviation") and not (item.get("degree") or item.get("studyType")):
+        if not (item.get("degree") or item.get("studyType")):
             raise ValueError(
-                f"education entry {index} must include a full degree or credential "
-                "when an abbreviation is provided"
+                f"education entry {index} must include a full degree or credential"
             )
+        if not (item.get("institution") or item.get("organization")):
+            raise ValueError(f"education entry {index} must include an institution or provider")
+        if not (item.get("completionDate") or item.get("date") or item.get("dates")):
+            raise ValueError(f"education entry {index} must include a completion date")
     return payload
 
 
@@ -152,7 +155,17 @@ def build_document(payload: dict[str, Any]) -> Document:
     if payload.get("experience"):
         add_heading(document, "Experience")
         roles = [role for role in payload["experience"] if isinstance(role, dict)]
-        for role in sorted_entries(roles, ("startDate", "dates", "endDate")):
+        ordering = payload.get("experienceOrder", "reverseChronological")
+        if ordering not in ("reverseChronological", "approved"):
+            raise ValueError(
+                "experienceOrder must be 'reverseChronological' or 'approved'"
+            )
+        ordered_roles = (
+            roles
+            if ordering == "approved"
+            else sorted_entries(roles, ("startDate", "dates", "endDate"))
+        )
+        for role in ordered_roles:
             title = " — ".join(
                 str(value)
                 for key in ("title", "company")

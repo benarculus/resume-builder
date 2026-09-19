@@ -39,7 +39,7 @@ Map verified career evidence to a specific role, make unsupported requirements v
      "basics": {"name": "Full Name", "email": "name@example.com", "location": "City, Region"},
      "summary": "Approved summary",
      "experience": [{"company": "Employer", "title": "Verified title", "dates": "2020-2024", "bullets": ["Verified bullet"]}],
-     "education": [{"institution": "School", "degree": "Degree"}],
+     "education": [{"institution": "School", "degree": "Degree", "major": "Field", "completionDate": "2024-05"}],
      "skills": ["Skill"],
      "awards": [{"title": "Award", "details": "Verified citation"}],
      "unmetRequirements": ["RQ-002"]
@@ -56,6 +56,7 @@ Map verified career evidence to a specific role, make unsupported requirements v
 - Target 475–600 words for the tailored resume body, excluding contact metadata. Treat this as a target for selection and editing, not permission to omit mapped requirements or fabricate filler.
 - Use the five selection rules from the supplied resume guidance: show requirement fit, keep sections clear, prioritize the strongest relevant evidence, avoid buzzwords and unrelated detail, and reuse job-description keywords only when both the requirements artifact and career evidence support them. Keep unsupported or unmet requirements visible.
 - Use a focused, left-aligned structure with conventional section headings, reverse chronological ordering for dated entries by default, and consistent role, organization, date, typography, and emphasis treatment. Use bold, italics, underlining, or all caps intentionally rather than decoratively.
+- Use reverse chronological experience ordering by default. A user-approved alternative ordering may be represented with the top-level payload field `"experienceOrder": "approved"`; otherwise use `"reverseChronological"` or omit the field. Never infer approval from the payload order alone.
 - Use the following top matter order:
   ```text
   Name

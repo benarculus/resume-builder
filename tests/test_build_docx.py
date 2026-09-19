@@ -66,9 +66,12 @@ def test_build_docx_applies_resume_top_matter_formatting_and_order() -> None:
     ]
     assert document.paragraphs[0].alignment == 0
     assert document.paragraphs[1].alignment == 0
+    assert document.sections[0].top_margin.inches == 0.5
+    assert document.sections[0].bottom_margin.inches == 0.5
     assert document.sections[0].left_margin.inches == 0.5
     assert document.sections[0].right_margin.inches == 0.5
     assert document.paragraphs[0].runs[0].font.size.pt == 20
+    assert document.styles["Normal"].font.size.pt == 11
 
 
 def test_build_docx_omits_unapproved_clearance_from_top_matter() -> None:
@@ -155,3 +158,42 @@ def test_load_payload_rejects_abbreviation_only_education(tmp_path: Path) -> Non
         assert "full degree or credential" in str(error)
     else:
         raise AssertionError("abbreviation-only education should be rejected")
+
+
+def test_load_payload_rejects_incomplete_education_fields(tmp_path: Path) -> None:
+    renderer = load_renderer()
+    cases = (
+        '{"institution": "Example University", "degree": "Bachelor of Science"}',
+        '{"degree": "Bachelor of Science", "completionDate": "2024-05"}',
+        '{"institution": "Example University", "completionDate": "2024-05"}',
+    )
+    for education in cases:
+        payload = tmp_path / "invalid-resume.json"
+        payload.write_text(
+            f'{{"basics": {{"name": "Jordan Example"}}, "education": [{education}]}}',
+            encoding="utf-8",
+        )
+        try:
+            renderer.load_payload(payload)
+        except ValueError:
+            continue
+        raise AssertionError("incomplete education should be rejected")
+
+
+def test_build_docx_preserves_user_approved_experience_order() -> None:
+    renderer = load_renderer()
+    document = renderer.build_document(
+        {
+            "basics": {"name": "Jordan Example"},
+            "experienceOrder": "approved",
+            "experience": [
+                {"company": "Older Co", "title": "Analyst", "dates": "2018-2020"},
+                {"company": "Current Co", "title": "Manager", "dates": "2022-2024"},
+            ],
+        }
+    )
+
+    text = [paragraph.text for paragraph in document.paragraphs]
+    assert text.index("Analyst — Older Co 2018-2020") < text.index(
+        "Manager — Current Co 2022-2024"
+    )

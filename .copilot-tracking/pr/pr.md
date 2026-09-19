@@ -25,4 +25,4 @@ Additional preflight checks: `python3 -m py_compile skills/resume-drafter/script
 
 ## Review outcome
 
-The completed implementation was reviewed against the full approved plan and found conformant. No substantive review findings or follow-up routes remain. The review noted that exact two-line visual wrapping is not independently measured across arbitrary DOCX widths and fonts; this remains a documented validation limitation rather than an observed defect.
+The completed implementation was reviewed against the full approved plan. CCR follow-up now validates complete education fields, approved experience ordering, required margins/body font size, and the complete input example. Exact two-line visual wrapping is not independently measured across arbitrary DOCX widths and fonts; this remains a documented validation limitation rather than an observed defect.
