@@ -34,7 +34,7 @@ EXPECTED_SKILLS = {
 SHA_PINNED_ACTION = re.compile(r"uses:\s+[\w.-]+/[\w./-]+@[0-9a-f]{40}\s+#\s+v\d+\b")
 REQUIREMENT_PIN = re.compile(r"^[A-Za-z0-9_.-]+==[^<>=!~\s]+$")
 WORKFLOW_TOKEN_EXPRESSION = re.compile(
-    r"\$\{\{\s*(?:github\.token|secrets(?:\s*\.|\s*\[))",
+    r"\$\{\{\s*(?:github\s*\.\s*token|github\s*\[\s*['\"]token['\"]\s*\]|secrets(?:\s*\.|\s*\[))",
     re.IGNORECASE,
 )
 
@@ -171,6 +171,8 @@ def validate_dependency_check_workflows() -> None:
                 continue
             if "permissions" in job:
                 raise AssertionError(f"{name} workflow must not override permissions at job scope")
+            if "if" in job:
+                raise AssertionError(f"{name} workflow job must not be conditional")
             if job.get("continue-on-error") not in (None, "false"):
                 raise AssertionError(f"{name} workflow job must not continue on error")
 
@@ -186,6 +188,8 @@ def validate_dependency_check_workflows() -> None:
         raise AssertionError("dependency review workflow must enforce the approved action policy")
     if review_action.get("continue-on-error") not in (None, "false"):
         raise AssertionError("dependency review action must not continue on error")
+    if "if" in review_action:
+        raise AssertionError("dependency review action must not be conditional")
 
     malware_steps = malware["jobs"]["advisory-malware"]["steps"]
     checkout = next(
@@ -205,6 +209,8 @@ def validate_dependency_check_workflows() -> None:
         for step in malware_steps
     ):
         raise AssertionError("malware advisory steps must not continue on error")
+    if any(isinstance(step, dict) and "if" in step for step in malware_steps):
+        raise AssertionError("malware advisory steps must not be conditional")
     if WORKFLOW_TOKEN_EXPRESSION.search(MALWARE_WORKFLOW.read_text(encoding="utf-8")):
         raise AssertionError("malware advisory workflow must not expose workflow tokens")
 

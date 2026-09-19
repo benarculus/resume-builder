@@ -190,13 +190,33 @@ def test_malware_workflow_rejects_any_token_alias(
         .read_text(encoding="utf-8")
         .replace(
             "        run: >-",
-            "        env:\n          TOKEN: ${{ secrets['DEPLOY_KEY'] }}\n        run: >-",
+            "        env:\n          TOKEN: ${{ github['token'] }}\n        run: >-",
         ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
 
     with pytest.raises(AssertionError, match="workflow tokens"):
+        validator.validate_dependency_check_workflows()
+
+
+def test_dependency_workflows_reject_conditional_job(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "dependency-review.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/dependency-review.yml")
+        .read_text(encoding="utf-8")
+        .replace(
+            "  dependency-review:\n",
+            "  dependency-review:\n    if: ${{ false }}\n",
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "DEPENDENCY_REVIEW_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="must not be conditional"):
         validator.validate_dependency_check_workflows()
 
 
