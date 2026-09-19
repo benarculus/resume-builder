@@ -81,6 +81,41 @@ def test_dependabot_policy_requires_weekly_actions_updates(
         validator.validate_dependabot_policy()
 
 
+def test_dependabot_policy_requires_schema_version_two(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "dependabot.yml"
+    weakened.write_text(
+        (ROOT / ".github/dependabot.yml")
+        .read_text(encoding="utf-8")
+        .replace("version: 2", "version: 1"),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "DEPENDABOT", weakened)
+
+    with pytest.raises(AssertionError, match="schema version 2"):
+        validator.validate_dependabot_policy()
+
+
+def test_dependabot_policy_rejects_duplicate_ecosystems(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "dependabot.yml"
+    original = (ROOT / ".github/dependabot.yml").read_text(encoding="utf-8")
+    pip_update = original[
+        original.index("  - package-ecosystem: pip") : original.index(
+            "  - package-ecosystem: github-actions"
+        )
+    ]
+    weakened.write_text(f"{original}\n{pip_update}", encoding="utf-8")
+    monkeypatch.setattr(validator, "DEPENDABOT", weakened)
+
+    with pytest.raises(AssertionError, match="duplicate package ecosystems"):
+        validator.validate_dependabot_policy()
+
+
 def test_dependency_workflows_require_approved_security_policy() -> None:
     validator = load_validator()
     validator.validate_dependency_check_workflows()
@@ -247,8 +282,30 @@ def test_malware_workflow_rejects_checker_command_substitution(
         (ROOT / ".github/workflows/advisory-malware.yml")
         .read_text(encoding="utf-8")
         .replace(
-            "          python scripts/check_malware_advisories.py",
-            "          echo scripts/check_malware_advisories.py",
+            '          && python "$RUNNER_TEMP/check_malware_advisories.py"',
+            '          && echo "$RUNNER_TEMP/check_malware_advisories.py"',
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="repository-owned checker"):
+        validator.validate_dependency_check_workflows()
+
+
+def test_malware_workflow_requires_trusted_checker_source(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "advisory-malware.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/advisory-malware.yml")
+        .read_text(encoding="utf-8")
+        .replace(
+            'git show "${{ github.event.pull_request.base.sha }}:scripts/check_malware_advisories.py"\n'
+            '          > "$RUNNER_TEMP/check_malware_advisories.py"\n'
+            '          && python "$RUNNER_TEMP/check_malware_advisories.py"',
+            "python scripts/check_malware_advisories.py",
         ),
         encoding="utf-8",
     )

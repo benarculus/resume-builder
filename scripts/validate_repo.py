@@ -121,6 +121,17 @@ def validate_requirement_pins() -> None:
 
 def validate_dependabot_policy() -> None:
     config = yaml.safe_load(DEPENDABOT.read_text(encoding="utf-8"))
+    if not isinstance(config, dict) or config.get("version") != 2:
+        raise AssertionError("Dependabot configuration must use schema version 2")
+    if not isinstance(config.get("updates"), list):
+        raise AssertionError("Dependabot configuration must define update entries")
+    ecosystems = [
+        update.get("package-ecosystem")
+        for update in config["updates"]
+        if isinstance(update, dict)
+    ]
+    if len(ecosystems) != len(set(ecosystems)):
+        raise AssertionError("Dependabot configuration must not duplicate package ecosystems")
     updates = {
         update["package-ecosystem"]: update
         for update in config["updates"]
@@ -207,7 +218,9 @@ def validate_dependency_check_workflows() -> None:
     ):
         raise AssertionError("malware advisory checkouts must not persist credentials")
     expected_command = (
-        'python scripts/check_malware_advisories.py '
+        'git show "${{ github.event.pull_request.base.sha }}:scripts/check_malware_advisories.py" '
+        '> "$RUNNER_TEMP/check_malware_advisories.py" '
+        '&& python "$RUNNER_TEMP/check_malware_advisories.py" '
         '--base-ref "${{ github.event.pull_request.base.sha }}" '
         '--head-ref "${{ github.event.pull_request.head.sha }}"'
     )
