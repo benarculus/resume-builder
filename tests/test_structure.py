@@ -61,6 +61,26 @@ def test_dependabot_policy_rejects_weakened_cooldown(
         validator.validate_dependabot_policy()
 
 
+def test_dependabot_policy_requires_weekly_actions_updates(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "dependabot.yml"
+    weakened.write_text(
+        (ROOT / ".github/dependabot.yml")
+        .read_text(encoding="utf-8")
+        .replace(
+            "  - package-ecosystem: github-actions\n    directory: /\n    schedule:\n      interval: weekly",
+            "  - package-ecosystem: github-actions\n    directory: /\n    schedule:\n      interval: monthly",
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "DEPENDABOT", weakened)
+
+    with pytest.raises(AssertionError, match="github-actions.*weekly"):
+        validator.validate_dependabot_policy()
+
+
 def test_dependency_workflows_require_approved_security_policy() -> None:
     validator = load_validator()
     validator.validate_dependency_check_workflows()

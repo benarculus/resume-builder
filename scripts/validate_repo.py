@@ -130,8 +130,9 @@ def validate_dependabot_policy() -> None:
     actions = updates.get("github-actions")
     if pip is None or actions is None:
         raise AssertionError("Dependabot must configure pip and github-actions updates")
-    if pip.get("schedule", {}).get("interval") != "weekly":
-        raise AssertionError("pip Dependabot updates must remain weekly")
+    for ecosystem, update in (("pip", pip), ("github-actions", actions)):
+        if update.get("schedule", {}).get("interval") != "weekly":
+            raise AssertionError(f"{ecosystem} Dependabot updates must remain weekly")
     if "target-branch" in pip or "target-branch" in actions:
         raise AssertionError("Dependabot updates must use the default branch")
 
