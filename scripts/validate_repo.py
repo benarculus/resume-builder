@@ -170,7 +170,11 @@ def validate_dependency_check_workflows() -> None:
     )
     if any(fragment not in malware for fragment in required_malware_fragments):
         raise AssertionError("malware advisory workflow must run the repository-owned checker on pull requests")
-    if "pull_request_target" in malware or "pull-requests: write" in malware:
+    if (
+        "pull_request_target" in malware
+        or "pull-requests: write" in malware
+        or "GITHUB_TOKEN" in malware
+    ):
         raise AssertionError("malware advisory workflow must use least-privilege pull request handling")
 
 

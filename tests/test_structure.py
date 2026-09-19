@@ -81,3 +81,23 @@ def test_dependency_workflows_reject_weakened_severity(
 
     with pytest.raises(AssertionError, match="approved event and policy"):
         validator.validate_dependency_check_workflows()
+
+
+def test_malware_workflow_rejects_token_exposure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "advisory-malware.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/advisory-malware.yml")
+        .read_text(encoding="utf-8")
+        .replace(
+            "        run: >-",
+            "        env:\n          GITHUB_TOKEN: ${{ github.token }}\n        run: >-",
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="least-privilege"):
+        validator.validate_dependency_check_workflows()
