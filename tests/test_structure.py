@@ -190,7 +190,7 @@ def test_malware_workflow_rejects_any_token_alias(
         .read_text(encoding="utf-8")
         .replace(
             "        run: >-",
-            "        env:\n          TOKEN: ${{ secrets.GITHUB_TOKEN }}\n        run: >-",
+            "        env:\n          TOKEN: ${{ secrets['DEPLOY_KEY'] }}\n        run: >-",
         ),
         encoding="utf-8",
     )

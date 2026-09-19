@@ -34,7 +34,7 @@ EXPECTED_SKILLS = {
 SHA_PINNED_ACTION = re.compile(r"uses:\s+[\w.-]+/[\w./-]+@[0-9a-f]{40}\s+#\s+v\d+\b")
 REQUIREMENT_PIN = re.compile(r"^[A-Za-z0-9_.-]+==[^<>=!~\s]+$")
 WORKFLOW_TOKEN_EXPRESSION = re.compile(
-    r"\$\{\{\s*(?:github\.token|secrets\.github_token)\s*\}\}",
+    r"\$\{\{\s*(?:github\.token|secrets(?:\s*\.|\s*\[))",
     re.IGNORECASE,
 )
 
