@@ -220,7 +220,7 @@ def validate_dependency_check_workflows() -> None:
     expected_command = (
         'CHECKER_REF="${{ github.event.pull_request.base.sha }}" '
         '&& if ! git cat-file -e "$CHECKER_REF:scripts/check_malware_advisories.py"; '
-        'then CHECKER_REF="5f6e9abcc238dceedf5b57b35f941b2a0c574a86"; fi '
+        'then CHECKER_REF="f907faf8ad98c56629b9ee9d7265f4f288de7da7"; fi '
         '&& git show "$CHECKER_REF:scripts/check_malware_advisories.py" '
         '> "$RUNNER_TEMP/check_malware_advisories.py" '
         '&& python "$RUNNER_TEMP/check_malware_advisories.py" '
