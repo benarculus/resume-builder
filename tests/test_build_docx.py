@@ -71,6 +71,23 @@ def test_build_docx_applies_resume_top_matter_formatting_and_order() -> None:
     assert document.paragraphs[0].runs[0].font.size.pt == 20
 
 
+def test_build_docx_omits_unapproved_clearance_from_top_matter() -> None:
+    renderer = load_renderer()
+    document = renderer.build_document(
+        {
+            "basics": {
+                "name": "Jordan Example",
+                "email": "jordan@example.com",
+                "location": {"city": "Austin", "region": "TX"},
+            },
+            "experience": [],
+        }
+    )
+
+    assert document.paragraphs[1].text == "jordan@example.com | Austin, TX"
+    assert "Clearance" not in document.paragraphs[1].text
+
+
 def test_build_docx_sorts_experience_and_renders_complete_education() -> None:
     renderer = load_renderer()
     document = renderer.build_document(
@@ -100,3 +117,24 @@ def test_build_docx_sorts_experience_and_renders_complete_education() -> None:
         "Bachelor of Science in Computer Science (BSCS) — Example University — 2024-05"
         in text
     )
+
+
+def test_build_docx_renders_start_and_end_dates_when_dates_field_is_absent() -> None:
+    renderer = load_renderer()
+    document = renderer.build_document(
+        {
+            "basics": {"name": "Jordan Example"},
+            "experience": [
+                {
+                    "company": "Current Co",
+                    "title": "Manager",
+                    "startDate": "2022-01",
+                    "endDate": "2024-06",
+                }
+            ],
+        }
+    )
+
+    assert "Manager — Current Co 2022-01–2024-06" in [
+        paragraph.text for paragraph in document.paragraphs
+    ]

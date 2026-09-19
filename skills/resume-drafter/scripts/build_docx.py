@@ -107,6 +107,16 @@ def education_details(item: dict[str, Any]) -> str:
     return " — ".join(str(value) for value in (qualification, institution, date) if value)
 
 
+def role_dates(role: dict[str, Any]) -> str:
+    if role.get("dates"):
+        return str(role["dates"])
+    start = role.get("startDate")
+    end = role.get("endDate") or "Present"
+    if start:
+        return f"{start}–{end}"
+    return ""
+
+
 def build_document(payload: dict[str, Any]) -> Document:
     document = Document()
     configure_document(document)
@@ -137,7 +147,7 @@ def build_document(payload: dict[str, Any]) -> Document:
                 for key in ("title", "company")
                 if (value := role.get(key))
             )
-            dates = str(role.get("dates", ""))
+            dates = role_dates(role)
             document.add_paragraph(f"{title} {dates}".strip())
             add_bullets(document, [str(item) for item in role.get("bullets", [])])
 
