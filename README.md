@@ -12,10 +12,15 @@ Install the Agent Plugins 1.0 package directly from this repository:
 copilot plugin install benarculus/resume-builder
 ```
 
-Verify that the plugin and skills are visible:
+Verify that the plugin is installed from your shell:
 
 ```bash
 copilot plugin list
+```
+
+Inside Copilot CLI, verify that the plugin and skills are visible:
+
+```text
 /plugin list
 /skills list
 ```
