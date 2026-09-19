@@ -302,7 +302,7 @@ def test_malware_workflow_requires_trusted_checker_source(
         (ROOT / ".github/workflows/advisory-malware.yml")
         .read_text(encoding="utf-8")
         .replace(
-            'git show "${{ github.event.pull_request.base.sha }}:scripts/check_malware_advisories.py"\n'
+            '&& git show "$CHECKER_REF:scripts/check_malware_advisories.py"\n'
             '          > "$RUNNER_TEMP/check_malware_advisories.py"\n'
             '          && python "$RUNNER_TEMP/check_malware_advisories.py"',
             "python scripts/check_malware_advisories.py",

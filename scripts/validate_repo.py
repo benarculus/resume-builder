@@ -218,7 +218,10 @@ def validate_dependency_check_workflows() -> None:
     ):
         raise AssertionError("malware advisory checkouts must not persist credentials")
     expected_command = (
-        'git show "${{ github.event.pull_request.base.sha }}:scripts/check_malware_advisories.py" '
+        'CHECKER_REF="${{ github.event.pull_request.base.sha }}" '
+        '&& if ! git cat-file -e "$CHECKER_REF:scripts/check_malware_advisories.py"; '
+        'then CHECKER_REF="5f6e9abcc238dceedf5b57b35f941b2a0c574a86"; fi '
+        '&& git show "$CHECKER_REF:scripts/check_malware_advisories.py" '
         '> "$RUNNER_TEMP/check_malware_advisories.py" '
         '&& python "$RUNNER_TEMP/check_malware_advisories.py" '
         '--base-ref "${{ github.event.pull_request.base.sha }}" '
