@@ -112,7 +112,28 @@ def test_dependabot_policy_rejects_duplicate_ecosystems(
     weakened.write_text(f"{original}\n{pip_update}", encoding="utf-8")
     monkeypatch.setattr(validator, "DEPENDABOT", weakened)
 
-    with pytest.raises(AssertionError, match="duplicate package ecosystems"):
+    with pytest.raises(AssertionError, match="one pip and one github-actions entry"):
+        validator.validate_dependabot_policy()
+
+
+def test_dependabot_policy_rejects_unapproved_group(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "dependabot.yml"
+    weakened.write_text(
+        (ROOT / ".github/dependabot.yml")
+        .read_text(encoding="utf-8")
+        .replace(
+            "    groups:\n",
+            "    groups:\n      pip-exception:\n        applies-to: version-updates\n        patterns: [python-docx]\n",
+            1,
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "DEPENDABOT", weakened)
+
+    with pytest.raises(AssertionError, match="pip Dependabot groups"):
         validator.validate_dependabot_policy()
 
 
@@ -410,12 +431,14 @@ def test_dependency_workflows_reject_expression_continue_on_error(
 
 
 def test_workflow_discovery_includes_yaml_extension(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    tmp_path: Path,
 ) -> None:
     validator = load_validator()
-    workflow = tmp_path / "unpinned.yaml"
+    workflow_directory = tmp_path / ".github" / "workflows"
+    workflow_directory.mkdir(parents=True)
+    workflow = workflow_directory / "unpinned.yaml"
     workflow.write_text("jobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n", encoding="utf-8")
-    monkeypatch.setattr(validator, "WORKFLOWS", (workflow,))
+    validator.WORKFLOWS = validator.workflow_paths(tmp_path)
 
     with pytest.raises(AssertionError, match="full SHA"):
         validator.validate_workflow_pins()

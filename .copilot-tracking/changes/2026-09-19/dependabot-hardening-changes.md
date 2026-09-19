@@ -68,7 +68,7 @@ Implemented the approved Dependabot policy, added known-vulnerability and known-
   * [tests/test_check_malware_advisories.py](../../../tests/test_check_malware_advisories.py)
 * What changed and why: Removed the workflow token injection and checker Authorization handling so the trusted checker extracted from the pull request base revision (or immutable bootstrap fallback) can only make unauthenticated public advisory requests; added the missing deterministic changed-dependency/no-advisory `main()` test.
 * Completion evidence: The request test asserts no Authorization header and the new fixture verifies exit `0` plus the bounded no-match message for a changed direct pin.
-* Validation: `python3 -m pytest -q tests/test_check_malware_advisories.py tests/test_structure.py` passed with 39 tests; the full suite passed with 41 tests after the final include-handling, advisory-pagination, and shell-policy regressions were added.
+* Validation: `python3 -m pytest -q tests/test_check_malware_advisories.py tests/test_structure.py` passed with 41 tests; the full suite passed with 43 tests after the final include-handling, advisory-pagination, shell-policy, timeout, and policy-completeness regressions were added.
 
 ## Implementation-Time Plan Updates
 
@@ -79,8 +79,8 @@ Implemented the approved Dependabot policy, added known-vulnerability and known-
 | Check | Scope | Status | Evidence or reason |
 |-------|-------|--------|--------------------|
 | `python3 scripts/validate_repo.py` | Repository structural policy | Passed | Validated skill packaging, all workflow SHA pins, Dependabot policy, dependency-gate workflows, exact direct pins, and job-requirements contract. |
-| `python3 -m pytest -q tests/test_check_malware_advisories.py tests/test_structure.py` | Accepted review remediation | Passed | 39 focused checker and workflow-policy tests passed, including unauthenticated requests, rejected unexpected includes, paginated advisory retrieval, and shell-policy enforcement. |
-| `python3 -m pytest -q` | Full Python test suite | Passed | 41 tests passed. |
+| `python3 -m pytest -q tests/test_check_malware_advisories.py tests/test_structure.py` | Accepted review remediation | Passed | 41 focused checker and workflow-policy tests passed, including unauthenticated requests, rejected unexpected includes, paginated advisory retrieval, shell-policy enforcement, connection timeouts, complete groups, and `.yaml` discovery. |
+| `python3 -m pytest -q` | Full Python test suite | Passed | 43 tests passed. |
 | Ruby `YAML.load_file` | Dependabot and new workflow YAML | Passed | Parsed `.github/dependabot.yml`, `.github/workflows/dependency-review.yml`, and `.github/workflows/advisory-malware.yml`. |
 | `git diff --check` | Full change set | Passed | No whitespace errors. |
 

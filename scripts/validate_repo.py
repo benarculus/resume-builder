@@ -15,13 +15,19 @@ SKILLS = ROOT / "skills"
 PLUGIN = ROOT / "plugin.json"
 MANIFEST = ROOT / ".github" / "plugin" / "marketplace.json"
 JOB_FIXTURE = ROOT / "skills" / "resume-drafter" / "scripts" / "fixtures" / "sample-job-requirements.json"
-WORKFLOWS = tuple(
-    sorted(
-        path
-        for pattern in ("*.yml", "*.yaml")
-        for path in (ROOT / ".github" / "workflows").glob(pattern)
+
+def workflow_paths(root: Path) -> tuple[Path, ...]:
+    """Return every GitHub Actions workflow, including both supported extensions."""
+    return tuple(
+        sorted(
+            path
+            for pattern in ("*.yml", "*.yaml")
+            for path in (root / ".github" / "workflows").glob(pattern)
+        )
     )
-)
+
+
+WORKFLOWS = workflow_paths(ROOT)
 REQUIREMENTS = (ROOT / "requirements.txt", ROOT / "requirements-dev.txt")
 DEPENDABOT = ROOT / ".github" / "dependabot.yml"
 DEPENDENCY_REVIEW_WORKFLOW = ROOT / ".github" / "workflows" / "dependency-review.yml"
@@ -130,8 +136,10 @@ def validate_dependabot_policy() -> None:
         for update in config["updates"]
         if isinstance(update, dict)
     ]
-    if len(ecosystems) != len(set(ecosystems)):
-        raise AssertionError("Dependabot configuration must not duplicate package ecosystems")
+    if ecosystems.count("pip") != 1 or ecosystems.count("github-actions") != 1:
+        raise AssertionError("Dependabot configuration must define one pip and one github-actions entry")
+    if set(ecosystems) != {"pip", "github-actions"}:
+        raise AssertionError("Dependabot configuration must only configure pip and github-actions")
     updates = {
         update["package-ecosystem"]: update
         for update in config["updates"]
@@ -158,14 +166,16 @@ def validate_dependabot_policy() -> None:
 
     for ecosystem, update in updates.items():
         groups = update.get("groups", {})
-        expected = {
+        expected_groups = {
             f"{ecosystem}-version-updates": "version-updates",
             f"{ecosystem}-security-updates": "security-updates",
         }
-        for name, applies_to in expected.items():
-            group = groups.get(name)
-            if group != {"applies-to": applies_to, "patterns": ["*"]}:
-                raise AssertionError(f"{ecosystem} Dependabot group {name} must match the approved policy")
+        expected_groups = {
+            name: {"applies-to": applies_to, "patterns": ["*"]}
+            for name, applies_to in expected_groups.items()
+        }
+        if groups != expected_groups:
+            raise AssertionError(f"{ecosystem} Dependabot groups must match the approved policy")
 
 
 def validate_dependency_check_workflows() -> None:
