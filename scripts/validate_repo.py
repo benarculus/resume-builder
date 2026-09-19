@@ -15,8 +15,11 @@ SKILLS = ROOT / "skills"
 PLUGIN = ROOT / "plugin.json"
 MANIFEST = ROOT / ".github" / "plugin" / "marketplace.json"
 JOB_FIXTURE = ROOT / "skills" / "resume-drafter" / "scripts" / "fixtures" / "sample-job-requirements.json"
-WORKFLOWS = (ROOT / ".github" / "workflows" / "ci.yml", ROOT / ".github" / "workflows" / "codeql-analysis.yml")
+WORKFLOWS = tuple(sorted((ROOT / ".github" / "workflows").glob("*.yml")))
 REQUIREMENTS = (ROOT / "requirements.txt", ROOT / "requirements-dev.txt")
+DEPENDABOT = ROOT / ".github" / "dependabot.yml"
+DEPENDENCY_REVIEW_WORKFLOW = ROOT / ".github" / "workflows" / "dependency-review.yml"
+MALWARE_WORKFLOW = ROOT / ".github" / "workflows" / "advisory-malware.yml"
 EXPECTED_SKILLS = {
     "career-document-builder",
     "job-requirements-planner",
@@ -106,6 +109,71 @@ def validate_requirement_pins() -> None:
                 raise AssertionError(f"{requirements}: direct dependency must use an exact == pin: {stripped}")
 
 
+def validate_dependabot_policy() -> None:
+    config = yaml.safe_load(DEPENDABOT.read_text(encoding="utf-8"))
+    updates = {
+        update["package-ecosystem"]: update
+        for update in config["updates"]
+        if isinstance(update, dict) and "package-ecosystem" in update
+    }
+    pip = updates.get("pip")
+    actions = updates.get("github-actions")
+    if pip is None or actions is None:
+        raise AssertionError("Dependabot must configure pip and github-actions updates")
+    if pip.get("schedule", {}).get("interval") != "weekly":
+        raise AssertionError("pip Dependabot updates must remain weekly")
+    if "target-branch" in pip or "target-branch" in actions:
+        raise AssertionError("Dependabot updates must use the default branch")
+
+    expected_cooldown = {
+        "default-days": 14,
+        "semver-patch-days": 14,
+        "semver-minor-days": 14,
+        "semver-major-days": 30,
+    }
+    if pip.get("cooldown") != expected_cooldown:
+        raise AssertionError("pip Dependabot cooldown must match the approved release-age policy")
+
+    for ecosystem, update in updates.items():
+        groups = update.get("groups", {})
+        expected = {
+            f"{ecosystem}-version-updates": "version-updates",
+            f"{ecosystem}-security-updates": "security-updates",
+        }
+        for name, applies_to in expected.items():
+            group = groups.get(name)
+            if group != {"applies-to": applies_to, "patterns": ["*"]}:
+                raise AssertionError(f"{ecosystem} Dependabot group {name} must match the approved policy")
+
+
+def validate_dependency_check_workflows() -> None:
+    review = DEPENDENCY_REVIEW_WORKFLOW.read_text(encoding="utf-8")
+    required_review_fragments = (
+        "on:\n  pull_request:",
+        "permissions:\n  contents: read",
+        "actions/dependency-review-action@",
+        "fail-on-severity: low",
+        "fail-on-scopes: runtime,development,unknown",
+    )
+    if any(fragment not in review for fragment in required_review_fragments):
+        raise AssertionError("dependency review workflow must enforce the approved event and policy")
+    if "pull_request_target" in review or "warn-only:" in review or "allow-ghsas:" in review:
+        raise AssertionError("dependency review workflow must not weaken the approved policy")
+
+    malware = MALWARE_WORKFLOW.read_text(encoding="utf-8")
+    required_malware_fragments = (
+        "on:\n  pull_request:",
+        "permissions:\n  contents: read",
+        "scripts/check_malware_advisories.py",
+        "--base-ref",
+        "--head-ref",
+    )
+    if any(fragment not in malware for fragment in required_malware_fragments):
+        raise AssertionError("malware advisory workflow must run the repository-owned checker on pull requests")
+    if "pull_request_target" in malware or "pull-requests: write" in malware:
+        raise AssertionError("malware advisory workflow must use least-privilege pull request handling")
+
+
 def validate_job_requirements_contract() -> None:
     from importlib.util import module_from_spec, spec_from_file_location
 
@@ -124,10 +192,13 @@ def main() -> int:
     validate_marketplace_manifest(plugin_manifest)
     validate_workflow_pins()
     validate_requirement_pins()
+    validate_dependabot_policy()
+    validate_dependency_check_workflows()
     validate_job_requirements_contract()
     print(
         f"Validated {len(skill_files)} skills, plugin and marketplace JSON, "
-        "workflow SHA pins, exact dependency pins, and job-requirements round-trip."
+        "workflow SHA pins, Dependabot policy, dependency gates, exact dependency pins, "
+        "and job-requirements round-trip."
     )
     return 0
 

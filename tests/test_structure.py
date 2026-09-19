@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR = ROOT / "scripts/validate_repo.py"
 
@@ -35,3 +37,47 @@ def test_requirement_pin_pattern_allows_exact_direct_pins_only() -> None:
     assert validator.REQUIREMENT_PIN.match("PyYAML==6.0.3")
     assert not validator.REQUIREMENT_PIN.match("PyYAML>=6,<7")
     assert not validator.REQUIREMENT_PIN.match("pytest~=8.4")
+
+
+def test_dependabot_policy_requires_approved_groups_and_cooldown() -> None:
+    validator = load_validator()
+    validator.validate_dependabot_policy()
+
+
+def test_dependabot_policy_rejects_weakened_cooldown(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "dependabot.yml"
+    weakened.write_text(
+        (ROOT / ".github/dependabot.yml")
+        .read_text(encoding="utf-8")
+        .replace("default-days: 14", "default-days: 1"),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "DEPENDABOT", weakened)
+
+    with pytest.raises(AssertionError, match="cooldown"):
+        validator.validate_dependabot_policy()
+
+
+def test_dependency_workflows_require_approved_security_policy() -> None:
+    validator = load_validator()
+    validator.validate_dependency_check_workflows()
+
+
+def test_dependency_workflows_reject_weakened_severity(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "dependency-review.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/dependency-review.yml")
+        .read_text(encoding="utf-8")
+        .replace("fail-on-severity: low", "fail-on-severity: high"),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "DEPENDENCY_REVIEW_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="approved event and policy"):
+        validator.validate_dependency_check_workflows()
