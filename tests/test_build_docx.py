@@ -138,3 +138,20 @@ def test_build_docx_renders_start_and_end_dates_when_dates_field_is_absent() -> 
     assert "Manager — Current Co 2022-01–2024-06" in [
         paragraph.text for paragraph in document.paragraphs
     ]
+
+
+def test_load_payload_rejects_abbreviation_only_education(tmp_path: Path) -> None:
+    renderer = load_renderer()
+    payload = tmp_path / "invalid-resume.json"
+    payload.write_text(
+        '{"basics": {"name": "Jordan Example"}, '
+        '"education": [{"institution": "Example University", "abbreviation": "BSCS"}]}',
+        encoding="utf-8",
+    )
+
+    try:
+        renderer.load_payload(payload)
+    except ValueError as error:
+        assert "full degree or credential" in str(error)
+    else:
+        raise AssertionError("abbreviation-only education should be rejected")

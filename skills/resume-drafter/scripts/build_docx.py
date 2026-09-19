@@ -21,6 +21,17 @@ def load_payload(path: Path) -> dict[str, Any]:
         raise ValueError("resume input must be a JSON object")
     if not isinstance(payload.get("basics"), dict):
         raise ValueError("resume input must include a basics object")
+    education = payload.get("education", [])
+    if not isinstance(education, list):
+        raise ValueError("resume education must be a list")
+    for index, item in enumerate(education):
+        if not isinstance(item, dict):
+            raise ValueError(f"education entry {index} must be an object")
+        if item.get("abbreviation") and not (item.get("degree") or item.get("studyType")):
+            raise ValueError(
+                f"education entry {index} must include a full degree or credential "
+                "when an abbreviation is provided"
+            )
     return payload
 
 
