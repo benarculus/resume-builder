@@ -99,7 +99,7 @@ def test_malware_workflow_rejects_token_exposure(
     )
     monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
 
-    with pytest.raises(AssertionError, match="must not expose github.token"):
+    with pytest.raises(AssertionError, match="must not expose workflow tokens"):
         validator.validate_dependency_check_workflows()
 
 
@@ -170,11 +170,43 @@ def test_malware_workflow_rejects_any_token_alias(
         .read_text(encoding="utf-8")
         .replace(
             "        run: >-",
-            "        env:\n          TOKEN: ${{ github.token }}\n        run: >-",
+            "        env:\n          TOKEN: ${{ secrets.GITHUB_TOKEN }}\n        run: >-",
         ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
 
-    with pytest.raises(AssertionError, match="github.token"):
+    with pytest.raises(AssertionError, match="workflow tokens"):
         validator.validate_dependency_check_workflows()
+
+
+def test_dependency_workflows_reject_expression_continue_on_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "dependency-review.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/dependency-review.yml")
+        .read_text(encoding="utf-8")
+        .replace(
+            "  dependency-review:\n",
+            "  dependency-review:\n    continue-on-error: ${{ true }}\n",
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "DEPENDENCY_REVIEW_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="continue on error"):
+        validator.validate_dependency_check_workflows()
+
+
+def test_workflow_discovery_includes_yaml_extension(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    workflow = tmp_path / "unpinned.yaml"
+    workflow.write_text("jobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n", encoding="utf-8")
+    monkeypatch.setattr(validator, "WORKFLOWS", (workflow,))
+
+    with pytest.raises(AssertionError, match="full SHA"):
+        validator.validate_workflow_pins()

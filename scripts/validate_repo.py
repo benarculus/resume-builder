@@ -15,7 +15,13 @@ SKILLS = ROOT / "skills"
 PLUGIN = ROOT / "plugin.json"
 MANIFEST = ROOT / ".github" / "plugin" / "marketplace.json"
 JOB_FIXTURE = ROOT / "skills" / "resume-drafter" / "scripts" / "fixtures" / "sample-job-requirements.json"
-WORKFLOWS = tuple(sorted((ROOT / ".github" / "workflows").glob("*.yml")))
+WORKFLOWS = tuple(
+    sorted(
+        path
+        for pattern in ("*.yml", "*.yaml")
+        for path in (ROOT / ".github" / "workflows").glob(pattern)
+    )
+)
 REQUIREMENTS = (ROOT / "requirements.txt", ROOT / "requirements-dev.txt")
 DEPENDABOT = ROOT / ".github" / "dependabot.yml"
 DEPENDENCY_REVIEW_WORKFLOW = ROOT / ".github" / "workflows" / "dependency-review.yml"
@@ -27,6 +33,10 @@ EXPECTED_SKILLS = {
 }
 SHA_PINNED_ACTION = re.compile(r"uses:\s+[\w.-]+/[\w./-]+@[0-9a-f]{40}\s+#\s+v\d+\b")
 REQUIREMENT_PIN = re.compile(r"^[A-Za-z0-9_.-]+==[^<>=!~\s]+$")
+WORKFLOW_TOKEN_EXPRESSION = re.compile(
+    r"\$\{\{\s*(?:github\.token|secrets\.github_token)\s*\}\}",
+    re.IGNORECASE,
+)
 
 
 def frontmatter(path: Path) -> dict:
@@ -160,7 +170,7 @@ def validate_dependency_check_workflows() -> None:
                 continue
             if "permissions" in job:
                 raise AssertionError(f"{name} workflow must not override permissions at job scope")
-            if job.get("continue-on-error") == "true":
+            if job.get("continue-on-error") not in (None, "false"):
                 raise AssertionError(f"{name} workflow job must not continue on error")
 
     review_steps = review["jobs"]["dependency-review"]["steps"]
@@ -173,7 +183,7 @@ def validate_dependency_check_workflows() -> None:
         "fail-on-scopes": "runtime,development,unknown",
     }:
         raise AssertionError("dependency review workflow must enforce the approved action policy")
-    if review_action.get("continue-on-error") == "true":
+    if review_action.get("continue-on-error") not in (None, "false"):
         raise AssertionError("dependency review action must not continue on error")
 
     malware_steps = malware["jobs"]["advisory-malware"]["steps"]
@@ -190,12 +200,12 @@ def validate_dependency_check_workflows() -> None:
     ):
         raise AssertionError("malware advisory workflow must run the repository-owned checker")
     if any(
-        isinstance(step, dict) and step.get("continue-on-error") == "true"
+        isinstance(step, dict) and step.get("continue-on-error") not in (None, "false")
         for step in malware_steps
     ):
         raise AssertionError("malware advisory steps must not continue on error")
-    if "${{ github.token }}" in MALWARE_WORKFLOW.read_text(encoding="utf-8"):
-        raise AssertionError("malware advisory workflow must not expose github.token")
+    if WORKFLOW_TOKEN_EXPRESSION.search(MALWARE_WORKFLOW.read_text(encoding="utf-8")):
+        raise AssertionError("malware advisory workflow must not expose workflow tokens")
 
 
 def validate_job_requirements_contract() -> None:
