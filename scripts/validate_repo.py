@@ -150,12 +150,18 @@ def validate_dependency_check_workflows() -> None:
     review = yaml.load(DEPENDENCY_REVIEW_WORKFLOW.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
     malware = yaml.load(MALWARE_WORKFLOW.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
     for name, workflow in (("dependency review", review), ("malware advisory", malware)):
-        if not isinstance(workflow, dict) or "pull_request" not in workflow.get("on", {}):
+        triggers = workflow.get("on", {}) if isinstance(workflow, dict) else {}
+        if "pull_request" not in triggers or "pull_request_target" in triggers:
             raise AssertionError(f"{name} workflow must run on pull_request")
         if workflow.get("permissions") != {"contents": "read"}:
             raise AssertionError(f"{name} workflow must use contents: read permissions")
-        if any(isinstance(job, dict) and "permissions" in job for job in workflow.get("jobs", {}).values()):
-            raise AssertionError(f"{name} workflow must not override permissions at job scope")
+        for job in workflow.get("jobs", {}).values():
+            if not isinstance(job, dict):
+                continue
+            if "permissions" in job:
+                raise AssertionError(f"{name} workflow must not override permissions at job scope")
+            if job.get("continue-on-error") == "true":
+                raise AssertionError(f"{name} workflow job must not continue on error")
 
     review_steps = review["jobs"]["dependency-review"]["steps"]
     review_action = next(
@@ -167,6 +173,8 @@ def validate_dependency_check_workflows() -> None:
         "fail-on-scopes": "runtime,development,unknown",
     }:
         raise AssertionError("dependency review workflow must enforce the approved action policy")
+    if review_action.get("continue-on-error") == "true":
+        raise AssertionError("dependency review action must not continue on error")
 
     malware_steps = malware["jobs"]["advisory-malware"]["steps"]
     checkout = next(
@@ -181,8 +189,13 @@ def validate_dependency_check_workflows() -> None:
         for fragment in ("scripts/check_malware_advisories.py", "--base-ref", "--head-ref")
     ):
         raise AssertionError("malware advisory workflow must run the repository-owned checker")
-    if "GITHUB_TOKEN" in MALWARE_WORKFLOW.read_text(encoding="utf-8"):
-        raise AssertionError("malware advisory workflow must not expose GITHUB_TOKEN")
+    if any(
+        isinstance(step, dict) and step.get("continue-on-error") == "true"
+        for step in malware_steps
+    ):
+        raise AssertionError("malware advisory steps must not continue on error")
+    if "${{ github.token }}" in MALWARE_WORKFLOW.read_text(encoding="utf-8"):
+        raise AssertionError("malware advisory workflow must not expose github.token")
 
 
 def validate_job_requirements_contract() -> None:

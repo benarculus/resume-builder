@@ -99,7 +99,7 @@ def test_malware_workflow_rejects_token_exposure(
     )
     monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
 
-    with pytest.raises(AssertionError, match="must not expose GITHUB_TOKEN"):
+    with pytest.raises(AssertionError, match="must not expose github.token"):
         validator.validate_dependency_check_workflows()
 
 
@@ -120,4 +120,61 @@ def test_dependency_workflows_reject_job_permission_override(
     monkeypatch.setattr(validator, "DEPENDENCY_REVIEW_WORKFLOW", weakened)
 
     with pytest.raises(AssertionError, match="job scope"):
+        validator.validate_dependency_check_workflows()
+
+
+def test_dependency_workflows_reject_pull_request_target(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "dependency-review.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/dependency-review.yml")
+        .read_text(encoding="utf-8")
+        .replace("  pull_request:\n", "  pull_request:\n  pull_request_target:\n"),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "DEPENDENCY_REVIEW_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="pull_request"):
+        validator.validate_dependency_check_workflows()
+
+
+def test_dependency_workflows_reject_continue_on_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "dependency-review.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/dependency-review.yml")
+        .read_text(encoding="utf-8")
+        .replace(
+            "  dependency-review:\n",
+            "  dependency-review:\n    continue-on-error: true\n",
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "DEPENDENCY_REVIEW_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="continue on error"):
+        validator.validate_dependency_check_workflows()
+
+
+def test_malware_workflow_rejects_any_token_alias(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "advisory-malware.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/advisory-malware.yml")
+        .read_text(encoding="utf-8")
+        .replace(
+            "        run: >-",
+            "        env:\n          TOKEN: ${{ github.token }}\n        run: >-",
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="github.token"):
         validator.validate_dependency_check_workflows()
