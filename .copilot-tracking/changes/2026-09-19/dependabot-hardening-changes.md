@@ -13,11 +13,11 @@
 * Declared invocation scope: accepted review findings RV-001 and RV-002
 * Completed scope markers: P01, P01-T01, P02, P02-T01, P02-T02, P03, P03-T01, P03-T02
 * All remaining active-plan markers: none
-* Status basis: The original full-plan tasks remain complete; RV-001's authentication path was verified against the current checker and RV-002's missing deterministic allow-path test was added and passed.
+* Status basis: The original full-plan tasks remain complete; RV-001's unauthenticated advisory request path and RV-002's missing deterministic allow-path test were verified.
 
 ## Execution Summary
 
-Implemented the approved Dependabot policy, added known-vulnerability and known-malware-advisory pull-request gates, and expanded deterministic validation and fixture coverage. Accepted RV-001 and RV-002 remediation is complete: the current checker derives a supported bearer header from `GITHUB_TOKEN`, and focused coverage includes its changed-dependency allow path. Passing workflow definitions are code-level evidence only; enabling GitHub branch protection to require them remains a separate user-approved repository-setting action.
+Implemented the approved Dependabot policy, added known-vulnerability and known-malware-advisory pull-request gates, and expanded deterministic validation and fixture coverage. Accepted RV-001 and RV-002 remediation is complete: the checker makes unauthenticated public advisory requests, and focused coverage includes its changed-dependency allow path. Passing workflow definitions are code-level evidence only; enabling GitHub branch protection to require them remains a separate user-approved repository-setting action.
 
 ## Completed Work
 
@@ -66,9 +66,9 @@ Implemented the approved Dependabot policy, added known-vulnerability and known-
 * Files:
   * [scripts/check_malware_advisories.py](../../../scripts/check_malware_advisories.py)
   * [tests/test_check_malware_advisories.py](../../../tests/test_check_malware_advisories.py)
-* What changed and why: Verified that the current checker uses a `Bearer` Authorization header derived from `GITHUB_TOKEN` rather than a masked placeholder, and added the missing deterministic changed-dependency/no-advisory `main()` test.
-* Completion evidence: The token request test passes with a test token and the new fixture verifies exit `0` plus the bounded no-match message for a changed direct pin.
-* Validation: `python3 -m pytest -q tests/test_check_malware_advisories.py` passed with 8 tests; the full suite passed with 17 tests.
+* What changed and why: Removed the workflow token injection and checker Authorization handling so the PR-controlled checker can only make unauthenticated public advisory requests; added the missing deterministic changed-dependency/no-advisory `main()` test.
+* Completion evidence: The request test asserts no Authorization header and the new fixture verifies exit `0` plus the bounded no-match message for a changed direct pin.
+* Validation: `python3 -m pytest -q tests/test_check_malware_advisories.py` passed with 8 tests; the full suite passed with 18 tests after least-privilege regression coverage was added.
 
 ## Implementation-Time Plan Updates
 
@@ -79,8 +79,8 @@ Implemented the approved Dependabot policy, added known-vulnerability and known-
 | Check | Scope | Status | Evidence or reason |
 |-------|-------|--------|--------------------|
 | `python3 scripts/validate_repo.py` | Repository structural policy | Passed | Validated skill packaging, all workflow SHA pins, Dependabot policy, dependency-gate workflows, exact direct pins, and job-requirements contract. |
-| `python3 -m pytest -q tests/test_check_malware_advisories.py` | Accepted review remediation | Passed | 8 focused checker tests passed, including token-bearing requests and a changed-dependency no-match path. |
-| `python3 -m pytest -q` | Full Python test suite | Passed | 17 tests passed. |
+| `python3 -m pytest -q tests/test_check_malware_advisories.py` | Accepted review remediation | Passed | 8 focused checker tests passed, including unauthenticated requests and a changed-dependency no-match path. |
+| `python3 -m pytest -q` | Full Python test suite | Passed | 18 tests passed. |
 | Ruby `YAML.load_file` | Dependabot and new workflow YAML | Passed | Parsed `.github/dependabot.yml`, `.github/workflows/dependency-review.yml`, and `.github/workflows/advisory-malware.yml`. |
 | `git diff --check` | Full change set | Passed | No whitespace errors. |
 

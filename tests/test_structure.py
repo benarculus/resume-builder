@@ -79,7 +79,7 @@ def test_dependency_workflows_reject_weakened_severity(
     )
     monkeypatch.setattr(validator, "DEPENDENCY_REVIEW_WORKFLOW", weakened)
 
-    with pytest.raises(AssertionError, match="approved event and policy"):
+    with pytest.raises(AssertionError, match="approved action policy"):
         validator.validate_dependency_check_workflows()
 
 
@@ -99,5 +99,25 @@ def test_malware_workflow_rejects_token_exposure(
     )
     monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
 
-    with pytest.raises(AssertionError, match="least-privilege"):
+    with pytest.raises(AssertionError, match="must not expose GITHUB_TOKEN"):
+        validator.validate_dependency_check_workflows()
+
+
+def test_dependency_workflows_reject_job_permission_override(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "dependency-review.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/dependency-review.yml")
+        .read_text(encoding="utf-8")
+        .replace(
+            "  dependency-review:\n",
+            "  dependency-review:\n    permissions: write-all\n",
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "DEPENDENCY_REVIEW_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="job scope"):
         validator.validate_dependency_check_workflows()

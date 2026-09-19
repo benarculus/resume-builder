@@ -147,35 +147,42 @@ def validate_dependabot_policy() -> None:
 
 
 def validate_dependency_check_workflows() -> None:
-    review = DEPENDENCY_REVIEW_WORKFLOW.read_text(encoding="utf-8")
-    required_review_fragments = (
-        "on:\n  pull_request:",
-        "permissions:\n  contents: read",
-        "actions/dependency-review-action@",
-        "fail-on-severity: low",
-        "fail-on-scopes: runtime,development,unknown",
-    )
-    if any(fragment not in review for fragment in required_review_fragments):
-        raise AssertionError("dependency review workflow must enforce the approved event and policy")
-    if "pull_request_target" in review or "warn-only:" in review or "allow-ghsas:" in review:
-        raise AssertionError("dependency review workflow must not weaken the approved policy")
+    review = yaml.load(DEPENDENCY_REVIEW_WORKFLOW.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    malware = yaml.load(MALWARE_WORKFLOW.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    for name, workflow in (("dependency review", review), ("malware advisory", malware)):
+        if not isinstance(workflow, dict) or "pull_request" not in workflow.get("on", {}):
+            raise AssertionError(f"{name} workflow must run on pull_request")
+        if workflow.get("permissions") != {"contents": "read"}:
+            raise AssertionError(f"{name} workflow must use contents: read permissions")
+        if any(isinstance(job, dict) and "permissions" in job for job in workflow.get("jobs", {}).values()):
+            raise AssertionError(f"{name} workflow must not override permissions at job scope")
 
-    malware = MALWARE_WORKFLOW.read_text(encoding="utf-8")
-    required_malware_fragments = (
-        "on:\n  pull_request:",
-        "permissions:\n  contents: read",
-        "scripts/check_malware_advisories.py",
-        "--base-ref",
-        "--head-ref",
+    review_steps = review["jobs"]["dependency-review"]["steps"]
+    review_action = next(
+        (step for step in review_steps if step.get("uses", "").startswith("actions/dependency-review-action@")),
+        None,
     )
-    if any(fragment not in malware for fragment in required_malware_fragments):
-        raise AssertionError("malware advisory workflow must run the repository-owned checker on pull requests")
-    if (
-        "pull_request_target" in malware
-        or "pull-requests: write" in malware
-        or "GITHUB_TOKEN" in malware
+    if not isinstance(review_action, dict) or review_action.get("with") != {
+        "fail-on-severity": "low",
+        "fail-on-scopes": "runtime,development,unknown",
+    }:
+        raise AssertionError("dependency review workflow must enforce the approved action policy")
+
+    malware_steps = malware["jobs"]["advisory-malware"]["steps"]
+    checkout = next(
+        (step for step in malware_steps if step.get("uses", "").startswith("actions/checkout@")),
+        None,
+    )
+    command = next((step.get("run") for step in malware_steps if isinstance(step, dict) and "run" in step), "")
+    if not isinstance(checkout, dict) or checkout.get("with", {}).get("persist-credentials") != "false":
+        raise AssertionError("malware advisory checkout must not persist credentials")
+    if not isinstance(command, str) or not all(
+        fragment in command
+        for fragment in ("scripts/check_malware_advisories.py", "--base-ref", "--head-ref")
     ):
-        raise AssertionError("malware advisory workflow must use least-privilege pull request handling")
+        raise AssertionError("malware advisory workflow must run the repository-owned checker")
+    if "GITHUB_TOKEN" in MALWARE_WORKFLOW.read_text(encoding="utf-8"):
+        raise AssertionError("malware advisory workflow must not expose GITHUB_TOKEN")
 
 
 def validate_job_requirements_contract() -> None:
