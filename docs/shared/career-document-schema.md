@@ -93,7 +93,7 @@ The example is illustrative. Existing JSON Resume-compatible fields such as `stu
 
 - `degree` or `studyType`: the full degree, credential, or training-program name.
 - `major` or `area`: the full major, field of study, or specialization when supplied.
-- `completionDate` or `date`: the verified completion date, preserving the precision available in the source.
+- `completionDate`, `endDate`, or `date`: the verified completion date, preserving the precision available in the source.
 - `institution`: the school, provider, or certifying organization.
 - `abbreviation`: an optional additional form only when it appears in the evidence or is explicitly confirmed and is useful for a verified job-description keyword.
 - `source`: required for custom education/training evidence and any normalized entry whose values are not already traceable to a source-bearing record.

@@ -64,8 +64,8 @@ The full approved plan is implemented. Skill guidance, shared education/training
   * [tests/test_build_docx.py](../../../tests/test_build_docx.py)
   * [skills/resume-drafter/scripts/fixtures/sample-resume.json](../../../skills/resume-drafter/scripts/fixtures/sample-resume.json)
 * What changed and why: Added tests for top matter order, optional clearance, margins, name size, reverse chronology, complete education rendering, and existing parser/section behavior.
-* Completion evidence: Nine DOCX tests and three repository structure tests pass.
-* Validation: `python3 -m pytest` passed with 12 tests after the follow-up CCR coverage.
+* Completion evidence: Eleven DOCX tests and three repository structure tests pass.
+* Validation: `python3 -m pytest` passed with 14 tests after the follow-up CCR coverage.
 
 ### Implementation choices recorded
 
@@ -99,9 +99,9 @@ The full approved plan is implemented. Skill guidance, shared education/training
 | Pre-edit repository inspection | Full plan | Passed | Approved plan, linked skill/schema/renderer/test references, and existing dependency state were read |
 | `git diff --check` | `P01-T01`, `P01-T02`, `P02-T01` | Passed | No whitespace errors after contract edits |
 | `python3 -m py_compile skills/resume-drafter/scripts/build_docx.py tests/test_build_docx.py` | `P02-T02`, `P03-T01` | Passed | Renderer and tests compile |
-| `python3 -m pytest tests/test_build_docx.py` | `P03-T01` | Passed | 9 focused DOCX tests passed after the latest CCR coverage |
+| `python3 -m pytest tests/test_build_docx.py` | `P03-T01` | Passed | 11 focused DOCX tests passed after the latest CCR coverage |
 | `python3 -m pytest tests/test_structure.py` | `P03-T01` | Passed | 3 repository structure tests passed |
-| `python3 -m pytest` | Full plan | Passed | Latest run passed 12 tests |
+| `python3 -m pytest` | Full plan | Passed | Latest run passed 14 tests |
 | Representative DOCX generation | `P02-T02` | Passed | Sample fixture rendered successfully with `python3` and `python-docx` 1.2.0 |
 
 ## Pre-Review Reconciliation

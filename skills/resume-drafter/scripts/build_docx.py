@@ -21,6 +21,12 @@ def load_payload(path: Path) -> dict[str, Any]:
         raise ValueError("resume input must be a JSON object")
     if not isinstance(payload.get("basics"), dict):
         raise ValueError("resume input must include a basics object")
+    experience = payload.get("experience", [])
+    if not isinstance(experience, list):
+        raise ValueError("resume experience must be a list")
+    for index, item in enumerate(experience):
+        if not isinstance(item, dict):
+            raise ValueError(f"experience entry {index} must be an object")
     education = payload.get("education", [])
     if not isinstance(education, list):
         raise ValueError("resume education must be a list")
@@ -33,7 +39,12 @@ def load_payload(path: Path) -> dict[str, Any]:
             )
         if not (item.get("institution") or item.get("organization")):
             raise ValueError(f"education entry {index} must include an institution or provider")
-        if not (item.get("completionDate") or item.get("date") or item.get("dates")):
+        if not (
+            item.get("completionDate")
+            or item.get("endDate")
+            or item.get("date")
+            or item.get("dates")
+        ):
             raise ValueError(f"education entry {index} must include a completion date")
     return payload
 
@@ -117,7 +128,13 @@ def education_details(item: dict[str, Any]) -> str:
     if abbreviation:
         qualification = f"{qualification} ({abbreviation})"
     institution = item.get("institution") or item.get("organization") or ""
-    date = item.get("completionDate") or item.get("date") or item.get("dates") or ""
+    date = (
+        item.get("completionDate")
+        or item.get("endDate")
+        or item.get("date")
+        or item.get("dates")
+        or ""
+    )
     return " — ".join(str(value) for value in (qualification, institution, date) if value)
 
 
@@ -154,7 +171,7 @@ def build_document(payload: dict[str, Any]) -> Document:
 
     if payload.get("experience"):
         add_heading(document, "Experience")
-        roles = [role for role in payload["experience"] if isinstance(role, dict)]
+        roles = payload["experience"]
         ordering = payload.get("experienceOrder", "reverseChronological")
         if ordering not in ("reverseChronological", "approved"):
             raise ValueError(
@@ -177,8 +194,10 @@ def build_document(payload: dict[str, Any]) -> Document:
 
     if payload.get("education"):
         add_heading(document, "Education")
-        items = [item for item in payload["education"] if isinstance(item, dict)]
-        for item in sorted_entries(items, ("completionDate", "date", "dates")):
+        items = payload["education"]
+        for item in sorted_entries(
+            items, ("completionDate", "endDate", "date", "dates")
+        ):
             document.add_paragraph(education_details(item))
 
     if payload.get("skills"):

@@ -180,6 +180,45 @@ def test_load_payload_rejects_incomplete_education_fields(tmp_path: Path) -> Non
         raise AssertionError("incomplete education should be rejected")
 
 
+def test_load_payload_rejects_non_object_experience_entries(tmp_path: Path) -> None:
+    renderer = load_renderer()
+    payload = tmp_path / "invalid-resume.json"
+    payload.write_text(
+        '{"basics": {"name": "Jordan Example"}, "experience": ["not a role"]}',
+        encoding="utf-8",
+    )
+
+    try:
+        renderer.load_payload(payload)
+    except ValueError as error:
+        assert "experience entry 0 must be an object" in str(error)
+    else:
+        raise AssertionError("non-object experience entries should be rejected")
+
+
+def test_build_docx_accepts_and_sorts_standard_education_end_date_fields(
+    tmp_path: Path,
+) -> None:
+    renderer = load_renderer()
+    payload_path = tmp_path / "standard-resume.json"
+    payload_path.write_text(
+        '{"basics": {"name": "Jordan Example"}, "education": ['
+        '{"institution": "Older University", "studyType": "Certificate", '
+        '"area": "Writing", "endDate": "2020-05"},'
+        '{"institution": "Example University", "studyType": "Bachelor of Science", '
+        '"area": "Computer Science", "endDate": "2024-05"}]}',
+        encoding="utf-8",
+    )
+    document = renderer.build_document(renderer.load_payload(payload_path))
+
+    text = [paragraph.text for paragraph in document.paragraphs]
+    assert text.index(
+        "Bachelor of Science in Computer Science — Example University — 2024-05"
+    ) < text.index(
+        "Certificate in Writing — Older University — 2020-05"
+    )
+
+
 def test_build_docx_preserves_user_approved_experience_order() -> None:
     renderer = load_renderer()
     document = renderer.build_document(
