@@ -4,6 +4,20 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 14
+      semver-patch-days: 14
+      semver-minor-days: 14
+      semver-major-days: 30
+    groups:
+      pip-version-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+      pip-security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
     open-pull-requests-limit: 5
     labels:
       - dependencies
@@ -12,6 +26,15 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      github-actions-version-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+      github-actions-security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
     open-pull-requests-limit: 5
     labels:
       - dependencies

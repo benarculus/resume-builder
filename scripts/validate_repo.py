@@ -15,8 +15,23 @@ SKILLS = ROOT / "skills"
 PLUGIN = ROOT / "plugin.json"
 MANIFEST = ROOT / ".github" / "plugin" / "marketplace.json"
 JOB_FIXTURE = ROOT / "skills" / "resume-drafter" / "scripts" / "fixtures" / "sample-job-requirements.json"
-WORKFLOWS = (ROOT / ".github" / "workflows" / "ci.yml", ROOT / ".github" / "workflows" / "codeql-analysis.yml")
+
+def workflow_paths(root: Path) -> tuple[Path, ...]:
+    """Return every GitHub Actions workflow, including both supported extensions."""
+    return tuple(
+        sorted(
+            path
+            for pattern in ("*.yml", "*.yaml")
+            for path in (root / ".github" / "workflows").glob(pattern)
+        )
+    )
+
+
+WORKFLOWS = workflow_paths(ROOT)
 REQUIREMENTS = (ROOT / "requirements.txt", ROOT / "requirements-dev.txt")
+DEPENDABOT = ROOT / ".github" / "dependabot.yml"
+DEPENDENCY_REVIEW_WORKFLOW = ROOT / ".github" / "workflows" / "dependency-review.yml"
+MALWARE_WORKFLOW = ROOT / ".github" / "workflows" / "advisory-malware.yml"
 EXPECTED_SKILLS = {
     "career-document-builder",
     "job-requirements-planner",
@@ -24,6 +39,10 @@ EXPECTED_SKILLS = {
 }
 SHA_PINNED_ACTION = re.compile(r"uses:\s+[\w.-]+/[\w./-]+@[0-9a-f]{40}\s+#\s+v\d+\b")
 REQUIREMENT_PIN = re.compile(r"^[A-Za-z0-9_.-]+==[^<>=!~\s]+$")
+WORKFLOW_TOKEN_REFERENCE = re.compile(
+    r"(?:github\s*\.\s*token|github\s*\[\s*['\"]token['\"]\s*\]|secrets(?:\s*\.|\s*\[)|tojson\s*\(\s*(?:secrets|github)\s*\))",
+    re.IGNORECASE,
+)
 
 
 def frontmatter(path: Path) -> dict:
@@ -106,6 +125,134 @@ def validate_requirement_pins() -> None:
                 raise AssertionError(f"{requirements}: direct dependency must use an exact == pin: {stripped}")
 
 
+def validate_dependabot_policy() -> None:
+    config = yaml.safe_load(DEPENDABOT.read_text(encoding="utf-8"))
+    if not isinstance(config, dict) or config.get("version") != 2:
+        raise AssertionError("Dependabot configuration must use schema version 2")
+    if not isinstance(config.get("updates"), list):
+        raise AssertionError("Dependabot configuration must define update entries")
+    ecosystems = [
+        update.get("package-ecosystem")
+        for update in config["updates"]
+        if isinstance(update, dict)
+    ]
+    if ecosystems.count("pip") != 1 or ecosystems.count("github-actions") != 1:
+        raise AssertionError("Dependabot configuration must define one pip and one github-actions entry")
+    if set(ecosystems) != {"pip", "github-actions"}:
+        raise AssertionError("Dependabot configuration must only configure pip and github-actions")
+    updates = {
+        update["package-ecosystem"]: update
+        for update in config["updates"]
+        if isinstance(update, dict) and "package-ecosystem" in update
+    }
+    pip = updates.get("pip")
+    actions = updates.get("github-actions")
+    if pip is None or actions is None:
+        raise AssertionError("Dependabot must configure pip and github-actions updates")
+    for ecosystem, update in (("pip", pip), ("github-actions", actions)):
+        if update.get("schedule", {}).get("interval") != "weekly":
+            raise AssertionError(f"{ecosystem} Dependabot updates must remain weekly")
+    if "target-branch" in pip or "target-branch" in actions:
+        raise AssertionError("Dependabot updates must use the default branch")
+
+    expected_cooldown = {
+        "default-days": 14,
+        "semver-patch-days": 14,
+        "semver-minor-days": 14,
+        "semver-major-days": 30,
+    }
+    if pip.get("cooldown") != expected_cooldown:
+        raise AssertionError("pip Dependabot cooldown must match the approved release-age policy")
+
+    for ecosystem, update in updates.items():
+        groups = update.get("groups", {})
+        expected = {
+            f"{ecosystem}-version-updates": {"applies-to": "version-updates", "patterns": ["*"]},
+            f"{ecosystem}-security-updates": {"applies-to": "security-updates", "patterns": ["*"]},
+        }
+        if groups != expected:
+            raise AssertionError(f"{ecosystem} Dependabot groups must match the approved policy")
+
+
+def validate_dependency_check_workflows() -> None:
+    review = yaml.load(DEPENDENCY_REVIEW_WORKFLOW.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    malware = yaml.load(MALWARE_WORKFLOW.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    for name, workflow in (("dependency review", review), ("malware advisory", malware)):
+        triggers = workflow.get("on", {}) if isinstance(workflow, dict) else {}
+        if triggers.get("pull_request") != "" or "pull_request_target" in triggers:
+            raise AssertionError(f"{name} workflow must run on pull_request")
+        if workflow.get("permissions") != {"contents": "read"}:
+            raise AssertionError(f"{name} workflow must use contents: read permissions")
+        if "defaults" in workflow:
+            raise AssertionError(f"{name} workflow must not override the default shell")
+        for job in workflow.get("jobs", {}).values():
+            if not isinstance(job, dict):
+                continue
+            if "permissions" in job:
+                raise AssertionError(f"{name} workflow must not override permissions at job scope")
+            if "defaults" in job:
+                raise AssertionError(f"{name} workflow job must not override the default shell")
+            if "if" in job:
+                raise AssertionError(f"{name} workflow job must not be conditional")
+            if job.get("continue-on-error") not in (None, "false"):
+                raise AssertionError(f"{name} workflow job must not continue on error")
+
+    review_steps = review["jobs"]["dependency-review"]["steps"]
+    review_action = next(
+        (step for step in review_steps if step.get("uses", "").startswith("actions/dependency-review-action@")),
+        None,
+    )
+    if not isinstance(review_action, dict) or review_action.get("with") != {
+        "fail-on-severity": "low",
+        "fail-on-scopes": "runtime,development,unknown",
+    }:
+        raise AssertionError("dependency review workflow must enforce the approved action policy")
+    if review_action.get("continue-on-error") not in (None, "false"):
+        raise AssertionError("dependency review action must not continue on error")
+    if "if" in review_action:
+        raise AssertionError("dependency review action must not be conditional")
+
+    malware_steps = malware["jobs"]["advisory-malware"]["steps"]
+    checkouts = [
+        step
+        for step in malware_steps
+        if isinstance(step, dict) and step.get("uses", "").startswith("actions/checkout@")
+    ]
+    checker_step = next(
+        (step for step in malware_steps if isinstance(step, dict) and "run" in step),
+        {},
+    )
+    command = checker_step.get("run", "")
+    if not checkouts or any(
+        checkout.get("with", {}).get("persist-credentials") != "false"
+        for checkout in checkouts
+    ):
+        raise AssertionError("malware advisory checkouts must not persist credentials")
+    expected_command = (
+        'CHECKER_REF="${{ github.event.pull_request.base.sha }}" '
+        '&& if ! git cat-file -e "$CHECKER_REF:scripts/check_malware_advisories.py"; '
+        'then CHECKER_REF="43594f1203945dad96639a9e4db61f72337bfc17"; fi '
+        '&& git show "$CHECKER_REF:scripts/check_malware_advisories.py" '
+        '> "$RUNNER_TEMP/check_malware_advisories.py" '
+        '&& python "$RUNNER_TEMP/check_malware_advisories.py" '
+        '--base-ref "${{ github.event.pull_request.base.sha }}" '
+        '--head-ref "${{ github.event.pull_request.head.sha }}"'
+    )
+    if not isinstance(command, str) or " ".join(command.split()) != expected_command:
+        raise AssertionError("malware advisory workflow must run the repository-owned checker")
+    if checker_step.get("shell") != "bash":
+        raise AssertionError("malware advisory checker must use bash")
+    if any(
+        isinstance(step, dict) and step.get("continue-on-error") not in (None, "false")
+        for step in malware_steps
+    ):
+        raise AssertionError("malware advisory steps must not continue on error")
+    if any(isinstance(step, dict) and "if" in step for step in malware_steps):
+        raise AssertionError("malware advisory steps must not be conditional")
+    if WORKFLOW_TOKEN_REFERENCE.search(MALWARE_WORKFLOW.read_text(encoding="utf-8")):
+        raise AssertionError("malware advisory workflow must not expose workflow tokens")
+
+
 def validate_job_requirements_contract() -> None:
     from importlib.util import module_from_spec, spec_from_file_location
 
@@ -124,10 +271,13 @@ def main() -> int:
     validate_marketplace_manifest(plugin_manifest)
     validate_workflow_pins()
     validate_requirement_pins()
+    validate_dependabot_policy()
+    validate_dependency_check_workflows()
     validate_job_requirements_contract()
     print(
         f"Validated {len(skill_files)} skills, plugin and marketplace JSON, "
-        "workflow SHA pins, exact dependency pins, and job-requirements round-trip."
+        "workflow SHA pins, Dependabot policy, dependency gates, exact dependency pins, "
+        "and job-requirements round-trip."
     )
     return 0
 
