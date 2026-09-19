@@ -143,6 +143,39 @@ def test_build_docx_renders_start_and_end_dates_when_dates_field_is_absent() -> 
     ]
 
 
+def test_build_docx_preserves_missing_role_end_date_and_sorts_by_recency() -> None:
+    renderer = load_renderer()
+    document = renderer.build_document(
+        {
+            "basics": {"name": "Jordan Example"},
+            "experience": [
+                {
+                    "company": "Older Co",
+                    "title": "Analyst",
+                    "startDate": "2018-01",
+                },
+                {
+                    "company": "Current Co",
+                    "title": "Manager",
+                    "dates": "2018-01–Present",
+                },
+                {
+                    "company": "Recent Co",
+                    "title": "Lead",
+                    "startDate": "2023-01",
+                    "endDate": "2024-06",
+                },
+            ],
+        }
+    )
+
+    text = [paragraph.text for paragraph in document.paragraphs]
+    assert text.index("Manager — Current Co 2018-01–Present") < text.index(
+        "Lead — Recent Co 2023-01–2024-06"
+    )
+    assert "Analyst — Older Co 2018-01" in text
+
+
 def test_load_payload_rejects_abbreviation_only_education(tmp_path: Path) -> None:
     renderer = load_renderer()
     payload = tmp_path / "invalid-resume.json"

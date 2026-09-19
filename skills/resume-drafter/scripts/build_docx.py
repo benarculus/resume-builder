@@ -57,10 +57,12 @@ def add_bullets(document: Document, values: list[str]) -> None:
 
 def date_sort_key(value: Any) -> tuple[int, str]:
     text = str(value or "")
-    match = re.search(r"(\d{4})(?:[-/](\d{1,2}))?", text)
-    if not match:
+    if re.search(r"\bpresent\b", text, re.IGNORECASE):
+        return (9999, "12")
+    matches = list(re.finditer(r"(\d{4})(?:[-/](\d{1,2}))?", text))
+    if not matches:
         return (0, "")
-    year, month = match.groups()
+    year, month = matches[-1].groups()
     return (int(year), f"{int(month or 0):02d}")
 
 
@@ -142,9 +144,11 @@ def role_dates(role: dict[str, Any]) -> str:
     if role.get("dates"):
         return str(role["dates"])
     start = role.get("startDate")
-    end = role.get("endDate") or "Present"
+    end = role.get("endDate")
     if start:
-        return f"{start}–{end}"
+        return f"{start}–{end}" if end else str(start)
+    if end:
+        return str(end)
     return ""
 
 
@@ -180,7 +184,7 @@ def build_document(payload: dict[str, Any]) -> Document:
         ordered_roles = (
             roles
             if ordering == "approved"
-            else sorted_entries(roles, ("startDate", "dates", "endDate"))
+            else sorted_entries(roles, ("endDate", "dates", "startDate"))
         )
         for role in ordered_roles:
             title = " — ".join(
