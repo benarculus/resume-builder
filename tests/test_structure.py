@@ -225,7 +225,7 @@ def test_malware_workflow_rejects_any_token_alias(
         .read_text(encoding="utf-8")
         .replace(
             "        run: >-",
-            "        env:\n          TOKEN: ${{ format('{0}', github['token']) }}\n        run: >-",
+            "        env:\n          TOKEN: ${{ toJSON(secrets) }}\n        run: >-",
         ),
         encoding="utf-8",
     )
