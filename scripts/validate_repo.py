@@ -159,13 +159,11 @@ def validate_dependabot_policy() -> None:
     for ecosystem, update in updates.items():
         groups = update.get("groups", {})
         expected = {
-            f"{ecosystem}-version-updates": "version-updates",
-            f"{ecosystem}-security-updates": "security-updates",
+            f"{ecosystem}-version-updates": {"applies-to": "version-updates", "patterns": ["*"]},
+            f"{ecosystem}-security-updates": {"applies-to": "security-updates", "patterns": ["*"]},
         }
-        for name, applies_to in expected.items():
-            group = groups.get(name)
-            if group != {"applies-to": applies_to, "patterns": ["*"]}:
-                raise AssertionError(f"{ecosystem} Dependabot group {name} must match the approved policy")
+        if groups != expected:
+            raise AssertionError(f"{ecosystem} Dependabot groups must match the approved policy")
 
 
 def validate_dependency_check_workflows() -> None:
