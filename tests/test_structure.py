@@ -137,6 +137,30 @@ def test_dependabot_policy_rejects_unapproved_group(
         validator.validate_dependabot_policy()
 
 
+def test_dependabot_policy_rejects_extra_dependency_group(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "dependabot.yml"
+    weakened.write_text(
+        (ROOT / ".github/dependabot.yml")
+        .read_text(encoding="utf-8")
+        .replace(
+            "    groups:\n      pip-version-updates:",
+            "    groups:\n      pip-single-package:\n"
+            "        applies-to: version-updates\n"
+            "        patterns:\n"
+            "          - some-package\n"
+            "      pip-version-updates:",
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "DEPENDABOT", weakened)
+
+    with pytest.raises(AssertionError, match="pip Dependabot groups must match the approved policy"):
+        validator.validate_dependabot_policy()
+
+
 def test_dependency_workflows_require_approved_security_policy() -> None:
     validator = load_validator()
     validator.validate_dependency_check_workflows()
@@ -430,15 +454,22 @@ def test_dependency_workflows_reject_expression_continue_on_error(
         validator.validate_dependency_check_workflows()
 
 
-def test_workflow_discovery_includes_yaml_extension(
-    tmp_path: Path,
-) -> None:
-    validator = load_validator()
-    workflow_directory = tmp_path / ".github" / "workflows"
-    workflow_directory.mkdir(parents=True)
-    workflow = workflow_directory / "unpinned.yaml"
-    workflow.write_text("jobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n", encoding="utf-8")
-    validator.WORKFLOWS = validator.workflow_paths(tmp_path)
+def test_workflow_discovery_includes_yaml_extension(tmp_path: Path) -> None:
+    scripts_dir = tmp_path / "scripts"
+    scripts_dir.mkdir()
+    copied_validator = scripts_dir / "validate_repo.py"
+    copied_validator.write_text(VALIDATOR.read_text(encoding="utf-8"), encoding="utf-8")
+
+    workflows_dir = tmp_path / ".github" / "workflows"
+    workflows_dir.mkdir(parents=True)
+    (workflows_dir / "unpinned.yaml").write_text(
+        "jobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n", encoding="utf-8"
+    )
+
+    spec = importlib.util.spec_from_file_location("validate_repo_yaml_glob", copied_validator)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
 
     with pytest.raises(AssertionError, match="full SHA"):
-        validator.validate_workflow_pins()
+        module.validate_workflow_pins()

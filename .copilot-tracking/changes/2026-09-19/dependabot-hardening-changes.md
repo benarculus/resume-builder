@@ -68,7 +68,19 @@ Implemented the approved Dependabot policy, added known-vulnerability and known-
   * [tests/test_check_malware_advisories.py](../../../tests/test_check_malware_advisories.py)
 * What changed and why: Removed the workflow token injection and checker Authorization handling so the trusted checker extracted from the pull request base revision (or immutable bootstrap fallback) can only make unauthenticated public advisory requests; added the missing deterministic changed-dependency/no-advisory `main()` test.
 * Completion evidence: The request test asserts no Authorization header and the new fixture verifies exit `0` plus the bounded no-match message for a changed direct pin.
-* Validation: `python3 -m pytest -q tests/test_check_malware_advisories.py tests/test_structure.py` passed with 41 tests; the full suite passed with 43 tests after the final include-handling, advisory-pagination, shell-policy, timeout, and policy-completeness regressions were added.
+* Validation: `python3 -m pytest -q tests/test_check_malware_advisories.py tests/test_structure.py` passed with 42 tests; the full suite passed with 44 tests after the final include-handling, advisory-pagination, shell-policy, timeout, and policy-completeness regressions were added.
+
+### Final review remediation
+
+* Related phase or task: RV-003
+* Files:
+  * [scripts/check_malware_advisories.py](../../../scripts/check_malware_advisories.py)
+  * [scripts/validate_repo.py](../../../scripts/validate_repo.py)
+  * [tests/test_check_malware_advisories.py](../../../tests/test_check_malware_advisories.py)
+  * [tests/test_structure.py](../../../tests/test_structure.py)
+* What changed and why: `default_request` now wraps the whole `urlopen` call so a connection-phase timeout is translated to `RuntimeError` (explicit error status `2`) instead of escaping as `TimeoutError`; Dependabot group validation now compares the complete group mapping per ecosystem so an extra unapproved group can no longer slip in alongside the approved version/security groups; the `.yaml` workflow-discovery regression now loads a copied validator module against a temporary repository tree so the module-level glob patterns are actually exercised.
+* Completion evidence: New `test_default_request_raises_for_connect_timeout` covers the connect-phase timeout path; `test_dependabot_policy_rejects_extra_dependency_group` covers an injected extra group; `test_workflow_discovery_includes_yaml_extension` now fails if `.yaml` discovery regresses to only `*.yml`.
+* Validation: `python3 -m pytest -q tests/test_check_malware_advisories.py tests/test_structure.py` passed with 42 tests; `python3 -m pytest -q` passed with 44 tests; `python3 scripts/validate_repo.py` passed.
 
 ## Implementation-Time Plan Updates
 
@@ -79,8 +91,8 @@ Implemented the approved Dependabot policy, added known-vulnerability and known-
 | Check | Scope | Status | Evidence or reason |
 |-------|-------|--------|--------------------|
 | `python3 scripts/validate_repo.py` | Repository structural policy | Passed | Validated skill packaging, all workflow SHA pins, Dependabot policy, dependency-gate workflows, exact direct pins, and job-requirements contract. |
-| `python3 -m pytest -q tests/test_check_malware_advisories.py tests/test_structure.py` | Accepted review remediation | Passed | 41 focused checker and workflow-policy tests passed, including unauthenticated requests, rejected unexpected includes, paginated advisory retrieval, shell-policy enforcement, connection timeouts, complete groups, and `.yaml` discovery. |
-| `python3 -m pytest -q` | Full Python test suite | Passed | 43 tests passed. |
+| `python3 -m pytest -q tests/test_check_malware_advisories.py tests/test_structure.py` | Accepted review remediation | Passed | 42 focused checker and workflow-policy tests passed, including unauthenticated requests, rejected unexpected includes, paginated advisory retrieval, connect-timeout classification, exact group-policy matching, and shell-policy enforcement. |
+| `python3 -m pytest -q` | Full Python test suite | Passed | 44 tests passed. |
 | Ruby `YAML.load_file` | Dependabot and new workflow YAML | Passed | Parsed `.github/dependabot.yml`, `.github/workflows/dependency-review.yml`, and `.github/workflows/advisory-malware.yml`. |
 | `git diff --check` | Full change set | Passed | No whitespace errors. |
 
