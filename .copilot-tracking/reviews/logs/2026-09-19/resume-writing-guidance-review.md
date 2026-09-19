@@ -62,12 +62,12 @@ No substantive `RV-xxx` findings are supported within the approved review bounda
 | [.copilot-tracking/plans/2026-09-19/resume-writing-guidance-plan.md](../../../plans/2026-09-19/resume-writing-guidance-plan.md) | Approved requirements, markers, and bounded implementation choices |
 | [.copilot-tracking/research/2026-09-19/resume-writing-guidance-research.md](../../../research/2026-09-19/resume-writing-guidance-research.md) | Source-linked research rules and constraints for evidence separation and resume drafting |
 | [.copilot-tracking/changes/2026-09-19/resume-writing-guidance-changes.md](../../../changes/2026-09-19/resume-writing-guidance-changes.md) | Change evidence, validation record, and completion-state reconciliation |
-| [docs/shared/career-document-schema.md](../../../docs/shared/career-document-schema.md) | Shared education/training and provenance contract |
-| [skills/career-document-builder/SKILL.md](../../../skills/career-document-builder/SKILL.md) | Career-document evidence preservation contract |
-| [skills/resume-drafter/SKILL.md](../../../skills/resume-drafter/SKILL.md) | Resume drafting, formatting, and keyword-use rules |
-| [skills/resume-drafter/scripts/build_docx.py](../../../skills/resume-drafter/scripts/build_docx.py) | Actual DOCX rendering behavior |
-| [skills/resume-drafter/scripts/fixtures/sample-resume.json](../../../skills/resume-drafter/scripts/fixtures/sample-resume.json) | Sample input and result contract |
-| [tests/test_build_docx.py](../../../tests/test_build_docx.py) | Demonstrated contract and renderer coverage |
+| [docs/shared/career-document-schema.md](../../../../docs/shared/career-document-schema.md) | Shared education/training and provenance contract |
+| [skills/career-document-builder/SKILL.md](../../../../skills/career-document-builder/SKILL.md) | Career-document evidence preservation contract |
+| [skills/resume-drafter/SKILL.md](../../../../skills/resume-drafter/SKILL.md) | Resume drafting, formatting, and keyword-use rules |
+| [skills/resume-drafter/scripts/build_docx.py](../../../../skills/resume-drafter/scripts/build_docx.py) | Actual DOCX rendering behavior |
+| [skills/resume-drafter/scripts/fixtures/sample-resume.json](../../../../skills/resume-drafter/scripts/fixtures/sample-resume.json) | Sample input and result contract |
+| [tests/test_build_docx.py](../../../../tests/test_build_docx.py) | Demonstrated contract and renderer coverage |
 
 ## Parent Decision Record
 

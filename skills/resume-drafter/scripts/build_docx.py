@@ -59,11 +59,15 @@ def date_sort_key(value: Any) -> tuple[int, str]:
     text = str(value or "")
     if re.search(r"\bpresent\b", text, re.IGNORECASE):
         return (9999, "12")
-    matches = list(re.finditer(r"(\d{4})(?:[-/](\d{1,2}))?", text))
-    if not matches:
+    years = re.findall(r"\d{4}", text)
+    if not years:
         return (0, "")
-    year, month = matches[-1].groups()
-    return (int(year), f"{int(month or 0):02d}")
+    year = int(years[-1])
+    if len(years) > 1:
+        return (year, "12")
+    month_match = re.search(r"\d{4}[-/](\d{1,2})(?!\d)", text)
+    month = month_match.group(1) if month_match else None
+    return (year, f"{int(month or 0):02d}")
 
 
 def sorted_entries(entries: list[dict[str, Any]], date_keys: tuple[str, ...]) -> list[dict[str, Any]]:
@@ -210,7 +214,7 @@ def build_document(payload: dict[str, Any]) -> Document:
 
     if payload.get("awards"):
         add_heading(document, "Awards")
-        for item in payload["awards"]:
+        for item in sorted_entries(payload["awards"], ("date",)):
             details = item.get("details") or item.get("title") or ""
             document.add_paragraph(str(details))
 
