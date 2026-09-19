@@ -27,8 +27,8 @@ Map verified career evidence to a specific role, make unsupported requirements v
 6. Write the user-approved intermediate JSON payload and run the bundled `build_docx.py` script:
 
    ```bash
-   python .github/skills/resume-drafter/scripts/build_docx.py \
-     --input .github/skills/resume-drafter/scripts/fixtures/sample-resume.json \
+   python skills/resume-drafter/scripts/build_docx.py \
+     --input skills/resume-drafter/scripts/fixtures/sample-resume.json \
      --output resume.docx
    ```
 

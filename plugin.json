@@ -1,0 +1,19 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "resume-builder",
+  "version": "0.1.0",
+  "description": "Anti-fabrication GitHub Copilot CLI skills for evidence-based resume building",
+  "author": {
+    "name": "benarculus",
+    "url": "https://github.com/benarculus"
+  },
+  "homepage": "https://github.com/benarculus/resume-builder",
+  "repository": "https://github.com/benarculus/resume-builder",
+  "license": "MIT",
+  "keywords": [
+    "resume",
+    "career",
+    "copilot-cli",
+    "skills"
+  ]
+}

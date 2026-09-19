@@ -4,32 +4,40 @@ GitHub Copilot CLI skills for building accurate, job-tailored resumes from a ver
 
 ## Install
 
-### Plain Agent Skills (portable path)
+### Direct plugin install
 
-Clone this repository and copy the three skill directories into the consumer repository:
+Install the Agent Plugins 1.0 package directly from this repository:
 
 ```bash
-mkdir -p .github/skills
-cp -R resume-builder/.github/skills/career-document-builder .github/skills/
-cp -R resume-builder/.github/skills/job-requirements-planner .github/skills/
-cp -R resume-builder/.github/skills/resume-drafter .github/skills/
+copilot plugin install benarculus/resume-builder
 ```
 
-The same directories can be installed under `~/.copilot/skills` for user-wide use. This `.github/skills/<skill-name>/SKILL.md` layout is the portable, standards-based installation path.
+Verify that the plugin and skills are visible:
 
-### Plugin bundle
+```bash
+copilot plugin list
+/plugin list
+/skills list
+```
 
-This repository also includes `.github/plugin/marketplace.json`, following the marketplace convention used by this environment. The manifest is metadata for hosts that explicitly support this convention; it is not an official GitHub CLI install format, and there is no portable `resume-builder` command that can load it across hosts.
+### Marketplace install
 
-The plain Agent Skills procedure above is the only self-service installation path documented by this repository. If your host supports this bundle convention, use that host's documented **Import marketplace/plugin from a repository** action with `https://github.com/benarculus/resume-builder`; verify that it reads `.github/plugin/marketplace.json`, then invoke the skills by their names. If the host does not provide that importer, use the portable copy procedure instead.
+This repository also includes official marketplace metadata at `.github/plugin/marketplace.json`. Add the marketplace repository, then install the plugin from that marketplace:
+
+```bash
+copilot plugin marketplace add benarculus/resume-builder
+copilot plugin install resume-builder@resume-builder
+```
+
+The marketplace manifest points at the repository root (`"."`), which contains `plugin.json` and the root `skills/` directories required by Agent Plugins 1.0.
 
 ## How the skills fit together
 
 The skills form a research → plan → implement pipeline:
 
-1. [`career-document-builder`](.github/skills/career-document-builder/SKILL.md) gathers and verifies evidence from resumes, reviews, awards, metrics, and user-provided LinkedIn content.
-2. [`job-requirements-planner`](.github/skills/job-requirements-planner/SKILL.md) reads one user-supplied job-posting link at a time and produces a structured requirements artifact.
-3. [`resume-drafter`](.github/skills/resume-drafter/SKILL.md) maps the career evidence to the requirements, asks clarifying questions, and renders an approved draft as a Word document.
+1. [`career-document-builder`](skills/career-document-builder/SKILL.md) gathers and verifies evidence from resumes, reviews, awards, metrics, and user-provided LinkedIn content.
+2. [`job-requirements-planner`](skills/job-requirements-planner/SKILL.md) reads one user-supplied job-posting link at a time and produces a structured requirements artifact.
+3. [`resume-drafter`](skills/resume-drafter/SKILL.md) maps the career evidence to the requirements, asks clarifying questions, and renders an approved draft as a Word document.
 
 Shared contracts live in [`docs/shared`](docs/shared/).
 
@@ -51,7 +59,7 @@ python scripts/validate_repo.py
 pytest -q
 ```
 
-The validation script checks skill frontmatter, the marketplace manifest, and the job-requirements producer/consumer contract. The test suite opens a generated `.docx` and checks its sections.
+The validation script checks skill frontmatter, `plugin.json`, marketplace metadata, workflow SHA pins, exact direct dependency pins, and the job-requirements producer/consumer contract. The test suite opens a generated `.docx` and checks its sections.
 
 ## License
 

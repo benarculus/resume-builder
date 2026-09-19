@@ -6,7 +6,7 @@ Thanks for helping improve `resume-builder`.
 
 - Do not include real resumes, performance reviews, LinkedIn exports, or other personal data. Use synthetic fixtures.
 - Read the [anti-fabrication contract](docs/shared/anti-fabrication-contract.md).
-- Keep the flattened skill layout: `.github/skills/<skill-name>/SKILL.md`.
+- Keep the Agent Plugins 1.0 skill layout: `skills/<skill-name>/SKILL.md`.
 - Update the shared contract under `docs/shared/` when changing an artifact interface.
 
 ## Local checks

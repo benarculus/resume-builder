@@ -120,6 +120,7 @@ Implemented and validated the public `resume-builder` GitHub Copilot CLI plugin.
 | GitHub security settings | `P06-T01` | Passed | API reports public visibility, secret scanning enabled, push protection enabled, Dependabot security updates enabled |
 | Branch protection | `P06-T01` | Passed | `main` requires one approving PR review, code-owner review, conversation resolution, and disallows force-push/deletion; admins remain unenforced for solo-maintainer recovery |
 | CI configuration | `P07-T02` | Passed | `.github/workflows/ci.yml` triggers on push and pull request and runs structural validation plus pytest |
+| `RV-001` README correction reconciliation | `P01-T02`, `P05-T01`, `FR-005`, `NFR-004` | Passed | Committed `README.md` explicitly identifies the portable `.github/skills` procedure as the only self-service path and limits bundle use to hosts that document the marketplace/plugin import action; `python3 scripts/validate_repo.py`, `python3 -m pytest -q` (`3 passed`), and `git diff --check` all pass |
 
 ## Pre-Review Reconciliation
 
