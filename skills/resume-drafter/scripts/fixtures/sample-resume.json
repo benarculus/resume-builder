@@ -2,7 +2,10 @@
   "basics": {
     "name": "Alex Example",
     "email": "alex@example.com",
-    "location": "Remote"
+    "location": {
+      "city": "Remote",
+      "region": "United States"
+    }
   },
   "summary": "Product leader with verified experience delivering customer-facing platforms.",
   "experience": [
@@ -18,7 +21,9 @@
   "education": [
     {
       "institution": "Example University",
-      "degree": "B.S. in Business"
+      "degree": "Bachelor of Science",
+      "major": "Business",
+      "completionDate": "2018-05"
     }
   ],
   "skills": ["Roadmapping", "Stakeholder management"],

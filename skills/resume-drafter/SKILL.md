@@ -48,6 +48,23 @@ Map verified career evidence to a specific role, make unsupported requirements v
 
 7. Deliver the `.docx` and the visible unmet-requirements note together so the user can decide whether to provide additional evidence.
 
+## Resume content and formatting rules
+
+- Derive every bullet from mapped, verified career evidence. Start with a precise past-tense action verb that matches the documented work, then front-load the relevant action, scope, method or tool, supported job keyword, and result or metric when available.
+- Draft the underlying evidence with STAR and What–How–Why, then select the concise Action-plus-Result wording for the resume when appropriate. Do not add a result, number, keyword, credential, or stronger verb merely because it appears in the job posting.
+- Prefer concise bullets that fit within two rendered lines at the selected document width. Remove nonessential context or split distinct accomplishments only when the evidence remains intact; do not silently discard a required or unsupported-to-omit fact. The career document remains verbose and is not subject to this limit.
+- Target 475–600 words for the tailored resume body, excluding contact metadata. Treat this as a target for selection and editing, not permission to omit mapped requirements or fabricate filler.
+- Use the five selection rules from the supplied resume guidance: show requirement fit, keep sections clear, prioritize the strongest relevant evidence, avoid buzzwords and unrelated detail, and reuse job-description keywords only when both the requirements artifact and career evidence support them. Keep unsupported or unmet requirements visible.
+- Use a focused, left-aligned structure with conventional section headings, reverse chronological ordering for dated entries by default, and consistent role, organization, date, typography, and emphasis treatment. Use bold, italics, underlining, or all caps intentionally rather than decoratively.
+- Use the following top matter order:
+  ```text
+  Name
+  email address | city, state | optional government security clearance info
+  ```
+  Include the clearance segment only when the user explicitly approves it and the career document supports it. Do not infer clearance level, status, or eligibility.
+- Education and training entries must show the fully spelled-out degree, credential, or program; fully spelled-out major, field, or specialization when supplied; completion date; and institution/provider. An abbreviation is optional and may appear only when evidence-supported and useful for a verified job-description keyword; it must not replace the full term.
+- Apply the renderer defaults of at least 0.5-inch margins, 10–12 pt body text, and 16–22 pt name text. Validate the generated document because line count depends on the selected font, margins, and available width; do not claim that a word or character count guarantees two lines.
+
 ## Constraints
 
 The script uses `python-docx`; install it with `python -m pip install python-docx`. Exact fonts and page length are ATS-safe implementation details, not permission to embellish content.
