@@ -24,6 +24,14 @@ Create one machine-friendly career document from the evidence the user supplies,
 7. Validate that `basics` is present, custom extension arrays are structurally valid, and each custom item has a source pointer.
 8. Present the complete career document for user review before treating it as ready for the resume drafter.
 
+## Evidence-writing rules
+
+- Preserve the complete verified context behind an accomplishment. When supplied, retain the situation or problem, task or responsibility, action and method, result or organizational impact, scope, tools, collaboration, and metrics. This is the evidence record and is not constrained by the resume's 475–600-word target or two-rendered-line bullet preference.
+- Use STAR (Situation, Task, Action, Result) and What–How–Why questions to organize discovery and clarify what the user did, how they did it, and why it mattered. Do not turn those prompts into inferred facts, stronger claims, or invented outcomes.
+- Preserve an accurate result when one is supplied, but do not require a result or quantified metric for every evidence item. Keep unresolved results unresolved and ask a focused question when the missing detail is material.
+- Keep the full spelled-out degree, credential, training program, major, field of study, or specialization as the canonical value. Preserve an abbreviation only as an additional evidence-supported form; it may be useful later for a verified job-description keyword, but it must never replace the full term.
+- Education and training records must retain the completion date and institution, school, provider, or certifying organization when supplied. Do not infer a date, institution, degree, major, or equivalency from an abbreviation or context.
+
 ## Inputs
 
 Accept files, pasted text, or explicit user answers. Do not fetch LinkedIn or infer profile information from a public page; the user must provide an export or pasted content.
