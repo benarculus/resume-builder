@@ -33,8 +33,8 @@ EXPECTED_SKILLS = {
 }
 SHA_PINNED_ACTION = re.compile(r"uses:\s+[\w.-]+/[\w./-]+@[0-9a-f]{40}\s+#\s+v\d+\b")
 REQUIREMENT_PIN = re.compile(r"^[A-Za-z0-9_.-]+==[^<>=!~\s]+$")
-WORKFLOW_TOKEN_EXPRESSION = re.compile(
-    r"\$\{\{\s*(?:github\s*\.\s*token|github\s*\[\s*['\"]token['\"]\s*\]|secrets(?:\s*\.|\s*\[))",
+WORKFLOW_TOKEN_REFERENCE = re.compile(
+    r"(?:github\s*\.\s*token|github\s*\[\s*['\"]token['\"]\s*\]|secrets(?:\s*\.|\s*\[))",
     re.IGNORECASE,
 )
 
@@ -162,7 +162,7 @@ def validate_dependency_check_workflows() -> None:
     malware = yaml.load(MALWARE_WORKFLOW.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
     for name, workflow in (("dependency review", review), ("malware advisory", malware)):
         triggers = workflow.get("on", {}) if isinstance(workflow, dict) else {}
-        if "pull_request" not in triggers or "pull_request_target" in triggers:
+        if triggers.get("pull_request") != "" or "pull_request_target" in triggers:
             raise AssertionError(f"{name} workflow must run on pull_request")
         if workflow.get("permissions") != {"contents": "read"}:
             raise AssertionError(f"{name} workflow must use contents: read permissions")
@@ -192,17 +192,26 @@ def validate_dependency_check_workflows() -> None:
         raise AssertionError("dependency review action must not be conditional")
 
     malware_steps = malware["jobs"]["advisory-malware"]["steps"]
-    checkout = next(
-        (step for step in malware_steps if step.get("uses", "").startswith("actions/checkout@")),
-        None,
+    checkouts = [
+        step
+        for step in malware_steps
+        if isinstance(step, dict) and step.get("uses", "").startswith("actions/checkout@")
+    ]
+    command = next(
+        (step.get("run") for step in malware_steps if isinstance(step, dict) and "run" in step),
+        "",
     )
-    command = next((step.get("run") for step in malware_steps if isinstance(step, dict) and "run" in step), "")
-    if not isinstance(checkout, dict) or checkout.get("with", {}).get("persist-credentials") != "false":
-        raise AssertionError("malware advisory checkout must not persist credentials")
-    if not isinstance(command, str) or not all(
-        fragment in command
-        for fragment in ("scripts/check_malware_advisories.py", "--base-ref", "--head-ref")
+    if not checkouts or any(
+        checkout.get("with", {}).get("persist-credentials") != "false"
+        for checkout in checkouts
     ):
+        raise AssertionError("malware advisory checkouts must not persist credentials")
+    expected_command = (
+        'python scripts/check_malware_advisories.py '
+        '--base-ref "${{ github.event.pull_request.base.sha }}" '
+        '--head-ref "${{ github.event.pull_request.head.sha }}"'
+    )
+    if not isinstance(command, str) or " ".join(command.split()) != expected_command:
         raise AssertionError("malware advisory workflow must run the repository-owned checker")
     if any(
         isinstance(step, dict) and step.get("continue-on-error") not in (None, "false")
@@ -211,7 +220,7 @@ def validate_dependency_check_workflows() -> None:
         raise AssertionError("malware advisory steps must not continue on error")
     if any(isinstance(step, dict) and "if" in step for step in malware_steps):
         raise AssertionError("malware advisory steps must not be conditional")
-    if WORKFLOW_TOKEN_EXPRESSION.search(MALWARE_WORKFLOW.read_text(encoding="utf-8")):
+    if WORKFLOW_TOKEN_REFERENCE.search(MALWARE_WORKFLOW.read_text(encoding="utf-8")):
         raise AssertionError("malware advisory workflow must not expose workflow tokens")
 
 
