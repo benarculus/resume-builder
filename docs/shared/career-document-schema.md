@@ -89,7 +89,7 @@ Education and training entries must preserve the canonical, fully spelled-out va
 }
 ```
 
-The example is illustrative. Existing JSON Resume-compatible fields such as `studyType`, `area`, and `date` remain accepted for compatibility, but new or normalized records should map them as follows:
+The example is illustrative. Existing JSON Resume-compatible fields such as `studyType`, `area`, and `endDate` remain accepted for compatibility, but new or normalized records should map them as follows:
 
 - `degree` or `studyType`: the full degree, credential, or training-program name.
 - `major` or `area`: the full major, field of study, or specialization when supplied.
