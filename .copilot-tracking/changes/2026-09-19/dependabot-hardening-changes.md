@@ -68,7 +68,7 @@ Implemented the approved Dependabot policy, added known-vulnerability and known-
   * [tests/test_check_malware_advisories.py](../../../tests/test_check_malware_advisories.py)
 * What changed and why: Removed the workflow token injection and checker Authorization handling so the trusted checker extracted from the pull request base revision (or immutable bootstrap fallback) can only make unauthenticated public advisory requests; added the missing deterministic changed-dependency/no-advisory `main()` test.
 * Completion evidence: The request test asserts no Authorization header and the new fixture verifies exit `0` plus the bounded no-match message for a changed direct pin.
-* Validation: `python3 -m pytest -q tests/test_check_malware_advisories.py tests/test_structure.py` passed with 42 tests; the full suite passed with 44 tests after the final include-handling, advisory-pagination, shell-policy, timeout, and policy-completeness regressions were added.
+* Validation: `python3 -m pytest -q tests/test_check_malware_advisories.py tests/test_structure.py` passed with 43 tests; the full suite passed with 45 tests after the final include-handling, advisory-pagination, shell-policy, timeout, policy-completeness, and package-scope regressions were added.
 
 ### Final review remediation
 
@@ -80,7 +80,7 @@ Implemented the approved Dependabot policy, added known-vulnerability and known-
   * [tests/test_structure.py](../../../tests/test_structure.py)
 * What changed and why: `default_request` now catches `TimeoutError` at both the outer scope (connect-phase, translated to "timed out while connecting") and inside the `with urlopen(...)` block around `response.read()` (read-phase, translated to "timed out while reading"), so both failure phases fail closed with an explicit `RuntimeError` and the response is always closed via the context manager; Dependabot group validation now compares the complete group mapping per ecosystem so an extra unapproved group can no longer slip in alongside the approved version/security groups; the `.yaml` workflow-discovery regression now loads a copied validator module against a temporary repository tree so the module-level glob patterns are actually exercised.
 * Completion evidence: New `test_default_request_raises_for_connect_timeout` covers the connect-phase timeout path; `test_dependabot_policy_rejects_extra_dependency_group` covers an injected extra group; `test_workflow_discovery_includes_yaml_extension` now fails if `.yaml` discovery regresses to only `*.yml`.
-* Validation: `python3 -m pytest -q tests/test_check_malware_advisories.py tests/test_structure.py` passed with 42 tests; `python3 -m pytest -q` passed with 44 tests; `python3 scripts/validate_repo.py` passed.
+* Validation: `python3 -m pytest -q tests/test_check_malware_advisories.py tests/test_structure.py` passed with 43 tests; `python3 -m pytest -q` passed with 45 tests; `python3 scripts/validate_repo.py` passed.
 
 ## Implementation-Time Plan Updates
 
@@ -91,8 +91,8 @@ Implemented the approved Dependabot policy, added known-vulnerability and known-
 | Check | Scope | Status | Evidence or reason |
 |-------|-------|--------|--------------------|
 | `python3 scripts/validate_repo.py` | Repository structural policy | Passed | Validated skill packaging, all workflow SHA pins, Dependabot policy, dependency-gate workflows, exact direct pins, and job-requirements contract. |
-| `python3 -m pytest -q tests/test_check_malware_advisories.py tests/test_structure.py` | Accepted review remediation | Passed | 42 focused checker and workflow-policy tests passed, including unauthenticated requests, rejected unexpected includes, paginated advisory retrieval, connect-timeout classification, exact group-policy matching, and shell-policy enforcement. |
-| `python3 -m pytest -q` | Full Python test suite | Passed | 44 tests passed. |
+| `python3 -m pytest -q tests/test_check_malware_advisories.py tests/test_structure.py` | Accepted review remediation | Passed | 43 focused checker and workflow-policy tests passed, including unauthenticated requests, rejected unexpected includes, paginated advisory retrieval, connect-timeout classification, exact group-policy matching, shell-policy enforcement, and per-query package scoping. |
+| `python3 -m pytest -q` | Full Python test suite | Passed | 45 tests passed. |
 | Ruby `YAML.load_file` | Dependabot and new workflow YAML | Passed | Parsed `.github/dependabot.yml`, `.github/workflows/dependency-review.yml`, and `.github/workflows/advisory-malware.yml`. |
 | `git diff --check` | Full change set | Passed | No whitespace errors. |
 
