@@ -22,8 +22,11 @@ def test_build_docx_creates_expected_sections(tmp_path: Path) -> None:
     assert output.stat().st_size > 0
     document = Document(output)
     text = "\n".join(paragraph.text for paragraph in document.paragraphs)
-    for section in ("Summary", "Experience", "Education", "Skills", "Awards", "Requirements not addressed"):
+    for section in ("Summary", "Experience", "Education", "Skills", "Awards"):
         assert section in text
+    # unmetRequirements is present in the fixture payload but must never be
+    # rendered into the document; it is disclosed only in the chat/summary step.
+    assert "Requirements not addressed" not in text
 
 
 def test_job_requirements_parser_accepts_shared_fixture() -> None:

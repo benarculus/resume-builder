@@ -16,7 +16,15 @@ Create one machine-friendly career document from the evidence the user supplies,
 ## Flow
 
 1. Ask the user to provide whatever source mix they have: prior resumes, performance-review text or files, award citations, metrics, and a LinkedIn export or pasted profile content.
-2. Inventory every source and assign stable source pointers before synthesizing facts.
+2. Inventory every source and assign stable source pointers before synthesizing facts. For a source that yields no extractable text through normal reading (an image file, or an image-based PDF page with no text layer), run the bundled OCR script before fact extraction continues:
+
+   ```bash
+   python skills/career-document-builder/scripts/ocr_extract.py \
+     --input path/to/scanned-source.pdf \
+     --output path/to/extracted-source.txt
+   ```
+
+   OCR output is raw extracted text, not verified fact; treat it the same as any other source and apply the ambiguity and clarifying-question rules in step 4 to whatever it returns.
 3. Extract candidate facts into the contract in [`docs/shared/career-document-schema.md`](../../../docs/shared/career-document-schema.md).
 4. For every ambiguous, conflicting, missing, or internally inconsistent fact, ask a focused clarifying question. Do not choose the most plausible answer.
 5. Preserve every supplied fact. If a fact does not fit the schema, keep it in an evidence note and ask the user how it should be represented.

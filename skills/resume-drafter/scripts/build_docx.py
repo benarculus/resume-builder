@@ -218,10 +218,6 @@ def build_document(payload: dict[str, Any]) -> Document:
             details = item.get("details") or item.get("title") or ""
             document.add_paragraph(str(details))
 
-    if payload.get("unmetRequirements"):
-        add_heading(document, "Requirements not addressed")
-        add_bullets(document, [str(item) for item in payload["unmetRequirements"]])
-
     return document
 
 

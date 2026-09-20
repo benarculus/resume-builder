@@ -78,7 +78,7 @@ flowchart LR
 This plan replaces the first run's ad hoc, macOS-only OCR improvisation and unenforced word target with two bundled, pinned scripts (`ocr_extract.py`, `validate_resume_length.py`), removes the in-document "Requirements not addressed" section in favor of chat-only disclosure, and adds an upfront section-selection question before any content is drafted.
 
 <!-- rpi:phase id=P01 -->
-### [ ] P01: Add repeatable, cross-platform OCR extraction for career-document-builder
+### [x] P01: Add repeatable, cross-platform OCR extraction for career-document-builder
 
 Goals:
 * `career-document-builder` has a bundled, pinned, cross-platform script for extracting text from scanned or image-based award, review, and metric sources, replacing the first run's ad hoc, macOS-only Vision-framework improvisation.
@@ -120,7 +120,7 @@ flowchart LR
 Highlighted work: `career-document-builder/SKILL.md`, the new `ocr_extract.py` script, and the pinned OCR dependency/system-package additions to `requirements.txt`, CI, and `README.md`.
 
 <!-- rpi:task id=P01-T01 -->
-#### [ ] P01-T01: Bundle a pinned, cross-platform OCR extraction script
+#### [x] P01-T01: Bundle a pinned, cross-platform OCR extraction script
 
 Goals:
 * A callable script converts an image or image-based PDF page into extracted text using a cross-platform OCR dependency, replacing the session's one-off Vision-framework script.
@@ -150,7 +150,7 @@ Dependencies:
 * None
 
 <!-- rpi:task id=P01-T02 -->
-#### [ ] P01-T02: Document the OCR extraction flow in career-document-builder
+#### [x] P01-T02: Document the OCR extraction flow in career-document-builder
 
 Goals:
 * `career-document-builder/SKILL.md` tells the agent to invoke the bundled OCR script for scanned or image-based sources instead of improvising a solution during the run.
@@ -173,7 +173,7 @@ Dependencies:
 * P01-T01
 
 <!-- rpi:task id=P01-T03 -->
-#### [ ] P01-T03: Pin OCR dependencies across requirements, CI, and README
+#### [x] P01-T03: Pin OCR dependencies across requirements, CI, and README
 
 Goals:
 * The OCR script's pip dependencies are exact-pinned in `requirements.txt`, its system-level OCR engine is installed in CI before tests run, and `README.md` documents the OS-level prerequisite for a plugin user.
@@ -201,7 +201,7 @@ Dependencies:
 * P01-T01
 
 <!-- rpi:task id=P01-T04 -->
-#### [ ] P01-T04: Add tests for the OCR extraction script
+#### [x] P01-T04: Add tests for the OCR extraction script
 
 Goals:
 * Automated tests exercise the new OCR script against at least one representative image input and at least one image-based (scanned) PDF input, verifying both return extracted text without depending on any macOS-only API or a second system-level PDF dependency.
@@ -223,7 +223,7 @@ Dependencies:
 * P01-T01
 
 <!-- rpi:phase id=P02 -->
-### [ ] P02: Enforce the resume word budget and add a render-based two-page cap
+### [x] P02: Enforce the resume word budget and add a render-based two-page cap
 
 Goals:
 * The tailored resume's word count and rendered page count are validated by a script before delivery, replacing the first run's silent overshoot to 1,086 words and four pages.
@@ -265,7 +265,7 @@ flowchart LR
 Highlighted work: the new `validate_resume_length.py` script, `resume-drafter/SKILL.md`'s length-enforcement instructions, and the pinned page-count/conversion dependency additions to `requirements.txt`, CI, and `README.md`.
 
 <!-- rpi:task id=P02-T01 -->
-#### [ ] P02-T01: Add a resume length-validation script
+#### [x] P02-T01: Add a resume length-validation script
 
 Goals:
 * A callable script computes the tailored resume body's word count and, by rendering the delivered `.docx` to PDF and counting pages, its actual rendered page count, then reports a pass/fail result against the 475–600-word target and 2-page cap.
@@ -307,7 +307,7 @@ Dependencies:
 * None
 
 <!-- rpi:task id=P02-T02 -->
-#### [ ] P02-T02: Wire length validation into the resume-drafter delivery flow
+#### [x] P02-T02: Wire length validation into the resume-drafter delivery flow
 
 Goals:
 * `resume-drafter/SKILL.md` instructs running the length-validation script after rendering and before declaring the resume delivered, and treats a failing result as a hard gate: the resume is revised and re-rendered until it passes, or the flow stops and asks the user to explicitly approve an exception before any over-budget delivery.
@@ -331,7 +331,7 @@ Dependencies:
 * P02-T01
 
 <!-- rpi:task id=P02-T03 -->
-#### [ ] P02-T03: Pin page-count and conversion dependencies across requirements, CI, and README
+#### [x] P02-T03: Pin page-count and conversion dependencies across requirements, CI, and README
 
 Goals:
 * The page-counting pip dependency is exact-pinned in `requirements.txt`, the headless document-conversion system tool is installed in CI before tests run, and `README.md` documents the OS-level prerequisite for a plugin user.
@@ -357,7 +357,7 @@ Dependencies:
 * P02-T01
 
 <!-- rpi:task id=P02-T04 -->
-#### [ ] P02-T04: Add tests for length validation
+#### [x] P02-T04: Add tests for length validation
 
 Goals:
 * Automated tests exercise the length-validation script against a resume payload known to be within budget and one known to exceed the word budget or page cap, and assert the script reports the correct pass/fail result for each.
@@ -378,7 +378,7 @@ Dependencies:
 * P02-T01
 
 <!-- rpi:phase id=P03 -->
-### [ ] P03: Move unmet-requirement disclosure out of the rendered resume
+### [x] P03: Move unmet-requirement disclosure out of the rendered resume
 
 Goals:
 * The delivered `.docx` no longer contains a "Requirements not addressed" section; unmet or partially mapped job requirements are surfaced only in the chat/summary response the agent already sends alongside the file.
@@ -419,7 +419,7 @@ flowchart LR
 Highlighted work: `build_docx.py`'s rendering (the "Requirements not addressed" section is removed), `resume-drafter/SKILL.md`'s delivery instructions, the retargeted `chatSummary` disclosure path, and the affected tests.
 
 <!-- rpi:task id=P03-T01 -->
-#### [ ] P03-T01: Remove the "Requirements not addressed" section from the rendered resume
+#### [x] P03-T01: Remove the "Requirements not addressed" section from the rendered resume
 
 Goals:
 * `build_docx.py` no longer renders any section derived from `unmetRequirements` into the `.docx` output; that field remains available in the payload for the chat/summary step to read.
@@ -442,7 +442,7 @@ Dependencies:
 * None
 
 <!-- rpi:task id=P03-T02 -->
-#### [ ] P03-T02: Update resume-drafter's delivery instructions for chat-only disclosure
+#### [x] P03-T02: Update resume-drafter's delivery instructions for chat-only disclosure
 
 Goals:
 * `resume-drafter/SKILL.md` instructs delivering unmet requirements as part of the chat/summary response accompanying the `.docx`, and no longer instructs rendering them into the document itself.
@@ -464,7 +464,7 @@ Dependencies:
 * P03-T01
 
 <!-- rpi:task id=P03-T03 -->
-#### [ ] P03-T03: Update tests and fixtures affected by the removal
+#### [x] P03-T03: Update tests and fixtures affected by the removal
 
 Goals:
 * The test suite reflects the new behavior: it asserts the "Requirements not addressed" section text is absent from a rendered `.docx` that includes `unmetRequirements`, and no longer asserts its presence.
@@ -485,7 +485,7 @@ Dependencies:
 * P03-T01
 
 <!-- rpi:phase id=P04 -->
-### [ ] P04: Add an upfront section-selection checkpoint before drafting
+### [x] P04: Add an upfront section-selection checkpoint before drafting
 
 Goals:
 * `resume-drafter` asks the user, before drafting any section content, which optional sections (Skills, Awards) they want included in this resume, instead of presenting a fully drafted set of sections at a single end-of-flow approval.
@@ -526,7 +526,7 @@ flowchart LR
 Highlighted work: `resume-drafter/SKILL.md`'s new upfront section-selection question.
 
 <!-- rpi:task id=P04-T01 -->
-#### [ ] P04-T01: Add an explicit section-selection question to the resume-drafter flow
+#### [x] P04-T01: Add an explicit section-selection question to the resume-drafter flow
 
 Goals:
 * Before any section content is drafted, the agent asks the user which optional sections (Skills and Awards, the two sections `build_docx.py` currently renders independently of Summary/Experience/Education) they want included in this specific resume, and uses that answer to scope drafting rather than deciding unilaterally.
@@ -571,7 +571,7 @@ Dependencies:
 | D3 | Move `unmetRequirements` rendering out of the `.docx`; surface it only in chat/summary | confirmed | user | Directly requested; no material tradeoff identified | [research](../../research/2026-09-20/resume-builder-repeatability-research.md) Decision D3 | Scopes P03 entirely |
 | D4 | Add an explicit section-selection checkpoint before drafting begins | confirmed | user | Directly requested; no material tradeoff identified | [research](../../research/2026-09-20/resume-builder-repeatability-research.md) Decision D4 | Scopes P04 entirely |
 | D5 | Adopt a 475–600-word body target paired with a hard 2-page cap, both validated before delivery | confirmed | user | Directly requested; combines the existing word rule with the new page rule | [research](../../research/2026-09-20/resume-builder-repeatability-research.md) Decision D5 | Scopes P02 entirely |
-| D6 | Exact pip package versions for the new OCR and page-counting dependencies (for example, the specific `pytesseract`, PDF-rasterization, and page-counting library versions) | proposed | agent | No user preference stated; the implementer should select current, actively maintained versions consistent with `python-docx==1.2.0`'s exact-pin style and verify they satisfy `scripts/validate_repo.py` | none | Affects the exact `requirements.txt` lines added in P01-T03 and P02-T03; does not block starting either task |
+| D6 | Exact pip package versions for the new OCR and page-counting dependencies (for example, the specific `pytesseract`, PDF-rasterization, and page-counting library versions) | resolved | agent | Implementer selected `pytesseract==0.3.13`, `pymupdf==1.26.5` (used for both PDF rasterization in P01 and PDF page counting in P02, avoiding a second pinned PDF library), and `pillow==11.3.0` — current, actively maintained releases satisfying `scripts/validate_repo.py`'s exact-pin check | [changes](../../changes/2026-09-20/resume-builder-repeatability-changes.md) | Resolved the exact `requirements.txt` lines added for P01-T03 and P02-T03 |
 
 ## Planning Readiness and Next Step
 
@@ -587,7 +587,7 @@ Dependencies:
 | Changes-record role | `.copilot-tracking/changes/2026-09-20/resume-builder-repeatability-changes.md` is implementation evidence |
 | Continuation owner | user |
 | Required gates or confirmations | none remaining; critique findings resolved without a residual open decision |
-| Next action | Run `/rpi-implement` with the changes-record path above |
+| Next action | Implementation complete for all four phases (see [.copilot-tracking/changes/2026-09-20/resume-builder-repeatability-changes.md](../../changes/2026-09-20/resume-builder-repeatability-changes.md)); run `/rpi-review` next |
 
 ## Goals
 

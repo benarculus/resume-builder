@@ -4,6 +4,23 @@ GitHub Copilot CLI skills for building accurate, job-tailored resumes from a ver
 
 ## Install
 
+### System prerequisites
+
+`career-document-builder`'s OCR extraction script and `resume-drafter`'s length-validation script depend on two system-level binaries that are not installable through `pip`:
+
+* [`tesseract-ocr`](https://github.com/tesseract-ocr/tesseract) — the OCR engine `pytesseract` wraps, used to extract text from scanned or image-based career-document sources.
+* [LibreOffice](https://www.libreoffice.org/) (providing the `soffice` CLI) — used to render a tailored resume `.docx` to PDF for an actual rendered page-count check.
+
+Install both with your OS package manager before running the skills locally, for example:
+
+```bash
+# Debian/Ubuntu
+sudo apt-get install -y tesseract-ocr libreoffice
+
+# macOS (Homebrew)
+brew install tesseract libreoffice
+```
+
 ### Direct plugin install
 
 Install the Agent Plugins 1.0 package directly from this repository:

@@ -7,14 +7,48 @@
       "region": "United States"
     }
   },
-  "summary": "Product leader with verified experience delivering customer-facing platforms.",
+  "summary": "Product leader with verified experience delivering customer-facing platforms across distributed engineering teams. Known for translating ambiguous customer problems into prioritized roadmaps, aligning cross-functional stakeholders, and shipping measurable improvements to adoption and retention across multiple product lines and regional markets.",
   "experience": [
     {
       "company": "Example Co",
-      "title": "Product Manager",
+      "title": "Senior Product Manager",
       "dates": "2020-2024",
       "bullets": [
-        "Led a cross-functional launch supported by the career document."
+        "Led a cross-functional launch supported by the career document, coordinating engineering, design, and support teams across three release cycles and two regional markets.",
+        "Defined a prioritized product roadmap from verified customer research, aligning stakeholders on scope and sequencing for two major platform releases delivered on schedule.",
+        "Partnered with engineering leadership to reduce onboarding friction, improving activation for new accounts across the supported product line and reducing support escalations.",
+        "Facilitated quarterly planning reviews with engineering and design leads, translating verified customer evidence into a documented set of prioritized initiatives.",
+        "Mentored two associate product managers on requirements discovery and stakeholder communication, using the same evidence-first approach documented here.",
+        "Documented verified before-and-after adoption metrics for each shipped initiative, sharing results with cross-functional stakeholders each quarter.",
+        "Ran structured discovery interviews with existing customers, capturing verified pain points that directly informed the following release's prioritized scope.",
+        "Facilitated quarterly planning reviews with engineering and design leads, translating verified customer evidence into a documented set of prioritized initiatives."
+      ]
+    },
+    {
+      "company": "Prior Example Co",
+      "title": "Product Manager",
+      "dates": "2016-2020",
+      "bullets": [
+        "Owned the requirements process for a customer-facing reporting feature, translating verified stakeholder feedback into a shipped release adopted across the account base.",
+        "Coordinated a phased rollout across regional markets, documenting verified adoption results for each phase before expanding scope to additional customer segments.",
+        "Ran structured discovery interviews with existing customers, capturing verified pain points that directly informed the following release's prioritized scope.",
+        "Facilitated quarterly planning reviews with engineering and design leads, translating verified customer evidence into a documented set of prioritized initiatives.",
+        "Mentored two associate product managers on requirements discovery and stakeholder communication, using the same evidence-first approach documented here.",
+        "Documented verified before-and-after adoption metrics for each shipped initiative, sharing results with cross-functional stakeholders each quarter.",
+        "Ran structured discovery interviews with existing customers, capturing verified pain points that directly informed the following release's prioritized scope."
+      ]
+    },
+    {
+      "company": "Earlier Example Co",
+      "title": "Associate Product Manager",
+      "dates": "2013-2016",
+      "bullets": [
+        "Supported discovery for a new reporting workflow, synthesizing verified customer interviews into a documented set of prioritized requirements for engineering.",
+        "Maintained a verified backlog of customer-reported issues, working with support and engineering to close the highest-impact items each release cycle.",
+        "Documented verified before-and-after adoption metrics for each shipped initiative, sharing results with cross-functional stakeholders each quarter.",
+        "Ran structured discovery interviews with existing customers, capturing verified pain points that directly informed the following release's prioritized scope.",
+        "Facilitated quarterly planning reviews with engineering and design leads, translating verified customer evidence into a documented set of prioritized initiatives.",
+        "Mentored two associate product managers on requirements discovery and stakeholder communication, using the same evidence-first approach documented here."
       ]
     }
   ],
@@ -26,12 +60,21 @@
       "completionDate": "2018-05"
     }
   ],
-  "skills": ["Roadmapping", "Stakeholder management"],
+  "skills": [
+    "Roadmapping",
+    "Stakeholder management",
+    "Customer research",
+    "Cross-functional leadership",
+    "Release planning",
+    "Requirements discovery"
+  ],
   "awards": [
     {
       "title": "Customer Impact Award",
-      "details": "Recognized for customer impact."
+      "details": "Recognized for customer impact delivered through a verified, evidence-backed platform launch across a distributed regional customer base."
     }
   ],
-  "unmetRequirements": ["RQ-002"]
+  "unmetRequirements": [
+    "RQ-002"
+  ]
 }
