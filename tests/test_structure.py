@@ -183,24 +183,17 @@ def test_dependency_workflows_reject_weakened_severity(
         validator.validate_dependency_check_workflows()
 
 
-def test_malware_workflow_rejects_token_exposure(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_malware_workflow_requires_approved_reusable_release() -> None:
     validator = load_validator()
-    weakened = tmp_path / "advisory-malware.yml"
-    weakened.write_text(
-        (ROOT / ".github/workflows/advisory-malware.yml")
-        .read_text(encoding="utf-8")
-        .replace(
-            "        run: >-",
-            "        env:\n          GITHUB_TOKEN: ${{ github.token }}\n        run: >-",
-        ),
-        encoding="utf-8",
+    validator.validate_dependency_check_workflows()
+    workflow = (ROOT / ".github/workflows/advisory-malware.yml").read_text(encoding="utf-8")
+    assert validator.MALWARE_REUSABLE_OWNER_REPO == "benarculus/malware-advisory-check"
+    assert validator.MALWARE_REUSABLE_WORKFLOW.endswith(
+        "/.github/workflows/reusable-malware-advisory-check.yml"
     )
-    monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
-
-    with pytest.raises(AssertionError, match="must not expose workflow tokens"):
-        validator.validate_dependency_check_workflows()
+    assert validator.MALWARE_REUSABLE_SHA == "7a825d2fdb99f459bb4595cf999a5faaa883d87f"
+    assert len(validator.MALWARE_REUSABLE_SHA) == 40
+    assert "# v1.0.1" in workflow
 
 
 def test_dependency_workflows_reject_job_permission_override(
@@ -220,6 +213,23 @@ def test_dependency_workflows_reject_job_permission_override(
     monkeypatch.setattr(validator, "DEPENDENCY_REVIEW_WORKFLOW", weakened)
 
     with pytest.raises(AssertionError, match="job scope"):
+        validator.validate_dependency_check_workflows()
+
+
+def test_malware_workflow_rejects_broadened_permissions(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "advisory-malware.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/advisory-malware.yml")
+        .read_text(encoding="utf-8")
+        .replace("  contents: read", "  contents: write"),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="contents: read permissions"):
         validator.validate_dependency_check_workflows()
 
 
@@ -260,7 +270,77 @@ def test_dependency_workflows_reject_continue_on_error(
         validator.validate_dependency_check_workflows()
 
 
-def test_malware_workflow_rejects_any_token_alias(
+def test_malware_workflow_rejects_mutable_reusable_ref(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "advisory-malware.yml"
+    approved = validator.MALWARE_REUSABLE_USES
+    weakened.write_text(
+        (ROOT / ".github/workflows/advisory-malware.yml")
+        .read_text(encoding="utf-8")
+        .replace(approved, f"{validator.MALWARE_REUSABLE_WORKFLOW}@main"),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="approved v1.0.1 release SHA"):
+        validator.validate_dependency_check_workflows()
+
+
+def test_malware_workflow_rejects_short_reusable_ref(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "advisory-malware.yml"
+    approved = validator.MALWARE_REUSABLE_USES
+    weakened.write_text(
+        (ROOT / ".github/workflows/advisory-malware.yml")
+        .read_text(encoding="utf-8")
+        .replace(approved, f"{validator.MALWARE_REUSABLE_WORKFLOW}@{validator.MALWARE_REUSABLE_SHA[:12]}"),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="approved v1.0.1 release SHA"):
+        validator.validate_dependency_check_workflows()
+
+
+def test_malware_workflow_rejects_missing_release_comment(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "advisory-malware.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/advisory-malware.yml")
+        .read_text(encoding="utf-8")
+        .replace(" # v1.0.1", ""),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="approved v1.0.1 release SHA"):
+        validator.validate_dependency_check_workflows()
+
+
+def test_malware_workflow_rejects_wrong_reusable_owner(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "advisory-malware.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/advisory-malware.yml")
+        .read_text(encoding="utf-8")
+        .replace("benarculus/malware-advisory-check", "someone/malware-advisory-check"),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="approved v1.0.1 release SHA"):
+        validator.validate_dependency_check_workflows()
+
+
+def test_malware_workflow_rejects_secret_inheritance(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     validator = load_validator()
@@ -269,14 +349,68 @@ def test_malware_workflow_rejects_any_token_alias(
         (ROOT / ".github/workflows/advisory-malware.yml")
         .read_text(encoding="utf-8")
         .replace(
-            "        run: >-",
-            "        env:\n          TOKEN: ${{ toJSON(secrets) }}\n        run: >-",
+            "    secrets:\n      github-token: ${{ secrets.GITHUB_TOKEN }}",
+            "    secrets: inherit",
         ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
 
+    with pytest.raises(AssertionError, match="inherit secrets"):
+        validator.validate_dependency_check_workflows()
+
+
+def test_malware_workflow_rejects_token_leakage_outside_named_mapping(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "advisory-malware.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/advisory-malware.yml")
+        .read_text(encoding="utf-8")
+        .replace("name: Advisory Malware Check", "name: ${{ github.token }}"),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
+
     with pytest.raises(AssertionError, match="workflow tokens"):
+        validator.validate_dependency_check_workflows()
+
+
+def test_malware_workflow_rejects_wrong_token_secret_name(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "advisory-malware.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/advisory-malware.yml")
+        .read_text(encoding="utf-8")
+        .replace("github-token: ${{ secrets.GITHUB_TOKEN }}", "token: ${{ secrets.GITHUB_TOKEN }}"),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="named github-token secret"):
+        validator.validate_dependency_check_workflows()
+
+
+def test_malware_workflow_rejects_wrong_base_head_mapping(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "advisory-malware.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/advisory-malware.yml")
+        .read_text(encoding="utf-8")
+        .replace(
+            "base-ref: ${{ github.event.pull_request.base.sha }}",
+            "base-ref: ${{ github.base_ref }}",
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="PR base/head SHA inputs"):
         validator.validate_dependency_check_workflows()
 
 
@@ -297,7 +431,7 @@ def test_dependency_workflows_reject_filtered_pull_request(
         validator.validate_dependency_check_workflows()
 
 
-def test_malware_workflow_rejects_second_credential_persisting_checkout(
+def test_malware_workflow_rejects_local_checker_execution(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     validator = load_validator()
@@ -306,19 +440,19 @@ def test_malware_workflow_rejects_second_credential_persisting_checkout(
         (ROOT / ".github/workflows/advisory-malware.yml")
         .read_text(encoding="utf-8")
         .replace(
-            "      - name: Check changed Python dependencies",
-            "      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4\n"
-            "      - name: Check changed Python dependencies",
+            "    with:\n",
+            "    runs-on: ubuntu-latest\n    steps:\n"
+            "      - run: python scripts/check_malware_advisories.py\n    with:\n",
         ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
 
-    with pytest.raises(AssertionError, match="checkouts"):
+    with pytest.raises(AssertionError, match="local checker"):
         validator.validate_dependency_check_workflows()
 
 
-def test_malware_workflow_rejects_checker_command_substitution(
+def test_malware_workflow_rejects_credential_persistence(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     validator = load_validator()
@@ -327,18 +461,18 @@ def test_malware_workflow_rejects_checker_command_substitution(
         (ROOT / ".github/workflows/advisory-malware.yml")
         .read_text(encoding="utf-8")
         .replace(
-            '          && python "$RUNNER_TEMP/check_malware_advisories.py"',
-            '          && echo "$RUNNER_TEMP/check_malware_advisories.py"',
+            "    name: Advisory Malware Check\n",
+            "    name: Advisory Malware Check\n    persist-credentials: true\n",
         ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
 
-    with pytest.raises(AssertionError, match="repository-owned checker"):
+    with pytest.raises(AssertionError, match="credential persistence"):
         validator.validate_dependency_check_workflows()
 
 
-def test_malware_workflow_requires_trusted_checker_source(
+def test_malware_workflow_rejects_conditional_job(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     validator = load_validator()
@@ -347,54 +481,18 @@ def test_malware_workflow_requires_trusted_checker_source(
         (ROOT / ".github/workflows/advisory-malware.yml")
         .read_text(encoding="utf-8")
         .replace(
-            '&& git show "$CHECKER_REF:scripts/check_malware_advisories.py"\n'
-            '          > "$RUNNER_TEMP/check_malware_advisories.py"\n'
-            '          && python "$RUNNER_TEMP/check_malware_advisories.py"',
-            "python scripts/check_malware_advisories.py",
+            "    name: Advisory Malware Check\n",
+            "    name: Advisory Malware Check\n    if: ${{ false }}\n",
         ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
 
-    with pytest.raises(AssertionError, match="repository-owned checker"):
+    with pytest.raises(AssertionError, match="must not be conditional"):
         validator.validate_dependency_check_workflows()
 
 
-def test_malware_workflow_rejects_custom_checker_shell(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    validator = load_validator()
-    weakened = tmp_path / "advisory-malware.yml"
-    weakened.write_text(
-        (ROOT / ".github/workflows/advisory-malware.yml")
-        .read_text(encoding="utf-8")
-        .replace("        shell: bash\n", "        shell: bash -c 'true {0}'\n"),
-        encoding="utf-8",
-    )
-    monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
-
-    with pytest.raises(AssertionError, match="must use bash"):
-        validator.validate_dependency_check_workflows()
-
-
-def test_malware_workflow_rejects_default_shell_override(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    validator = load_validator()
-    weakened = tmp_path / "advisory-malware.yml"
-    weakened.write_text(
-        (ROOT / ".github/workflows/advisory-malware.yml")
-        .read_text(encoding="utf-8")
-        .replace("permissions:\n", "defaults:\n  run:\n    shell: bash -c 'true {0}'\n\npermissions:\n"),
-        encoding="utf-8",
-    )
-    monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
-
-    with pytest.raises(AssertionError, match="default shell"):
-        validator.validate_dependency_check_workflows()
-
-
-def test_malware_workflow_rejects_job_default_shell_override(
+def test_malware_workflow_rejects_continue_on_error(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     validator = load_validator()
@@ -403,14 +501,14 @@ def test_malware_workflow_rejects_job_default_shell_override(
         (ROOT / ".github/workflows/advisory-malware.yml")
         .read_text(encoding="utf-8")
         .replace(
-            "  advisory-malware:\n",
-            "  advisory-malware:\n    defaults:\n      run:\n        shell: bash -c 'true {0}'\n",
+            "    name: Advisory Malware Check\n",
+            "    name: Advisory Malware Check\n    continue-on-error: true\n",
         ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
 
-    with pytest.raises(AssertionError, match="default shell"):
+    with pytest.raises(AssertionError, match="continue on error"):
         validator.validate_dependency_check_workflows()
 
 
