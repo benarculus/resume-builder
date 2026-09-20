@@ -32,16 +32,31 @@ REQUIREMENTS = (ROOT / "requirements.txt", ROOT / "requirements-dev.txt")
 DEPENDABOT = ROOT / ".github" / "dependabot.yml"
 DEPENDENCY_REVIEW_WORKFLOW = ROOT / ".github" / "workflows" / "dependency-review.yml"
 MALWARE_WORKFLOW = ROOT / ".github" / "workflows" / "advisory-malware.yml"
+MALWARE_REUSABLE_OWNER_REPO = "benarculus/malware-advisory-check"
+MALWARE_REUSABLE_WORKFLOW = (
+    f"{MALWARE_REUSABLE_OWNER_REPO}/.github/workflows/reusable-malware-advisory-check.yml"
+)
+MALWARE_REUSABLE_SHA = "f8392606fb92e923737bb3b4f63990346bd0644b"
+MALWARE_REUSABLE_VERSION = "v1.0.0"
+MALWARE_REUSABLE_USES = f"{MALWARE_REUSABLE_WORKFLOW}@{MALWARE_REUSABLE_SHA}"
 EXPECTED_SKILLS = {
     "career-document-builder",
     "job-requirements-planner",
     "resume-drafter",
 }
-SHA_PINNED_ACTION = re.compile(r"uses:\s+[\w.-]+/[\w./-]+@[0-9a-f]{40}\s+#\s+v\d+\b")
+SHA_PINNED_ACTION = re.compile(r"uses:\s+[\w.-]+/[\w./-]+@[0-9a-f]{40}\s+#\s+v\d+(?:\.\d+)*\b")
 REQUIREMENT_PIN = re.compile(r"^[A-Za-z0-9_.-]+==[^<>=!~\s]+$")
 WORKFLOW_TOKEN_REFERENCE = re.compile(
     r"(?:github\s*\.\s*token|github\s*\[\s*['\"]token['\"]\s*\]|secrets(?:\s*\.|\s*\[)|tojson\s*\(\s*(?:secrets|github)\s*\))",
     re.IGNORECASE,
+)
+LOCAL_MALWARE_CHECKER_REFERENCES = (
+    "check_malware_advisories.py",
+    "CHECKER_REF",
+    "git cat-file",
+    "git show",
+    "python scripts/check_malware_advisories.py",
+    "$RUNNER_TEMP/check_malware_advisories.py",
 )
 
 
@@ -196,6 +211,8 @@ def validate_dependency_check_workflows() -> None:
                 raise AssertionError(f"{name} workflow job must not be conditional")
             if job.get("continue-on-error") not in (None, "false"):
                 raise AssertionError(f"{name} workflow job must not continue on error")
+            if job.get("secrets") == "inherit":
+                raise AssertionError(f"{name} workflow job must not inherit secrets")
 
     review_steps = review["jobs"]["dependency-review"]["steps"]
     review_action = next(
@@ -212,44 +229,79 @@ def validate_dependency_check_workflows() -> None:
     if "if" in review_action:
         raise AssertionError("dependency review action must not be conditional")
 
-    malware_steps = malware["jobs"]["advisory-malware"]["steps"]
-    checkouts = [
-        step
-        for step in malware_steps
-        if isinstance(step, dict) and step.get("uses", "").startswith("actions/checkout@")
-    ]
-    checker_step = next(
-        (step for step in malware_steps if isinstance(step, dict) and "run" in step),
-        {},
+    validate_malware_reusable_workflow(malware)
+
+
+def recursively_find_key(value: object, key: str) -> bool:
+    if isinstance(value, dict):
+        return key in value or any(recursively_find_key(child, key) for child in value.values())
+    if isinstance(value, list):
+        return any(recursively_find_key(child, key) for child in value)
+    return False
+
+
+def recursively_find_string(value: object, pattern: re.Pattern[str]) -> bool:
+    if isinstance(value, str):
+        return bool(pattern.search(value))
+    if isinstance(value, dict):
+        return any(recursively_find_string(child, pattern) for child in value.values())
+    if isinstance(value, list):
+        return any(recursively_find_string(child, pattern) for child in value)
+    return False
+
+
+def validate_malware_reusable_workflow(malware: dict) -> None:
+    jobs = malware.get("jobs", {}) if isinstance(malware, dict) else {}
+    if set(jobs) != {"advisory-malware"}:
+        raise AssertionError("malware advisory workflow must keep the advisory-malware job identity")
+
+    job = jobs["advisory-malware"]
+    if not isinstance(job, dict):
+        raise AssertionError("malware advisory job must be a reusable workflow call")
+
+    raw_text = MALWARE_WORKFLOW.read_text(encoding="utf-8")
+    expected_uses_line = (
+        f"uses: {MALWARE_REUSABLE_USES} # {MALWARE_REUSABLE_VERSION}"
     )
-    command = checker_step.get("run", "")
-    if not checkouts or any(
-        checkout.get("with", {}).get("persist-credentials") != "false"
-        for checkout in checkouts
-    ):
-        raise AssertionError("malware advisory checkouts must not persist credentials")
-    expected_command = (
-        'CHECKER_REF="${{ github.event.pull_request.base.sha }}" '
-        '&& if ! git cat-file -e "$CHECKER_REF:scripts/check_malware_advisories.py"; '
-        'then CHECKER_REF="43594f1203945dad96639a9e4db61f72337bfc17"; fi '
-        '&& git show "$CHECKER_REF:scripts/check_malware_advisories.py" '
-        '> "$RUNNER_TEMP/check_malware_advisories.py" '
-        '&& python "$RUNNER_TEMP/check_malware_advisories.py" '
-        '--base-ref "${{ github.event.pull_request.base.sha }}" '
-        '--head-ref "${{ github.event.pull_request.head.sha }}"'
-    )
-    if not isinstance(command, str) or " ".join(command.split()) != expected_command:
-        raise AssertionError("malware advisory workflow must run the repository-owned checker")
-    if checker_step.get("shell") != "bash":
-        raise AssertionError("malware advisory checker must use bash")
-    if any(
-        isinstance(step, dict) and step.get("continue-on-error") not in (None, "false")
-        for step in malware_steps
-    ):
-        raise AssertionError("malware advisory steps must not continue on error")
-    if any(isinstance(step, dict) and "if" in step for step in malware_steps):
-        raise AssertionError("malware advisory steps must not be conditional")
-    if WORKFLOW_TOKEN_REFERENCE.search(MALWARE_WORKFLOW.read_text(encoding="utf-8")):
+    if expected_uses_line not in raw_text:
+        raise AssertionError(
+            "malware advisory reusable workflow must be pinned to the approved v1.0.0 release SHA"
+        )
+    if job.get("uses") != MALWARE_REUSABLE_USES:
+        raise AssertionError("malware advisory workflow must call the approved reusable workflow path")
+    if not re.search(rf"@{MALWARE_REUSABLE_SHA}\s+#\s+{re.escape(MALWARE_REUSABLE_VERSION)}", raw_text):
+        raise AssertionError("malware advisory workflow must include the v1.0.0 release comment")
+
+    if len(MALWARE_REUSABLE_SHA) != 40 or not re.fullmatch(r"[0-9a-f]{40}", MALWARE_REUSABLE_SHA):
+        raise AssertionError("malware advisory reusable workflow release SHA must be exactly 40 hex characters")
+    uses_ref = str(job.get("uses", "")).rsplit("@", maxsplit=1)[-1]
+    if uses_ref != MALWARE_REUSABLE_SHA or not re.fullmatch(r"[0-9a-f]{40}", uses_ref):
+        raise AssertionError("malware advisory reusable workflow must use the exact approved 40-character release SHA")
+
+    if "runs-on" in job or "steps" in job:
+        raise AssertionError("malware advisory workflow must not execute the local checker")
+    if job.get("with") != {
+        "base-ref": "${{ github.event.pull_request.base.sha }}",
+        "head-ref": "${{ github.event.pull_request.head.sha }}",
+    }:
+        raise AssertionError("malware advisory workflow must map explicit PR base/head SHA inputs")
+    if job.get("secrets") != {"github-token": "${{ github.token }}"}:
+        raise AssertionError("malware advisory workflow must map only the named github-token secret")
+
+    if "if" in job or recursively_find_key(job, "if"):
+        raise AssertionError("malware advisory workflow job must not be conditional")
+    if job.get("continue-on-error") not in (None, "false") or recursively_find_key(job, "continue-on-error"):
+        raise AssertionError("malware advisory workflow must not continue on error")
+    if job.get("secrets") == "inherit" or "secrets: inherit" in raw_text:
+        raise AssertionError("malware advisory workflow must not inherit secrets")
+    if "persist-credentials" in raw_text:
+        raise AssertionError("malware advisory workflow must not configure credential persistence")
+    if any(reference in raw_text for reference in LOCAL_MALWARE_CHECKER_REFERENCES):
+        raise AssertionError("malware advisory workflow must not execute the local checker")
+
+    token_safe_job = dict(job)
+    token_safe_job["secrets"] = {}
+    if recursively_find_string(token_safe_job, WORKFLOW_TOKEN_REFERENCE):
         raise AssertionError("malware advisory workflow must not expose workflow tokens")
 
 
