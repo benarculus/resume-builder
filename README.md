@@ -66,7 +66,7 @@ pytest -q
 
 The validation script checks skill frontmatter, `plugin.json`, marketplace metadata, workflow SHA pins, exact direct dependency pins, dependency-gate workflow structure, and the job-requirements producer/consumer contract. The test suite opens a generated `.docx` and checks its sections.
 
-Pull requests also run a centralized advisory malware gate through the pinned reusable workflow `benarculus/malware-advisory-check/.github/workflows/reusable-malware-advisory-check.yml@f8392606fb92e923737bb3b4f63990346bd0644b` (`v1.0.0`). This repository maps the pull-request base and head SHAs into that workflow explicitly and keeps the local validation commands above for repository structure and regression coverage.
+Pull requests also run a centralized advisory malware gate through the pinned reusable workflow `benarculus/malware-advisory-check/.github/workflows/reusable-malware-advisory-check.yml@7a825d2fdb99f459bb4595cf999a5faaa883d87f` (`v1.0.1`). This repository maps the pull-request base and head SHAs into that workflow explicitly and keeps the local validation commands above for repository structure and regression coverage.
 
 ## License
 
