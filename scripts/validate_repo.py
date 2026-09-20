@@ -285,7 +285,7 @@ def validate_malware_reusable_workflow(malware: dict) -> None:
         "head-ref": "${{ github.event.pull_request.head.sha }}",
     }:
         raise AssertionError("malware advisory workflow must map explicit PR base/head SHA inputs")
-    if job.get("secrets") != {"github-token": "${{ github.token }}"}:
+    if job.get("secrets") != {"github-token": "${{ secrets.GITHUB_TOKEN }}"}:
         raise AssertionError("malware advisory workflow must map only the named github-token secret")
 
     if "if" in job or recursively_find_key(job, "if"):

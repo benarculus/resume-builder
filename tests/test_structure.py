@@ -349,7 +349,7 @@ def test_malware_workflow_rejects_secret_inheritance(
         (ROOT / ".github/workflows/advisory-malware.yml")
         .read_text(encoding="utf-8")
         .replace(
-            "    secrets:\n      github-token: ${{ github.token }}",
+            "    secrets:\n      github-token: ${{ secrets.GITHUB_TOKEN }}",
             "    secrets: inherit",
         ),
         encoding="utf-8",
@@ -385,7 +385,7 @@ def test_malware_workflow_rejects_wrong_token_secret_name(
     weakened.write_text(
         (ROOT / ".github/workflows/advisory-malware.yml")
         .read_text(encoding="utf-8")
-        .replace("github-token: ${{ github.token }}", "token: ${{ github.token }}"),
+        .replace("github-token: ${{ secrets.GITHUB_TOKEN }}", "token: ${{ secrets.GITHUB_TOKEN }}"),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
