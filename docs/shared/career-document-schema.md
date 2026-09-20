@@ -73,3 +73,29 @@ This contract is a JSON Resume-aligned career record with plugin extensions. Sta
 - A missing, conflicting, or ambiguous field remains unresolved until the user answers a clarifying question.
 
 The schema is intentionally documented as a contract rather than a closed JSON Schema so the upstream JSON Resume standard can evolve. Consumers must accept the standard sections and the named extension arrays above.
+
+## Education and training contract
+
+Education and training entries must preserve the canonical, fully spelled-out values needed to identify the qualification:
+
+```json
+{
+  "institution": "Example University",
+  "degree": "Bachelor of Science",
+  "major": "Computer Science",
+  "abbreviation": "BSCS",
+  "completionDate": "2024-05",
+  "source": "transcript.pdf#page-1"
+}
+```
+
+The example is illustrative. Existing JSON Resume-compatible fields such as `studyType`, `area`, and `endDate` remain accepted for compatibility, but new or normalized records should map them as follows:
+
+- `degree` or `studyType`: the full degree, credential, or training-program name.
+- `major` or `area`: the full major, field of study, or specialization when supplied.
+- `completionDate`, `endDate`, or `date`: the verified completion date, preserving the precision available in the source.
+- `institution`: the school, provider, or certifying organization.
+- `abbreviation`: an optional additional form only when it appears in the evidence or is explicitly confirmed and is useful for a verified job-description keyword.
+- `source`: required for custom education/training evidence and any normalized entry whose values are not already traceable to a source-bearing record.
+
+Never emit an abbreviation-only entry, infer a missing completion date or institution, or treat an abbreviation as proof of an unverified degree or major. A missing or conflicting value remains unresolved until the user answers a focused clarification.
