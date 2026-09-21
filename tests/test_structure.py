@@ -191,9 +191,9 @@ def test_malware_workflow_requires_approved_reusable_release() -> None:
     assert validator.MALWARE_REUSABLE_WORKFLOW.endswith(
         "/.github/workflows/reusable-malware-advisory-check.yml"
     )
-    assert validator.MALWARE_REUSABLE_SHA == "7a825d2fdb99f459bb4595cf999a5faaa883d87f"
+    assert validator.MALWARE_REUSABLE_SHA == "733acbdf20304f70ac0c9a763921cac4c23882ef"
     assert len(validator.MALWARE_REUSABLE_SHA) == 40
-    assert "# v1.0.1" in workflow
+    assert "# v1.0.2" in workflow
 
 
 def test_dependency_workflows_reject_job_permission_override(
@@ -284,7 +284,7 @@ def test_malware_workflow_rejects_mutable_reusable_ref(
     )
     monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
 
-    with pytest.raises(AssertionError, match="approved v1.0.1 release SHA"):
+    with pytest.raises(AssertionError, match="approved v1.0.2 release SHA"):
         validator.validate_dependency_check_workflows()
 
 
@@ -302,7 +302,7 @@ def test_malware_workflow_rejects_short_reusable_ref(
     )
     monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
 
-    with pytest.raises(AssertionError, match="approved v1.0.1 release SHA"):
+    with pytest.raises(AssertionError, match="approved v1.0.2 release SHA"):
         validator.validate_dependency_check_workflows()
 
 
@@ -314,12 +314,12 @@ def test_malware_workflow_rejects_missing_release_comment(
     weakened.write_text(
         (ROOT / ".github/workflows/advisory-malware.yml")
         .read_text(encoding="utf-8")
-        .replace(" # v1.0.1", ""),
+        .replace(" # v1.0.2", ""),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
 
-    with pytest.raises(AssertionError, match="approved v1.0.1 release SHA"):
+    with pytest.raises(AssertionError, match="approved v1.0.2 release SHA"):
         validator.validate_dependency_check_workflows()
 
 
@@ -336,7 +336,7 @@ def test_malware_workflow_rejects_wrong_reusable_owner(
     )
     monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
 
-    with pytest.raises(AssertionError, match="approved v1.0.1 release SHA"):
+    with pytest.raises(AssertionError, match="approved v1.0.2 release SHA"):
         validator.validate_dependency_check_workflows()
 
 
