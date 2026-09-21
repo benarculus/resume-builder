@@ -22,16 +22,41 @@ ROTATIONS = (0, 90, 180, 270)
 RENDER_DPI = 300
 
 
+def _mean_confidence(image: Image.Image) -> float:
+    """Return the mean word-level OCR confidence for `image`, or -1.0 if no words were recognized.
+
+    Tesseract reports -1 confidence for entries with no recognized text (for
+    example whitespace-only regions); those are excluded from the mean.
+    """
+    data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
+    confidences = [float(conf) for conf in data.get("conf", []) if float(conf) >= 0]
+    if not confidences:
+        return -1.0
+    return sum(confidences) / len(confidences)
+
+
 def ocr_best_rotation(image: Image.Image) -> str:
-    """Try each supported rotation and return the text with the most extracted content.
+    """Try each supported rotation and return the text from the most confident reading.
 
     Automates the manual rotation trial-and-error the first run needed by hand.
+    Selecting purely by output length is unreliable: OCR of an upside-down or
+    sideways page can still produce plausible-looking (but wrong) characters
+    that happen to be as long as, or longer than, the correctly oriented
+    reading. Mean per-word confidence is a far more reliable signal of which
+    rotation is actually correct, so it is used instead, with non-empty text
+    length only as a tiebreaker when no candidate rotation has any recognized
+    words.
     """
     best_text = ""
+    best_confidence = -1.0
     for degrees in ROTATIONS:
         rotated = image if degrees == 0 else image.rotate(-degrees, expand=True)
+        confidence = _mean_confidence(rotated)
         text = pytesseract.image_to_string(rotated)
-        if len(text.strip()) > len(best_text.strip()):
+        is_more_confident = confidence > best_confidence
+        is_tiebreak_candidate = confidence == best_confidence == -1.0 and len(text.strip()) > len(best_text.strip())
+        if is_more_confident or is_tiebreak_candidate:
+            best_confidence = confidence
             best_text = text
     return best_text
 
