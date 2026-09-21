@@ -130,7 +130,7 @@ Requirements:
 * NFR-001: The OCR path must run on Linux (this repo's `ubuntu-latest` CI) and macOS, not only a macOS-specific framework.
 * The script accepts one input path (an image or a PDF) and an output path, and writes extracted text; it does not depend on any macOS-only framework (for example `Vision`, `Quartz`, or `Cocoa`).
 * The scanned-PDF path (an image-based PDF page with no extractable text layer) must work using only the pinned pip dependencies plus the CI-installed `tesseract-ocr` system package — no second system-level PDF dependency (for example Poppler) may be required.
-* Rotation handling is automatic (the script tries the supported orientations and selects the result with the most extracted content) rather than requiring manual trial-and-error, matching the workaround the first run needed by hand.
+* Rotation handling is automatic (the script tries the supported orientations and selects the result with the highest mean OCR word confidence, falling back to extracted-content length only when no rotation recognizes any words) rather than requiring manual trial-and-error, matching the workaround the first run needed by hand.
 
 Details:
 * The first run installed `pyobjc-framework-Vision` and `pyobjc-framework-Quartz` ad hoc and hand-tested image rotation; neither is pip-installable cross-platform nor usable in this repo's `ubuntu-latest` CI.
@@ -315,7 +315,7 @@ Goals:
 Requirements:
 * FR-002 and FR-003: the resume-drafter flow enforces both the word budget and the page cap before delivery — a failing `withinWordBudget` or `withinPageCap` result cannot reach the normal delivery step.
 * The updated flow states the concrete 2-page standard alongside the existing 475–600-word target so both are stated together as the length standard.
-* A resume that fails validation is never delivered through the normal path. The flow trims content and re-renders, repeating validation, until it passes; only if the user explicitly approves an override (a distinct, named checkpoint, not the normal delivery step) may an over-budget resume be delivered, and that override and its reason are recorded in the chat/summary output.
+* A resume that fails validation is never delivered through the normal path. Every corrective action is routed back through the step 5 approval checkpoint before the flow re-renders and re-validates; only if the user explicitly approves an override (a distinct, named checkpoint, not the normal delivery step) may an out-of-budget resume be delivered, and that override and its reason are recorded in the chat/summary output.
 
 Details:
 * Update the `Resume content and formatting rules` section's word-target bullet to also state the 2-page cap and reference the validation script by name.

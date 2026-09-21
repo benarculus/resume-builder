@@ -219,3 +219,12 @@ Three findings resurfaced from an earlier review pass as "previously missed" (co
 * `tests/test_validate_resume_length.py`: added `test_main_returns_nonzero_when_only_the_page_cap_fails`, which invokes `main()` (not just `validate_length()`) with a mocked over-page-cap count, so a regression where `main()`'s exit code ignored `withinPageCap` would now be caught.
 
 Re-validated: `pytest -q -rs` (52 passed, 8 skipped, same environment-limitation reasons — the two new OCR tests add 2 more `tesseract`-skipped cases locally) and `python scripts/validate_repo.py` (passed) run locally.
+
+## Post-Review Addendum 5 (approval-routing and documentation-drift follow-up)
+
+* `README.md`: fixed the macOS prerequisite command — LibreOffice is distributed by Homebrew as a cask, so `brew install tesseract libreoffice` fails; split into a formula install for `tesseract` and a cask install for `libreoffice`.
+* PR description: corrected stale validation totals (49 passed, 4 skipped → 52 passed, 8 skipped) to match the current local run.
+* `skills/resume-drafter/SKILL.md`: step 8's corrective-action branches (trim for over-budget, add verified evidence for under-minimum) previously repeated steps 7–8 directly after revising content, bypassing the step 5 approval checkpoint and allowing unapproved wording to reach delivery. Both branches now explicitly route the revised content back through step 5 for approval before re-rendering.
+* `.copilot-tracking/plans/2026-09-20/resume-builder-repeatability-plan.md`: corrected two stale acceptance-criteria descriptions to match implemented behavior — the rotation-selection requirement now describes confidence-based selection (with length as a no-recognized-words fallback) instead of the superseded length-only heuristic, and the length-validation requirement now states that corrective revisions route back through the step 5 approval checkpoint rather than re-rendering directly.
+
+Re-validated: `pytest -q -rs` (52 passed, 8 skipped) and `python scripts/validate_repo.py` (passed) run locally.
