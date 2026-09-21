@@ -13,13 +13,20 @@ SCRIPT = ROOT / "skills/career-document-builder/scripts/ocr_extract.py"
 KNOWN_TEXT = "PERFORMANCE AWARD 2024"
 
 
+def _load_deterministic_font(size: int) -> ImageFont.FreeTypeFont:
+    """Load a scalable font at a fixed, legible size without depending on any
+    particular system font (for example `Arial.ttf`, which is not installed on
+    the Ubuntu CI runner). Pillow's bundled default font supports a `size`
+    argument since 10.1; `ImageFont.load_default()` without a size falls back
+    to a tiny bitmap font that Tesseract cannot reliably recognize.
+    """
+    return ImageFont.load_default(size=size)
+
+
 def _draw_known_text_image(size: tuple[int, int] = (600, 200)) -> Image.Image:
     image = Image.new("RGB", size, color="white")
     draw = ImageDraw.Draw(image)
-    try:
-        font = ImageFont.truetype("Arial.ttf", 36)
-    except OSError:
-        font = ImageFont.load_default()
+    font = _load_deterministic_font(36)
     draw.text((20, 70), KNOWN_TEXT, fill="black", font=font)
     return image
 
@@ -67,8 +74,12 @@ def test_ocr_extract_reads_text_from_a_scanned_pdf(tmp_path: Path) -> None:
 
     # Build a single-page PDF containing only a rasterized image (no text layer),
     # matching the image-based scanned-PDF case the first run needed to handle.
+    # Size the page to the image's own aspect ratio so `insert_image` does not
+    # stretch/distort the text, which otherwise degrades OCR accuracy.
+    with Image.open(image_path) as source_image:
+        image_size = source_image.size
     document = fitz.open()
-    page = document.new_page()
+    page = document.new_page(width=image_size[0], height=image_size[1])
     page.insert_image(page.rect, filename=str(image_path))
     document.save(pdf_path)
     document.close()
