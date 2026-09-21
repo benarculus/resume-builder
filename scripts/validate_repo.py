@@ -36,8 +36,8 @@ MALWARE_REUSABLE_OWNER_REPO = "benarculus/malware-advisory-check"
 MALWARE_REUSABLE_WORKFLOW = (
     f"{MALWARE_REUSABLE_OWNER_REPO}/.github/workflows/reusable-malware-advisory-check.yml"
 )
-MALWARE_REUSABLE_SHA = "7a825d2fdb99f459bb4595cf999a5faaa883d87f"
-MALWARE_REUSABLE_VERSION = "v1.0.1"
+MALWARE_REUSABLE_SHA = "733acbdf20304f70ac0c9a763921cac4c23882ef"
+MALWARE_REUSABLE_VERSION = "v1.0.2"
 MALWARE_REUSABLE_USES = f"{MALWARE_REUSABLE_WORKFLOW}@{MALWARE_REUSABLE_SHA}"
 EXPECTED_SKILLS = {
     "career-document-builder",
@@ -265,12 +265,12 @@ def validate_malware_reusable_workflow(malware: dict) -> None:
     )
     if expected_uses_line not in raw_text:
         raise AssertionError(
-            "malware advisory reusable workflow must be pinned to the approved v1.0.1 release SHA"
+            "malware advisory reusable workflow must be pinned to the approved v1.0.2 release SHA"
         )
     if job.get("uses") != MALWARE_REUSABLE_USES:
         raise AssertionError("malware advisory workflow must call the approved reusable workflow path")
     if not re.search(rf"@{MALWARE_REUSABLE_SHA}\s+#\s+{re.escape(MALWARE_REUSABLE_VERSION)}", raw_text):
-        raise AssertionError("malware advisory workflow must include the v1.0.1 release comment")
+        raise AssertionError("malware advisory workflow must include the v1.0.2 release comment")
 
     if len(MALWARE_REUSABLE_SHA) != 40 or not re.fullmatch(r"[0-9a-f]{40}", MALWARE_REUSABLE_SHA):
         raise AssertionError("malware advisory reusable workflow release SHA must be exactly 40 hex characters")
