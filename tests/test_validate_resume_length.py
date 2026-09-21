@@ -41,7 +41,19 @@ def test_count_words_uses_only_body_fields_and_excludes_contact_metadata() -> No
         "unmetRequirements": ["twelve thirteen fourteen should not be counted"],
     }
 
-    assert validator.count_words(payload) == 16
+    # "Award" (the award's `title`) is never rendered by build_docx.py, which
+    # renders only `details` when present, so it must not be counted.
+    assert validator.count_words(payload) == 15
+
+
+def test_count_words_excludes_award_title_when_details_is_rendered() -> None:
+    validator = load_validator()
+    payload = {
+        "basics": {"name": "Name"},
+        "awards": [{"title": "unrendered title words here", "details": "one"}],
+    }
+
+    assert validator.count_words(payload) == 1
 
 
 def test_within_budget_fixture_reports_pass_by_contract() -> None:
@@ -98,3 +110,22 @@ def test_validate_length_script_flags_an_over_budget_resume(tmp_path: Path) -> N
 
     assert report["withinWordBudget"] is False
     assert result.returncode != 0
+
+
+def test_validate_length_flags_an_over_page_cap_resume_even_when_within_word_budget(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A within-budget payload with a page count over PAGE_CAP must fail
+    `withinPageCap` (and the overall exit code) even though `withinWordBudget`
+    is true, so a silently-always-true `withinPageCap` would be caught."""
+    validator = load_validator()
+    monkeypatch.setattr(validator, "count_rendered_pages", lambda docx_path: 3)
+
+    fake_docx = tmp_path / "within-budget.docx"
+    fake_docx.touch()
+
+    result = validator.validate_length(fake_docx, WITHIN_BUDGET_FIXTURE)
+
+    assert result["withinWordBudget"] is True
+    assert result["pageCount"] == 3
+    assert result["withinPageCap"] is False

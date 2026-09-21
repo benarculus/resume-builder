@@ -178,3 +178,15 @@ Implemented all four phases in plan order. Added a pinned, cross-platform OCR ex
 * Follow-up items: none
 * Review readiness: Ready for `/rpi-review`
 * Continuation owner: user
+
+## Post-Review Addendum (Copilot Code Review follow-up)
+
+After `/rpi-review` recorded a Conformant outcome, subsequent Copilot Code Review passes on the PR identified six further findings, all addressed directly (no plan or scope change):
+
+* `skills/resume-drafter/SKILL.md`: added a "neither" choice to the section-selection question (a user could not previously exclude both Skills and Awards); corrected the build/validate example commands to reference a shared `path/to/approved-resume.json` placeholder instead of the bundled test fixture, so the documented hard gate cannot be read as validating sample data.
+* `skills/resume-drafter/scripts/validate_resume_length.py`: `count_words()` previously summed every string nested under a section, over-counting fields `build_docx.py` never renders (e.g. an award's `title` when `details` is present). Rewritten to reuse `build_docx.py`'s own field-selection helpers (`role_dates`, `education_details`) and per-entry rendered-field selection, so the word count always matches what is actually rendered; added a decorative-token filter (`_count_words`) so renderer join characters like the em-dash are not counted as words.
+* `tests/test_validate_resume_length.py`: updated the existing word-count unit test's expected value (16 → 15) to reflect the corrected award-field counting, added a test asserting an award's `title` is excluded when `details` is present, and added a mocked-`count_rendered_pages` regression test proving `withinPageCap` can independently report `false` for an in-budget, over-page-cap resume (previously only the over-word-budget case was tested).
+* `README.md`: added a "Python runtime dependencies" step (`pip install -r requirements.txt`) distinct from the contributor-only `requirements-dev.txt` instructions, so a fresh direct/marketplace install documents both the system binaries and the Python packages OCR/length-validation require.
+* `.copilot-tracking/reviews/logs/2026-09-20/resume-builder-repeatability-review.md`: appended a Post-Review Addendum noting the local skip count moved from 4 to 6 after a later rotation-regression test was added, without rewriting the review's original assessed evidence.
+
+Re-validated after these fixes: `pytest -q -rs` (51 passed, 6 skipped, same environment-limitation reasons) and `python scripts/validate_repo.py` (passed) run locally.

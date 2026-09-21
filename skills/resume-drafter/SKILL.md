@@ -18,7 +18,7 @@ Map verified career evidence to a specific role, make unsupported requirements v
 
 1. Load and validate the career document against [`docs/shared/career-document-schema.md`](../../../docs/shared/career-document-schema.md).
 2. Load and validate the job-requirements artifact against [`docs/shared/job-requirements-schema.md`](../../../docs/shared/job-requirements-schema.md). Reject alternate shapes instead of guessing how to parse them.
-3. Before drafting any section content, ask the user which optional sections to include in this resume: Skills, Awards, or both. Use a fixed-choice question consistent with the rest of the pipeline's clarifying-question style. Summary, Experience, and Education are always included and are not part of this question. Use the answer to scope which sections are drafted in the remaining steps.
+3. Before drafting any section content, ask the user which optional sections to include in this resume: Skills, Awards, both, or neither. Use a fixed-choice question consistent with the rest of the pipeline's clarifying-question style. Summary, Experience, and Education are always included and are not part of this question. Use the answer to scope which sections are drafted in the remaining steps.
 4. For each required, preferred, and responsibility item, record either:
    - a specific career-document source mapping;
    - a focused question when a plausible mapping is uncertain; or
@@ -29,11 +29,11 @@ Map verified career evidence to a specific role, make unsupported requirements v
 
    ```bash
    python skills/resume-drafter/scripts/build_docx.py \
-     --input skills/resume-drafter/scripts/fixtures/sample-resume.json \
+     --input path/to/approved-resume.json \
      --output resume.docx
    ```
 
-   The input shape is:
+   `path/to/approved-resume.json` is the user-approved payload written in this step, not the bundled `skills/resume-drafter/scripts/fixtures/sample-resume.json` test fixture. The input shape is:
 
    ```json
    {
@@ -47,12 +47,12 @@ Map verified career evidence to a specific role, make unsupported requirements v
    }
    ```
 
-8. Run the bundled length-validation script against the rendered `.docx` and the same approved payload:
+8. Run the bundled length-validation script against the rendered `.docx` and the same approved payload written in step 7:
 
    ```bash
    python skills/resume-drafter/scripts/validate_resume_length.py \
      --docx resume.docx \
-     --payload skills/resume-drafter/scripts/fixtures/sample-resume.json
+     --payload path/to/approved-resume.json
    ```
 
    Treat a failing `withinWordBudget` or `withinPageCap` result as a hard gate: a resume that fails validation is never delivered through the normal path in step 9. Trim content and repeat steps 7–8 until both checks pass. Only when the user explicitly requests an exception may an over-budget resume be delivered — through a distinct, named override checkpoint, never the normal delivery step — and the override and its reason must be disclosed in the chat/summary response.

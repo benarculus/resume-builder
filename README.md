@@ -21,6 +21,16 @@ sudo apt-get install -y tesseract-ocr libreoffice
 brew install tesseract libreoffice
 ```
 
+### Python runtime dependencies
+
+The same scripts also depend on Python packages (`pytesseract`, `pymupdf`, `pillow`, `python-docx`) that must be installed separately from the system binaries above. Install the pinned runtime versions with:
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+This is required to run `career-document-builder`'s OCR extraction and `resume-drafter`'s length validation and document rendering, regardless of which install path below you use. It is distinct from `requirements-dev.txt`, which is only needed by repository contributors running the test suite.
+
 ### Direct plugin install
 
 Install the Agent Plugins 1.0 package directly from this repository:
