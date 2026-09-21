@@ -121,3 +121,54 @@ def test_ocr_extract_reads_text_from_a_scanned_pdf(tmp_path: Path) -> None:
     text = output_path.read_text(encoding="utf-8")
     assert text.strip()
     assert "AWARD" in text.upper()
+
+
+def _build_two_page_pdf(tmp_path: Path, first_text: str, second_text: str) -> Path:
+    pdf_path = tmp_path / "two-page-award.pdf"
+    document = fitz.open()
+    for index, page_text in enumerate((first_text, second_text)):
+        image = Image.new("RGB", (600, 200), color="white")
+        draw = ImageDraw.Draw(image)
+        draw.text((20, 70), page_text, fill="black", font=_load_deterministic_font(36))
+        image_path = tmp_path / f"page-{index}.png"
+        image.save(image_path)
+        page = document.new_page(width=600, height=200)
+        page.insert_image(page.rect, filename=str(image_path))
+    document.save(pdf_path)
+    document.close()
+    return pdf_path
+
+
+@requires_tesseract
+def test_ocr_extract_labels_each_page_in_default_multi_page_output(tmp_path: Path) -> None:
+    pdf_path = _build_two_page_pdf(tmp_path, "PAGE ONE AWARD", "PAGE TWO AWARD")
+    output_path = tmp_path / "two-page.txt"
+
+    subprocess.run(
+        [sys.executable, str(SCRIPT), "--input", str(pdf_path), "--output", str(output_path)],
+        check=True,
+    )
+
+    text = output_path.read_text(encoding="utf-8")
+    # Default (no --page) output labels each page so a caller merging this
+    # text with other per-page text can attribute each block to its source page.
+    assert "--- Page 1 ---" in text
+    assert "--- Page 2 ---" in text
+    assert text.index("--- Page 1 ---") < text.index("--- Page 2 ---")
+
+
+@requires_tesseract
+def test_ocr_extract_page_option_ocrs_only_the_requested_page(tmp_path: Path) -> None:
+    pdf_path = _build_two_page_pdf(tmp_path, "PAGE ONE AWARD", "PAGE TWO AWARD")
+    output_path = tmp_path / "page-two-only.txt"
+
+    subprocess.run(
+        [sys.executable, str(SCRIPT), "--input", str(pdf_path), "--output", str(output_path), "--page", "2"],
+        check=True,
+    )
+
+    text = output_path.read_text(encoding="utf-8")
+    # --page targets a single page: no page marker, and only that page's text.
+    assert "--- Page" not in text
+    assert "TWO" in text.upper()
+    assert "ONE" not in text.upper()

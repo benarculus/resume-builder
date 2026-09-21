@@ -71,19 +71,36 @@ def extract_from_image(path: Path) -> str:
         return ocr_best_rotation(image.convert("RGB"))
 
 
-def extract_from_pdf(path: Path) -> str:
-    page_texts: list[str] = []
+def extract_from_pdf(path: Path, page: int | None = None) -> str:
+    """OCR a PDF.
+
+    With `page` unset, OCRs every page and labels each result with a
+    `--- Page N ---` marker so a caller merging this output with other
+    per-page text can still attribute each block to its source page. With
+    `page` set (1-based), OCRs only that page and returns its raw text with
+    no marker, for targeted re-OCR of a single page in an otherwise
+    normally-readable PDF.
+    """
     with fitz.open(path) as document:
-        for page in document:
-            pixmap = page.get_pixmap(dpi=RENDER_DPI)
-            image = Image.frombytes("RGB", (pixmap.width, pixmap.height), pixmap.samples)
-            page_texts.append(ocr_best_rotation(image))
+        if page is not None:
+            if not 1 <= page <= document.page_count:
+                raise ValueError(f"page {page} is out of range for a {document.page_count}-page PDF")
+            return _ocr_pdf_page(document[page - 1])
+        page_texts = [f"--- Page {index} ---\n{_ocr_pdf_page(pdf_page)}" for index, pdf_page in enumerate(document, start=1)]
     return "\n\n".join(page_texts)
 
 
-def extract_text(path: Path) -> str:
+def _ocr_pdf_page(page: "fitz.Page") -> str:
+    pixmap = page.get_pixmap(dpi=RENDER_DPI)
+    image = Image.frombytes("RGB", (pixmap.width, pixmap.height), pixmap.samples)
+    return ocr_best_rotation(image)
+
+
+def extract_text(path: Path, page: int | None = None) -> str:
     if path.suffix.lower() in PDF_SUFFIXES:
-        return extract_from_pdf(path)
+        return extract_from_pdf(path, page=page)
+    if page is not None:
+        raise ValueError("--page is only supported for PDF input")
     return extract_from_image(path)
 
 
@@ -91,9 +108,21 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", required=True, type=Path, help="Image or image-based PDF to OCR")
     parser.add_argument("--output", required=True, type=Path, help="Path to write extracted text")
+    parser.add_argument(
+        "--page",
+        type=int,
+        default=None,
+        help=(
+            "1-based PDF page number to OCR only that page (PDF input only). "
+            "Use this to re-OCR a single image-only page in a mixed PDF that has other "
+            "normally-readable pages, so the readable pages are not re-OCR'd and the "
+            "result can be merged back in at the correct page position, preserving "
+            "per-page source pointers."
+        ),
+    )
     args = parser.parse_args()
 
-    text = extract_text(args.input)
+    text = extract_text(args.input, page=args.page)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(text, encoding="utf-8")
 

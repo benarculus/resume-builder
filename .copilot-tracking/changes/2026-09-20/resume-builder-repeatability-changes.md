@@ -209,3 +209,13 @@ Four low-severity findings from a subsequent Balanced-effort review, addressed d
 * `README.md`: the Python runtime dependency install command only worked from a repository checkout (`pip install -r requirements.txt`); added an explicit pinned-package install command as an alternative for direct/marketplace installs with no local checkout.
 
 Re-validated: `pytest -q -rs` (51 passed, 6 skipped, same environment-limitation reasons) and `python scripts/validate_repo.py` (passed) run locally.
+
+## Post-Review Addendum 4 (functional-gap follow-up)
+
+Three findings resurfaced from an earlier review pass as "previously missed" (code unchanged since then), addressed with real functional changes:
+
+* `skills/career-document-builder/scripts/ocr_extract.py`: added a `--page` (1-based) option to OCR only one PDF page, so a mixed PDF's already-readable pages are not needlessly re-OCR'd and a caller can merge the OCR result back in at the correct page position, preserving per-page source pointers. Default (no `--page`) whole-document output now labels each page's OCR text with a `--- Page N ---` marker so merged output stays attributable to a source page. Added `tests/test_ocr_extract.py` coverage for both the default labeled output and the `--page`-scoped single-page output.
+* `skills/resume-drafter/SKILL.md`: the length-validation hard gate previously only described a trim-and-retry path, which has no valid outcome when the failure is being *under* the word minimum (trimming moves further from the minimum, and fabricating content to reach it is forbidden). The gate now branches: over-budget failures still trim and retry; under-minimum failures first check for additional verified evidence, and only fall back to an explicit user-approved override (now covering all three failure kinds: over the word maximum, over the page cap, or under the minimum with no further evidence) when none exists.
+* `tests/test_validate_resume_length.py`: added `test_main_returns_nonzero_when_only_the_page_cap_fails`, which invokes `main()` (not just `validate_length()`) with a mocked over-page-cap count, so a regression where `main()`'s exit code ignored `withinPageCap` would now be caught.
+
+Re-validated: `pytest -q -rs` (52 passed, 8 skipped, same environment-limitation reasons — the two new OCR tests add 2 more `tesseract`-skipped cases locally) and `python scripts/validate_repo.py` (passed) run locally.

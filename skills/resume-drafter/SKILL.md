@@ -55,7 +55,11 @@ Map verified career evidence to a specific role, make unsupported requirements v
      --payload path/to/approved-resume.json
    ```
 
-   Treat a failing `withinWordBudget` or `withinPageCap` result as a hard gate: a resume that fails validation is never delivered through the normal path in step 9. Trim content and repeat steps 7–8 until both checks pass. Only when the user explicitly requests an exception may an over-budget resume be delivered — through a distinct, named override checkpoint, never the normal delivery step — and the override and its reason must be disclosed in the chat/summary response.
+   Treat a failing `withinWordBudget` or `withinPageCap` result as a hard gate: a resume that fails validation is never delivered through the normal path in step 9. The corrective action depends on which bound failed:
+   - Over the word maximum, or over the page cap: trim content and repeat steps 7–8 until both checks pass.
+   - Under the word minimum: do not pad with unsupported or fabricated content. First check whether additional verified evidence exists in the career document that was left out; if so, incorporate it and repeat steps 7–8. If no further verified evidence exists, this is not a trim-and-retry case.
+
+   Only when the user explicitly requests an exception may an out-of-budget resume be delivered — through a distinct, named override checkpoint, never the normal delivery step — and the override, which bound it violates (over the maximum, over the page cap, or under the minimum with no further evidence available), and its reason must be disclosed in the chat/summary response.
 9. Deliver the `.docx` and, in the chat/summary response only (never inside the document itself), the visible unmet-requirements note so the user can decide whether to provide additional evidence.
 
 ## Resume content and formatting rules

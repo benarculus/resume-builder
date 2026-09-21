@@ -17,13 +17,22 @@ Create one machine-friendly career document from the evidence the user supplies,
 ## Flow
 
 1. Ask the user to provide whatever source mix they have: prior resumes, performance-review text or files, award citations, metrics, and a LinkedIn export or pasted profile content.
-2. Inventory every source and assign stable source pointers before synthesizing facts. Check each source for extractable text at the page level, not just the document level: a PDF can mix normally-readable pages with image-only pages that have no text layer. For a source that yields no extractable text through normal reading (an image file, or any PDF page with no text layer, even when other pages in the same PDF have extractable text), run the bundled OCR script on that page or file before fact extraction continues:
+2. Inventory every source and assign stable source pointers before synthesizing facts. Check each source for extractable text at the page level, not just the document level: a PDF can mix normally-readable pages with image-only pages that have no text layer. For a source that yields no extractable text through normal reading, run the bundled OCR script before fact extraction continues:
+   - An entirely image-based file (whole PDF or image), or a PDF where no page has extractable text: OCR the whole file. Its default output labels each PDF page's OCR text with a `--- Page N ---` marker, so the extracted text stays attributable to a page even when merged with output from other runs.
 
-   ```bash
-   python skills/career-document-builder/scripts/ocr_extract.py \
-     --input path/to/scanned-source.pdf \
-     --output path/to/extracted-source.txt
-   ```
+     ```bash
+     python skills/career-document-builder/scripts/ocr_extract.py \
+       --input path/to/scanned-source.pdf \
+       --output path/to/extracted-source.txt
+     ```
+   - A mixed PDF where only specific pages lack a text layer while other pages are normally readable: keep the normally-read text for the readable pages, and use `--page N` (1-based) to OCR only the missing-text page, so readable pages are not needlessly re-OCR'd. Merge the OCR result back in at page `N`'s position, preserving that page's source pointer.
+
+     ```bash
+     python skills/career-document-builder/scripts/ocr_extract.py \
+       --input path/to/mixed-source.pdf \
+       --output path/to/extracted-page-3.txt \
+       --page 3
+     ```
 
    OCR output is raw extracted text, not verified fact; treat it the same as any other source and apply the ambiguity and clarifying-question rules in step 4 to whatever it returns.
 3. Extract candidate facts into the contract in [`docs/shared/career-document-schema.md`](../../../docs/shared/career-document-schema.md).

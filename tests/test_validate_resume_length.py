@@ -129,3 +129,23 @@ def test_validate_length_flags_an_over_page_cap_resume_even_when_within_word_bud
     assert result["withinWordBudget"] is True
     assert result["pageCount"] == 3
     assert result["withinPageCap"] is False
+
+
+def test_main_returns_nonzero_when_only_the_page_cap_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`main()`'s exit status must reflect a page-cap-only failure, not just
+    the word-budget check, so a regression where `main()` ignores
+    `withinPageCap` would not leave every test green."""
+    validator = load_validator()
+    monkeypatch.setattr(validator, "count_rendered_pages", lambda docx_path: 3)
+
+    fake_docx = tmp_path / "within-budget.docx"
+    fake_docx.touch()
+    monkeypatch.setattr(
+        sys, "argv", [str(SCRIPT), "--docx", str(fake_docx), "--payload", str(WITHIN_BUDGET_FIXTURE)]
+    )
+
+    exit_code = validator.main()
+
+    assert exit_code != 0
