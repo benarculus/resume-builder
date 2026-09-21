@@ -65,7 +65,7 @@ Implemented all four phases in plan order. Added a pinned, cross-platform OCR ex
 * Files:
   * [skills/resume-drafter/scripts/validate_resume_length.py](../../../skills/resume-drafter/scripts/validate_resume_length.py)
 * What changed and why: New script implementing the fixed `--docx` (page count only, via `soffice --headless --convert-to pdf` + `pymupdf` page count) / `--payload` (word count only, via `count_words()` walking only `summary`, `experience`, `education`, `skills`, `awards`) contract from PC-002. Prints the exact JSON contract fields (`wordCount`, `wordBudget`, `pageCount`, `pageCap`, `withinWordBudget`, `withinPageCap`) and exits non-zero when either check fails, so a calling flow can gate on it.
-* Completion evidence: Local unit test confirms `count_words()` returns 16 for a payload mixing `basics`/`unmetRequirements` (excluded) with summary/experience/education/skills/awards content (counted) — see `tests/test_validate_resume_length.py::test_count_words_uses_only_body_fields_and_excludes_contact_metadata`.
+* Completion evidence: Local unit test confirms `count_words()` returns 15 for a payload mixing `basics`/`unmetRequirements` (excluded) with summary/experience/education/skills/awards content (counted, restricted to the fields `build_docx.py` actually renders) — see `tests/test_validate_resume_length.py::test_count_words_uses_only_body_fields_and_excludes_contact_metadata`.
 * Validation: Word-count logic unit-tested and passing locally; end-to-end page-count behavior requires `soffice`, unavailable in this sandbox — validated by P02-T04's guarded tests, designed for CI.
 
 ### P02-T02: Wired length validation into resume-drafter's delivery flow

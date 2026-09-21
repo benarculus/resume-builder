@@ -17,7 +17,7 @@ Create one machine-friendly career document from the evidence the user supplies,
 ## Flow
 
 1. Ask the user to provide whatever source mix they have: prior resumes, performance-review text or files, award citations, metrics, and a LinkedIn export or pasted profile content.
-2. Inventory every source and assign stable source pointers before synthesizing facts. For a source that yields no extractable text through normal reading (an image file, or an image-based PDF page with no text layer), run the bundled OCR script before fact extraction continues:
+2. Inventory every source and assign stable source pointers before synthesizing facts. Check each source for extractable text at the page level, not just the document level: a PDF can mix normally-readable pages with image-only pages that have no text layer. For a source that yields no extractable text through normal reading (an image file, or any PDF page with no text layer, even when other pages in the same PDF have extractable text), run the bundled OCR script on that page or file before fact extraction continues:
 
    ```bash
    python skills/career-document-builder/scripts/ocr_extract.py \
