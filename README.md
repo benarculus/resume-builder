@@ -17,8 +17,9 @@ Install both with your OS package manager before running the skills locally, for
 # Debian/Ubuntu
 sudo apt-get install -y tesseract-ocr libreoffice
 
-# macOS (Homebrew)
-brew install tesseract libreoffice
+# macOS (Homebrew) — LibreOffice is a cask, so it needs a separate install
+brew install tesseract
+brew install --cask libreoffice
 ```
 
 ### Python runtime dependencies
