@@ -26,7 +26,7 @@ Implemented all four phases in plan order. Added a pinned, cross-platform OCR ex
 * Related phase or task: P01-T01
 * Files:
   * [skills/career-document-builder/scripts/ocr_extract.py](../../../skills/career-document-builder/scripts/ocr_extract.py)
-* What changed and why: New script accepting `--input` (image or PDF) and `--output` (text file), using `pytesseract` (wrapping system `tesseract-ocr`) for OCR and `pymupdf` to rasterize PDF pages so no second system-level PDF dependency (e.g. Poppler) is required. Automates the first run's manual rotation trial-and-error by trying 0/90/180/270 degrees and keeping the result with the most extracted text. Replaces the macOS-only `pyobjc-framework-Vision`/`Quartz` improvisation with a cross-platform path usable in this repo's `ubuntu-latest` CI.
+* What changed and why: New script accepting `--input` (image or PDF) and `--output` (text file), using `pytesseract` (wrapping system `tesseract-ocr`) for OCR and `pymupdf` to rasterize PDF pages so no second system-level PDF dependency (e.g. Poppler) is required. Automates the first run's manual rotation trial-and-error by trying 0/90/180/270 degrees and keeping the result with the highest mean word-level OCR confidence, falling back to text length only when no candidate rotation has any recognized words (post-review, after the initial text-length-only heuristic was found to be unreliable — see commit `fc2f3c1` and the addendum below). Replaces the macOS-only `pyobjc-framework-Vision`/`Quartz` improvisation with a cross-platform path usable in this repo's `ubuntu-latest` CI.
 * Completion evidence: File created; imports verified (`python3 -c "import ocr_extract"`); FR-001 and NFR-001 satisfied per the script's argument shape and dependency choice.
 * Validation: Import/syntax check passed locally; end-to-end OCR behavior validated by P01-T04's tests (skipped locally, designed to run in CI where `tesseract-ocr` is installed).
 
@@ -199,3 +199,13 @@ Two lower-priority findings from a subsequent Balanced-effort review, addressed 
 * `skills/resume-drafter/scripts/validate_resume_length.py`: `convert_docx_to_pdf()` now passes an isolated `-env:UserInstallation=<per-call tmp profile>` and `--norestore` to `soffice`, so validation no longer contends with an already-running or concurrent LibreOffice instance (profile locking/command forwarding could otherwise leave a conversion without the expected PDF).
 
 Re-validated: `pytest -q -rs` (51 passed, 6 skipped, same environment-limitation reasons) and `python scripts/validate_repo.py` (passed) run locally. The OCR and soffice code paths themselves remain unexercised locally (no `tesseract`/`soffice` in this sandbox) and are designed to run in CI.
+
+## Post-Review Addendum 3 (tracking-record consistency follow-up)
+
+Four low-severity findings from a subsequent Balanced-effort review, addressed directly (no code behavior change):
+
+* Corrected the P01-T01 completed-work summary in this changes record: it still described the obsolete text-length-only rotation heuristic; updated to describe the confidence-based selection actually implemented (commit `fc2f3c1`).
+* `.copilot-tracking/plans/2026-09-20/resume-builder-repeatability-plan.md`: struck through and marked the stale "exact pip versions not yet selected" open question as resolved (it duplicated already-resolved Decision D6); corrected the Artifact Self-Check line that contradicted the Critique Disposition section immediately above it (the critique attempt is complete with a recorded Revise verdict, not "no attempt made").
+* `README.md`: the Python runtime dependency install command only worked from a repository checkout (`pip install -r requirements.txt`); added an explicit pinned-package install command as an alternative for direct/marketplace installs with no local checkout.
+
+Re-validated: `pytest -q -rs` (51 passed, 6 skipped, same environment-limitation reasons) and `python scripts/validate_repo.py` (passed) run locally.

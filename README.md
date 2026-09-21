@@ -23,13 +23,19 @@ brew install tesseract libreoffice
 
 ### Python runtime dependencies
 
-The same scripts also depend on Python packages (`pytesseract`, `pymupdf`, `pillow`, `python-docx`) that must be installed separately from the system binaries above. Install the pinned runtime versions with:
+The same scripts also depend on Python packages (`pytesseract`, `pymupdf`, `pillow`, `python-docx`) that must be installed separately from the system binaries above. This is required to run `career-document-builder`'s OCR extraction and `resume-drafter`'s length validation and document rendering, regardless of which install path below you use. It is distinct from `requirements-dev.txt`, which is only needed by repository contributors running the test suite.
+
+If you have a checkout of this repository, install the pinned versions from [`requirements.txt`](requirements.txt):
 
 ```bash
 python -m pip install -r requirements.txt
 ```
 
-This is required to run `career-document-builder`'s OCR extraction and `resume-drafter`'s length validation and document rendering, regardless of which install path below you use. It is distinct from `requirements-dev.txt`, which is only needed by repository contributors running the test suite.
+Otherwise (for example after a direct or marketplace plugin install with no local checkout), install the same pinned versions directly — check [`requirements.txt`](requirements.txt) for the current pins, which at the time of writing are:
+
+```bash
+python -m pip install python-docx==1.2.0 pytesseract==0.3.13 pymupdf==1.26.7 pillow==12.3.0
+```
 
 ### Direct plugin install
 
