@@ -67,6 +67,34 @@ def test_ocr_extract_reads_text_from_an_image(tmp_path: Path) -> None:
 
 
 @requires_tesseract
+@pytest.mark.parametrize("physical_rotation_degrees", [90, 270])
+def test_ocr_extract_finds_best_rotation_for_a_sideways_image(
+    tmp_path: Path, physical_rotation_degrees: int
+) -> None:
+    """Regression coverage for automatic rotation selection.
+
+    Physically rotates the source image before OCR so the script must try
+    every supported rotation and pick the one that yields recognizable text,
+    exercising both the rotation loop and the confidence-based selection
+    logic (rather than only the upright, no-rotation-needed case).
+    """
+    upright_image = _draw_known_text_image()
+    sideways_image = upright_image.rotate(physical_rotation_degrees, expand=True)
+    image_path = tmp_path / f"award-{physical_rotation_degrees}.png"
+    sideways_image.save(image_path)
+    output_path = tmp_path / f"award-{physical_rotation_degrees}.txt"
+
+    subprocess.run(
+        [sys.executable, str(SCRIPT), "--input", str(image_path), "--output", str(output_path)],
+        check=True,
+    )
+
+    text = output_path.read_text(encoding="utf-8")
+    assert text.strip()
+    assert "AWARD" in text.upper()
+
+
+@requires_tesseract
 def test_ocr_extract_reads_text_from_a_scanned_pdf(tmp_path: Path) -> None:
     pdf_path = tmp_path / "scanned-award.pdf"
     image_path = tmp_path / "award-page.png"

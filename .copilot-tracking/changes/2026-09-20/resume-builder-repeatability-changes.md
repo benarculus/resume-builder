@@ -35,8 +35,8 @@ Implemented all four phases in plan order. Added a pinned, cross-platform OCR ex
 * Related phase or task: P01-T02
 * Files:
   * [skills/career-document-builder/SKILL.md](../../../skills/career-document-builder/SKILL.md)
-* What changed and why: Inserted the OCR invocation into `Flow` step 2 (source inventory), naming the script's path and invocation shape and stating it applies to sources with no extractable text. Preserved the anti-fabrication posture: OCR output is treated as raw extracted text subject to the same ambiguity/clarifying-question rules as any other source.
-* Completion evidence: Diff shows the new script invocation and OCR-output caveat inside step 2, with no other flow or `allowed-tools` changes.
+* What changed and why: Inserted the OCR invocation into `Flow` step 2 (source inventory), naming the script's path and invocation shape and stating it applies to sources with no extractable text. Preserved the anti-fabrication posture: OCR output is treated as raw extracted text subject to the same ambiguity/clarifying-question rules as any other source. Post-review, added `shell` to this skill's `allowed-tools` frontmatter (commit follows this update): the skill invokes the bundled OCR script via a shell command, which is unavailable when `allowed-tools: []` is enforced.
+* Completion evidence: Diff shows the new script invocation and OCR-output caveat inside step 2, plus the corrected `allowed-tools: [shell]` frontmatter.
 * Validation: `python scripts/validate_repo.py` (skill frontmatter/structure checks) passed.
 
 ### P01-T03 and P02-T03 (coordinated): Pinned OCR/page-count dependencies across requirements, CI, and README
@@ -46,7 +46,7 @@ Implemented all four phases in plan order. Added a pinned, cross-platform OCR ex
   * [requirements.txt](../../../requirements.txt)
   * [.github/workflows/ci.yml](../../../.github/workflows/ci.yml)
   * [README.md](../../../README.md)
-* What changed and why: Added `pytesseract==0.3.13`, `pymupdf==1.26.5`, and `pillow==11.3.0` to `requirements.txt` using the existing exact-pin style. `pymupdf` is shared by both P01 (PDF rasterization for OCR) and P02 (PDF page counting), avoiding a duplicated pinned PDF library per PC-002/P02-T03's coordination requirement. Added one CI step installing `tesseract-ocr` and `libreoffice` via `apt-get` before dependency install and tests. Added a README "System prerequisites" section documenting both system binaries and example install commands for Debian/Ubuntu and macOS.
+* What changed and why: Added `pytesseract==0.3.13`, `pymupdf==1.26.7`, and `pillow==12.3.0` to `requirements.txt` using the existing exact-pin style. `pymupdf` is shared by both P01 (PDF rasterization for OCR) and P02 (PDF page counting), avoiding a duplicated pinned PDF library per PC-002/P02-T03's coordination requirement. Added one CI step installing `tesseract-ocr` and `libreoffice` via `apt-get` before dependency install and tests. Added a README "System prerequisites" section documenting both system binaries and example install commands for Debian/Ubuntu and macOS. `pymupdf` and `pillow` were later bumped from the originally selected `1.26.5`/`11.3.0` to `1.26.7`/`12.3.0` in post-review commits `5dbac2b` and `fc2f3c1` to resolve dependency-review CVE findings (see the Implementation-Time Plan Updates entry below).
 * Completion evidence: `git diff` shows one coherent, non-duplicated set of new lines across all three files; NFR-002 satisfied (exact-pin regex match).
 * Validation: `python scripts/validate_repo.py` passed (`REQUIREMENT_PIN` check covers the new lines); CI YAML is valid (reviewed manually; GitHub Actions syntax).
 
@@ -55,8 +55,8 @@ Implemented all four phases in plan order. Added a pinned, cross-platform OCR ex
 * Related phase or task: P01-T04
 * Files:
   * [tests/test_ocr_extract.py](../../../tests/test_ocr_extract.py)
-* What changed and why: Added two tests generating synthetic fixtures at test time (a PNG image with known text via `PIL.ImageDraw`, and a single-page image-based PDF built by embedding that same image into a `pymupdf` document with no text layer) and asserting the script returns non-empty, recognizable text for each. Both are guarded with `pytest.mark.skipif` keyed on `tesseract --version` succeeding, since this sandbox has no package manager (`brew`/`apt`) to install `tesseract-ocr`; the tests are written to actually execute in CI, which installs it.
-* Completion evidence: `pytest tests/test_ocr_extract.py -q` → `2 skipped` locally (expected, no `tesseract` binary here) with no import or collection errors.
+* What changed and why: Added tests generating synthetic fixtures at test time (a PNG image with known text via `PIL.ImageDraw`, and a single-page image-based PDF built by embedding that same image into a `pymupdf` document with no text layer) and asserting the script returns non-empty, recognizable text for each. Post-review, added a parametrized regression test that physically rotates the source image 90° and 270° before OCR, so the rotation-selection loop and its confidence-based best-rotation logic (fixed in commit `fc2f3c1` after the CCR-reported font/orientation flakiness) has explicit coverage rather than only the already-upright case. All tests are guarded with `pytest.mark.skipif` keyed on `tesseract --version` succeeding, since this sandbox has no package manager (`brew`/`apt`) to install `tesseract-ocr`; the tests are written to actually execute in CI, which installs it.
+* Completion evidence: `pytest tests/test_ocr_extract.py -q` → `4 skipped` locally (expected, no `tesseract` binary here) with no import or collection errors.
 * Validation: Skipped locally with an explicit reason (`tesseract-ocr system binary is not installed in this environment`); designed to run and pass in CI's `ubuntu-latest` job, which now installs `tesseract-ocr`.
 
 ### P02-T01: Resume length-validation script
@@ -129,18 +129,18 @@ Implemented all four phases in plan order. Added a pinned, cross-platform OCR ex
 ### D6 resolved: exact pip dependency versions selected
 
 * Affected plan area or markers: `## User Decisions and Requirements` → Planning Decisions and Feedback, row D6
-* What changed: D6's status changed from `proposed`/agent-owned-pending to `resolved`, recording the exact versions selected: `pytesseract==0.3.13`, `pymupdf==1.26.5`, `pillow==11.3.0`.
-* Why: This was an explicitly agent-owned, non-blocking decision reserved for implementation; the plan's own success criteria required recording the resolved detail once selected.
-* Triggering evidence: `pip index versions` lookups for `pytesseract`, `pymupdf`, and `pillow` during P01-T03/P02-T03 implementation (see this file's Completed Work entries above).
+* What changed: D6's status changed from `proposed`/agent-owned-pending to `resolved`, recording the versions initially selected during P01-T03/P02-T03 implementation: `pytesseract==0.3.13`, `pymupdf==1.26.5`, `pillow==11.3.0`. Those two PDF/image library pins were subsequently bumped post-review to `pymupdf==1.26.7` and `pillow==12.3.0` (commits `5dbac2b`, `fc2f3c1`) after the PR's `dependency-review` CI check flagged known CVEs in the originally selected versions (Pillow: `GHSA-whj4-6x5x-4v2j`, `GHSA-cfh3-3jmp-rvhc`, `GHSA-4x4j-2g7c-83w6`, `GHSA-r73j-pqj5-w3x7`, `GHSA-fj7v-r99m-22gq`, `GHSA-wjx4-4jcj-g98j`, `GHSA-5xmw-vc9v-4wf2`; PyMuPDF: `GHSA-cxqh-p2w9-fmr7`). The current, authoritative `requirements.txt` state is `pytesseract==0.3.13`, `pymupdf==1.26.7`, `pillow==12.3.0`.
+* Why: This was an explicitly agent-owned, non-blocking decision reserved for implementation; the plan's own success criteria required recording the resolved detail once selected. The later version bumps were CVE remediation, not a reopened decision.
+* Triggering evidence: `pip index versions` lookups for `pytesseract`, `pymupdf`, and `pillow` during P01-T03/P02-T03 implementation (see this file's Completed Work entries above); GitHub Advisory Database lookups for the flagged GHSA IDs during post-review CI triage.
 * User answer or decision: None required; D6 was agent-owned per the plan's Decisions table.
-* Reconciliation performed: Updated the D6 row only; no other current-state sections needed a change since this is a fully agent-owned, non-divergent detail.
+* Reconciliation performed: Updated the D6 row to record the current, authoritative pinned versions; no other current-state sections needed a change since this is a fully agent-owned, non-divergent detail.
 * Planning and critique state: Not needed — no new critique required; this is a direct planner-scope detail resolved during implementation, consistent with the plan's own classification of D6.
 
 ## Validation Record
 
 | Check | Scope | Status | Evidence or reason |
 |-------|-------|--------|---------------------|
-| `pytest -q` (full suite) | Full plan | Passed | 49 passed, 4 skipped locally (`tests/test_ocr_extract.py` x2, `tests/test_validate_resume_length.py` x2 — both skip on explicit `tesseract`/`soffice` availability checks; this sandbox has no `brew`/`apt` to install either system binary) |
+| `pytest -q` (full suite) | Full plan | Passed | 49 passed, 6 skipped locally (`tests/test_ocr_extract.py` x4 — including the post-review parametrized 90°/270° rotation regression test, `tests/test_validate_resume_length.py` x2 — both skip on explicit `tesseract`/`soffice` availability checks; this sandbox has no `brew`/`apt` to install either system binary) |
 | `python scripts/validate_repo.py` | Full plan | Passed | Prints `Validated 3 skills, plugin and marketplace JSON, workflow SHA pins, Dependabot policy, dependency gates, exact dependency pins, and job-requirements round-trip.` with the new pinned dependencies present |
 | OCR end-to-end (`tests/test_ocr_extract.py`) | P01-T04 | Skipped (environment limitation) | `tesseract-ocr` system binary is not installable in this sandbox (no `brew`/`apt-get`); CI installs it explicitly in `.github/workflows/ci.yml` and will execute these tests |
 | Length-validation end-to-end (`tests/test_validate_resume_length.py`, script-invocation tests) | P02-T04 | Skipped (environment limitation) | LibreOffice (`soffice`) is not installable in this sandbox; CI installs it explicitly and will execute these tests |
@@ -171,7 +171,7 @@ Implemented all four phases in plan order. Added a pinned, cross-platform OCR ex
 
 * Implementation execution status: Complete
 * Declared scope and markers: Full plan; completed P01 (P01-T01–T04), P02 (P02-T01–T04), P03 (P03-T01–T03), P04 (P04-T01); no remaining active-plan markers
-* Validation coverage: `pytest -q` (49 passed, 4 skipped with explicit environment-limitation reasons) and `python scripts/validate_repo.py` (passed) run locally; the 4 skipped tests are designed to run in this repo's CI, which now installs `tesseract-ocr` and `libreoffice`
+* Validation coverage: `pytest -q` (49 passed, 6 skipped with explicit environment-limitation reasons) and `python scripts/validate_repo.py` (passed) run locally; the 6 skipped tests are designed to run in this repo's CI, which now installs `tesseract-ocr` and `libreoffice`
 * Blockers: none
 * Current plan updates: D6 (exact pip dependency versions) resolved during implementation and recorded in the plan's Decisions table
 * Planning and critique state: Current and ready; no new critique required (D6 resolution is a direct, non-divergent implementation detail, not a plan change needing review)

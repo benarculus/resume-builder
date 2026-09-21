@@ -4,7 +4,8 @@ description: Build a verified, JSON Resume-aligned career document from user-sup
 argument-hint: "[source files, pasted evidence, or a LinkedIn export]"
 license: MIT
 user-invocable: true
-allowed-tools: []
+allowed-tools:
+  - shell
 ---
 
 # Career document builder
