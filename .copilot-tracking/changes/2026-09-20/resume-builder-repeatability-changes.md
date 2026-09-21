@@ -190,3 +190,12 @@ After `/rpi-review` recorded a Conformant outcome, subsequent Copilot Code Revie
 * `.copilot-tracking/reviews/logs/2026-09-20/resume-builder-repeatability-review.md`: appended a Post-Review Addendum noting the local skip count moved from 4 to 6 after a later rotation-regression test was added, without rewriting the review's original assessed evidence.
 
 Re-validated after these fixes: `pytest -q -rs` (51 passed, 6 skipped, same environment-limitation reasons) and `python scripts/validate_repo.py` (passed) run locally.
+
+## Post-Review Addendum 2 (perf/robustness follow-up)
+
+Two lower-priority findings from a subsequent Balanced-effort review, addressed directly:
+
+* `skills/career-document-builder/scripts/ocr_extract.py`: `ocr_best_rotation()` previously ran Tesseract twice per rotation (`image_to_data` for confidence, `image_to_string` for text). Rewritten to use `pytesseract.run_and_get_multiple_output(..., extensions=["txt", "tsv"])`, a single Tesseract invocation per rotation that returns both the text and a parseable TSV confidence report, halving the OCR work for the multi-rotation, multi-page PDF path.
+* `skills/resume-drafter/scripts/validate_resume_length.py`: `convert_docx_to_pdf()` now passes an isolated `-env:UserInstallation=<per-call tmp profile>` and `--norestore` to `soffice`, so validation no longer contends with an already-running or concurrent LibreOffice instance (profile locking/command forwarding could otherwise leave a conversion without the expected PDF).
+
+Re-validated: `pytest -q -rs` (51 passed, 6 skipped, same environment-limitation reasons) and `python scripts/validate_repo.py` (passed) run locally. The OCR and soffice code paths themselves remain unexercised locally (no `tesseract`/`soffice` in this sandbox) and are designed to run in CI.

@@ -11,6 +11,8 @@ second system-level PDF dependency (for example Poppler) is required. Both
 from __future__ import annotations
 
 import argparse
+import csv
+import io
 from pathlib import Path
 
 import fitz  # pymupdf
@@ -22,14 +24,14 @@ ROTATIONS = (0, 90, 180, 270)
 RENDER_DPI = 300
 
 
-def _mean_confidence(image: Image.Image) -> float:
-    """Return the mean word-level OCR confidence for `image`, or -1.0 if no words were recognized.
+def _mean_confidence(tsv_report: str) -> float:
+    """Return the mean word-level OCR confidence from a Tesseract TSV report, or -1.0 if no words were recognized.
 
     Tesseract reports -1 confidence for entries with no recognized text (for
     example whitespace-only regions); those are excluded from the mean.
     """
-    data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
-    confidences = [float(conf) for conf in data.get("conf", []) if float(conf) >= 0]
+    rows = csv.DictReader(io.StringIO(tsv_report), delimiter="\t")
+    confidences = [float(row["conf"]) for row in rows if float(row["conf"]) >= 0]
     if not confidences:
         return -1.0
     return sum(confidences) / len(confidences)
@@ -45,14 +47,17 @@ def ocr_best_rotation(image: Image.Image) -> str:
     reading. Mean per-word confidence is a far more reliable signal of which
     rotation is actually correct, so it is used instead, with non-empty text
     length only as a tiebreaker when no candidate rotation has any recognized
-    words.
+    words. Both the text and the confidence report come from a single
+    Tesseract invocation per rotation (`run_and_get_multiple_output`) rather
+    than separate `image_to_string`/`image_to_data` passes, to avoid doubling
+    the OCR work per rotation.
     """
     best_text = ""
     best_confidence = -1.0
     for degrees in ROTATIONS:
         rotated = image if degrees == 0 else image.rotate(-degrees, expand=True)
-        confidence = _mean_confidence(rotated)
-        text = pytesseract.image_to_string(rotated)
+        text, tsv_report = pytesseract.run_and_get_multiple_output(rotated, extensions=["txt", "tsv"])
+        confidence = _mean_confidence(tsv_report)
         is_more_confident = confidence > best_confidence
         is_tiebreak_candidate = confidence == best_confidence == -1.0 and len(text.strip()) > len(best_text.strip())
         if is_more_confident or is_tiebreak_candidate:

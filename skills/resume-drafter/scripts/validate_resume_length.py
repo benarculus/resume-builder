@@ -106,10 +106,19 @@ def count_words(payload: dict[str, Any]) -> int:
 
 
 def convert_docx_to_pdf(docx_path: Path, output_dir: Path) -> Path:
+    # Give this conversion its own LibreOffice user profile so it never contends
+    # with an already-running or concurrent `soffice` process (profile locking
+    # or command forwarding to another instance can otherwise leave this
+    # invocation without the expected PDF). `--norestore` also disables the
+    # crash-recovery dialog that would otherwise block headless conversion.
+    profile_dir = output_dir / "lo-profile"
+    profile_dir.mkdir(parents=True, exist_ok=True)
     subprocess.run(
         [
             "soffice",
             "--headless",
+            "--norestore",
+            f"-env:UserInstallation={profile_dir.as_uri()}",
             "--convert-to",
             "pdf",
             "--outdir",
