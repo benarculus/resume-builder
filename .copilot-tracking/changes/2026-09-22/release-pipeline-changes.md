@@ -1,0 +1,139 @@
+<!-- markdownlint-disable-file -->
+# RPI Changes: Release pipeline for resume-builder
+
+## Metadata
+
+* Task ID: release-pipeline
+* Related plan: [.copilot-tracking/plans/2026-09-22/release-pipeline-plan.md](../../plans/2026-09-22/release-pipeline-plan.md)
+* Implementation date: 2026-09-22
+
+## Execution Status
+
+* Status: Complete
+* Declared invocation scope: full plan, plus routed Review follow-up `RV-001`
+* Completed scope markers: P01, P01-T01, P01-T02, P01-T03, P02, P02-T01, P03, P03-T01; `RV-001` (residual work, not an active `Pxx`/`Pxx-Txx` marker) also implemented
+* All remaining active-plan markers: none
+* Status basis: every phase and task in the plan is checked; each task's binding `Requirements:` were verified against the created files/workflow/ruleset; the `RV-001` review follow-up (ruleset consolidation) was implemented and verified live via `gh api`.
+
+## Execution Summary
+
+Implemented the full `release-please` pipeline for `resume-builder`: added the version-tracking configuration (`release-please-config.json`, `version.txt`, `.release-please-manifest.json`), added the `release-please.yml` GitHub Actions workflow pinned to `googleapis/release-please-action@v5.0.0`, and created an active repository ruleset enforcing linear history on `main`. Re-verified at implementation time that the plan's `bootstrap-sha` (`29d48d546c128c6eb8bb2829e47a89c1886f24f1`) still matches `main`'s current HEAD and that `v5.0.0` is still the latest `release-please-action` tag, so no plan drift occurred between planning and implementation. Discovered and fixed one structural defect in the plan itself (a missing `P03` phase heading) as an immediately relevant correction. Subsequently implemented `/hve-core:rpi-review`'s one accepted finding (`RV-001`): consolidated the standalone linear-history ruleset into the pre-existing "Protect main" ruleset and deleted the now-redundant standalone ruleset, per the user's explicit decision during the review walkthrough.
+
+## Completed Work
+
+### Added release-please version-tracking configuration
+
+* Related phase or task: P01-T01
+* Files:
+  * [release-please-config.json](../../../release-please-config.json)
+* Behavior or functionality changed: `release-please` now has a package definition at the repository root declaring `release-type: simple`, `bootstrap-sha` pinned to `29d48d546c128c6eb8bb2829e47a89c1886f24f1`, and three `extra-files` JSON updaters targeting `plugin.json` (`$.version`) and `.github/plugin/marketplace.json` (`$.metadata.version`, `$.plugins[0].version`). Previously no such configuration existed.
+* Validation: passed — file parses as valid JSON (`python3 -m json.tool` / `json.load`); shape matches the plan's binding contract exactly; `bootstrap-sha` re-verified against current `origin/main`/`HEAD` (`29d48d546c128c6eb8bb2829e47a89c1886f24f1`, unchanged since planning).
+
+### Added the release-please primary version file
+
+* Related phase or task: P01-T02
+* Files:
+  * [version.txt](../../../version.txt)
+* Behavior or functionality changed: `release-please`'s `simple` strategy now has its required primary version file present at the repository root (content `0.1.0`), so its built-in update step has a target to write to on the first Release PR instead of failing or no-op'ing against a missing `createIfMissing: false` file. This file is not a source of truth read elsewhere in the repository; `plugin.json`/`marketplace.json` remain the consumer-facing version fields.
+* Validation: passed — file exists at repository root, contains exactly `0.1.0` followed by a single trailing newline, matching the plan's binding contract.
+
+### Added the release-please version manifest
+
+* Related phase or task: P01-T03
+* Files:
+  * [.release-please-manifest.json](../../../.release-please-manifest.json)
+* Behavior or functionality changed: `release-please` now has a single source of truth (`{ ".": "0.1.0" }`) for the package's current version, seeded to continue the repository's existing pre-1.0 numbering rather than jump to `1.0.0`. This does not change any existing file's on-disk version value; it only tells `release-please` where to count forward from for the next release.
+* Validation: passed — file parses as valid JSON and is semantically equivalent to the plan's binding contract (`{".": "0.1.0"}`); value matches the version already present in `plugin.json`, `marketplace.json`, and the new `version.txt`.
+
+### Added the release-please GitHub Actions workflow
+
+* Related phase or task: P02-T01
+* Files:
+  * [.github/workflows/release-please.yml](../../../.github/workflows/release-please.yml)
+* Behavior or functionality changed: every push to `main` now triggers `release-please-action@v5.0.0` (pinned to commit SHA `45996ed1f6d02564a971a2fa1b5860e934307cf7`, matching the repository's existing action-pinning convention from `ci.yml`), which opens or updates a standing Release PR from Conventional Commit history. The workflow declares exactly `permissions: { contents: write, pull-requests: write, issues: write }` (no broader scope), relies on the default `secrets.GITHUB_TOKEN` with no custom token input, and explicitly references `config-file: release-please-config.json` and `manifest-file: .release-please-manifest.json`. Merging the resulting Release PR will update `CHANGELOG.md`, tag the merge commit, and create a GitHub Release — none of which existed before this change.
+* Validation: passed for structure — YAML parses successfully (`python3 -c "import yaml; yaml.safe_load(...)"`); permissions, trigger (`push: branches: [main]`), action pin, and `with:` inputs all match the plan's binding contract. Skipped for `actionlint`/`yamllint` — neither tool is installed in this environment, and no repository-level linter config exists to fall back to. Unavailable/unverified: an actual live workflow run against a real push to `main`, which is the practical acceptance check the plan calls out as untested until the pipeline's first real run (per the plan's Confidence and uncertainty note).
+
+### Enforced linear history on `main`
+
+* Related phase or task: P03-T01
+* Files: none (repository-configuration change, not a tracked file — matches the plan's `Details:` for this task)
+* Behavior or functionality changed: created a new, active repository ruleset named "Require linear history on main" (ruleset ID `23850509`) targeting `refs/heads/main` with the `required_linear_history` rule. `main`'s commit history is now guaranteed free of true merge commits going forward, while squash and rebase merges remain allowed (`allow_squash_merge`/`allow_rebase_merge` both still `true`), matching the user's confirmed decision to enforce this via a ruleset rather than by disabling merge strategies in repository settings.
+* Validation: passed — `gh api repos/benarculus/resume-builder/rulesets/23850509` confirms `enforcement: active`, `rules: [required_linear_history]`, and `conditions.ref_name.include: [refs/heads/main]`; `gh api repos/benarculus/resume-builder` confirms squash and rebase merges remain enabled. Discovered during implementation that two other active rulesets already target `main` ("Protect main", "Require advisory malware check") — neither included `required_linear_history`, and GitHub applies multiple active rulesets as a union, so this addition is non-conflicting and additive (see Implementation-Time Plan Updates below). **Superseded**: this standalone ruleset was later consolidated into "Protect main" per `RV-001`; see the follow-up entry below.
+
+### Consolidated the linear-history rule into the existing "Protect main" ruleset (RV-001 follow-up)
+
+* Related phase or task: `rpi-review` finding `RV-001` (routed to `rpi-implement` as residual work; not an active `Pxx`/`Pxx-Txx` marker)
+* Files: none (repository-configuration change only)
+* Behavior or functionality changed: the review noted that a pre-existing, unrelated ruleset ("Protect main", ID `23698833`) still advertised `"merge"` as an allowed method even though the new standalone "Require linear history on main" ruleset (ID `23850509`) would already block true merge commits — a correct but potentially confusing dual-ruleset state. Per the user's explicit decision during the review walkthrough ("fold `required_linear_history` into 'Protect main', then delete the new separate ruleset"), added the `required_linear_history` rule to "Protect main"'s rule set via `gh api ... --method PUT`, then deleted the standalone ruleset (`23850509`) via `gh api ... --method DELETE`. `main` is now governed by exactly one ruleset ("Protect main") that includes linear-history enforcement alongside its existing deletion, non-fast-forward, pull-request, status-check, and Copilot code-review rules; the separate "Require advisory malware check" ruleset is untouched.
+* Validation: passed — `gh api repos/benarculus/resume-builder/rulesets` now lists only two active rulesets ("Protect main", "Require advisory malware check"), confirming `23850509` no longer exists; `gh api repos/benarculus/resume-builder/rulesets/23698833` shows `required_linear_history` present in its `rules` alongside all previously existing rule types, none dropped; `gh api repos/benarculus/resume-builder` confirms `allow_squash_merge`/`allow_rebase_merge`/`allow_merge_commit` are all still `true` at the repository-settings level (unaffected by ruleset consolidation).
+
+## Implementation-Time Plan Updates
+
+### Fixed a missing P03 phase heading in the plan
+
+* Affected plan area or markers: P03 (phase heading structure)
+* What changed: added the missing `<!-- rpi:phase id=P03 -->` marker comment and `### [ ] P03: Require linear history on \`main\`` heading immediately before P03's `Goals:` block, which had been left without its phase heading from an earlier plan revision.
+* Why: the plan navigation and checklist contract requires every phase to have an `<!-- rpi:phase id=Pxx -->` marker and heading; without it, P03 could not be located or checked as a phase during implementation.
+* Triggering evidence: direct inspection of the plan file during implementation showed P03's `Goals:`/`Dependencies:`/diagram content present but with no preceding phase marker or heading, unlike P01 and P02.
+* User answer or decision: none needed — this is a factual/structural correction restoring the plan's own required format, not a change to approved scope, requirements, or direction.
+* Reconciliation performed: added the phase marker and heading only; no other P03 content (Goals, Dependencies, diagram, task) needed changes.
+* Planning and critique state: not needed — this does not affect the plan's Critique Disposition or any `PC-xxx` finding; the critique's `PC-001` remains resolved as recorded.
+
+### Noted pre-existing rulesets on `main` alongside the new linear-history ruleset
+
+* Affected plan area or markers: P03-T01
+* What changed: no plan content changed; recording here that two other active rulesets ("Protect main", "Require advisory malware check") already target `main` and remain untouched.
+* Why: the plan's research evidence (`C` items) predates these rulesets and stated no branch protection existed; by implementation time, branch-level rulesets had been added independently. Confirming they do not include `required_linear_history` and do not conflict with the new ruleset was necessary before proceeding.
+* Triggering evidence: `gh api repos/benarculus/resume-builder/rulesets` listing both existing rulesets; `gh api repos/benarculus/resume-builder/rulesets/23698833` and `.../23729465` showing their rule sets do not include `required_linear_history`.
+* User answer or decision: none needed — GitHub applies multiple active rulesets as a union, so adding a focused new ruleset is compatible with the existing ones and matches the plan's confirmed ruleset-based approach (`D3`).
+* Reconciliation performed: none required in the plan; this is local judgment during implementation, recorded here for traceability.
+* Planning and critique state: not needed.
+
+## Validation Record
+
+| Check | Scope | Status | Evidence or reason |
+|-------|-------|--------|---------------------|
+| JSON validity | `release-please-config.json` | Passed | `python3 -m json.tool` / `json.load` parsed successfully; matches plan's binding contract |
+| JSON validity | `.release-please-manifest.json` | Passed | `json.load` parsed successfully; value `{".": "0.1.0"}` matches plan's binding contract |
+| Content check | `version.txt` | Passed | Contains exactly `0.1.0` plus trailing newline |
+| YAML validity | `.github/workflows/release-please.yml` | Passed | `python3 -c "import yaml; yaml.safe_load(...)"` parsed successfully |
+| `actionlint`/`yamllint` | `.github/workflows/release-please.yml` | Skipped | Neither tool is installed in this environment; no repository lint config found to substitute |
+| Live ruleset check | P03-T01 (repository ruleset, original) | Passed (superseded) | `gh api repos/benarculus/resume-builder/rulesets/23850509` confirmed `enforcement: active`, `rules: [required_linear_history]`, `include: [refs/heads/main]` at original implementation time; this ruleset was later deleted per `RV-001` consolidation |
+| Live ruleset check | RV-001 follow-up (final state) | Passed | `gh api repos/benarculus/resume-builder/rulesets` lists only "Protect main" and "Require advisory malware check"; `gh api repos/benarculus/resume-builder/rulesets/23698833` shows `required_linear_history` present in "Protect main"'s rules alongside all prior rule types |
+| Merge-strategy prerequisite | P03-T01 | Passed | `gh api repos/benarculus/resume-builder` shows `allow_squash_merge: true`, `allow_rebase_merge: true`, `allow_merge_commit: true` — unaffected by ruleset consolidation |
+| `bootstrap-sha` currency | P01-T01 | Passed | `git rev-parse HEAD`/`origin main` at implementation time still `29d48d546c128c6eb8bb2829e47a89c1886f24f1`, matching the plan's pinned value; no update needed |
+| `release-please-action` tag currency | P02-T01 | Passed | `gh api repos/googleapis/release-please-action/tags` confirms `v5.0.0` is still the latest tag at implementation time |
+| End-to-end pipeline run | P02-T01 (practical acceptance) | Unavailable | Requires a real push/merge to `main` after this change lands; not exercisable during this implementation session, consistent with the plan's stated confidence caveat |
+
+## Pre-Review Reconciliation
+
+* Plan markers and task-local context: current — all P01/P01-T01..T03, P02/P02-T01, and P03/P03-T01 markers are checked; the P03 phase-heading defect is fixed.
+* Completed-work entries and handoff prose: current — every completed item has a changes-record entry with files, behavior change, and validation, including the `RV-001` ruleset-consolidation follow-up.
+* Validation, blockers, remaining work, and follow-up items: current — see Validation Record, Blockers, Remaining Work, and Follow-Up Items below.
+* Review readiness: `RV-001` is resolved; this later work does not require a second Review per the return-to-caller state below.
+
+## Blockers
+
+* none
+
+## Remaining Work
+
+* none — full plan scope (P01–P03, all tasks) is complete; the review's one accepted finding (`RV-001`) is also implemented
+
+## Follow-Up Items
+
+* Canonical plan list: [.copilot-tracking/plans/2026-09-22/release-pipeline-plan.md](../../plans/2026-09-22/release-pipeline-plan.md), `## Follow-Up Items`
+* Consider adding a lightweight Conventional-Commit PR-title lint (carried unchanged from the plan's `## Follow-Up Items`); not implemented as part of this scope — owner: user/downstream, to be planned separately if desired.
+* `RV-001` (ruleset consolidation) is resolved — see Completed Work above; no longer an open follow-up item.
+
+## Return-to-Caller State
+
+* Implementation execution status: Complete
+* Declared scope and markers: full plan; completed P01, P01-T01, P01-T02, P01-T03, P02, P02-T01, P03, P03-T01; plus routed Review follow-up `RV-001` (ruleset consolidation); no remaining active-plan markers
+* Validation coverage: JSON/YAML structural validation passed for all created files; live `gh api` verification passed for the ruleset (including its final consolidated state) and merge-strategy prerequisite; `bootstrap-sha` and action-tag currency reconfirmed at implementation time; `actionlint`/`yamllint` skipped (unavailable in environment); end-to-end pipeline run unavailable until a real push/merge to `main` occurs
+* Blockers: none
+* Current plan updates: one structural fix (restored the missing `P03` phase heading); one traceability note (pre-existing rulesets on `main` do not conflict with the new linear-history ruleset); no plan-file edits were needed for `RV-001` since it is residual review-routed work recorded in this changes record rather than an active plan phase/task
+* Planning and critique state: current and Ready; `PC-001` remains resolved as recorded in the plan's `## Critique Disposition`
+* Follow-up items: one open item, unchanged from the plan (optional Conventional-Commit PR-title lint), not in scope; `RV-001` is resolved (no longer open)
+* Review readiness or no-handoff reason: this later implementation resolves an accepted Review finding (`RV-001`) as ordinary follow-up work; per RPI convention, a later implementation does not require another Review — no further Review action is needed for this task
+* Continuation owner: user (standalone implementation; no active RPI Agent parent)
