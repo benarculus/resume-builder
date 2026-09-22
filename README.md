@@ -4,6 +4,40 @@ GitHub Copilot CLI skills for building accurate, job-tailored resumes from a ver
 
 ## Install
 
+### System prerequisites
+
+`career-document-builder`'s OCR extraction script and `resume-drafter`'s length-validation script depend on two system-level binaries that are not installable through `pip`:
+
+* [`tesseract-ocr`](https://github.com/tesseract-ocr/tesseract) — the OCR engine `pytesseract` wraps, used to extract text from scanned or image-based career-document sources.
+* [LibreOffice](https://www.libreoffice.org/) (providing the `soffice` CLI) — used to render a tailored resume `.docx` to PDF for an actual rendered page-count check.
+
+Install both with your OS package manager before running the skills locally, for example:
+
+```bash
+# Debian/Ubuntu
+sudo apt-get install -y tesseract-ocr libreoffice
+
+# macOS (Homebrew) — LibreOffice is a cask, so it needs a separate install
+brew install tesseract
+brew install --cask libreoffice
+```
+
+### Python runtime dependencies
+
+The same scripts also depend on Python packages (`pytesseract`, `pymupdf`, `pillow`, `python-docx`) that must be installed separately from the system binaries above. This is required to run `career-document-builder`'s OCR extraction and `resume-drafter`'s length validation and document rendering, regardless of which install path below you use. It is distinct from `requirements-dev.txt`, which is only needed by repository contributors running the test suite.
+
+If you have a checkout of this repository, install the pinned versions from [`requirements.txt`](requirements.txt):
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+Otherwise (for example after a direct or marketplace plugin install with no local checkout), install the same pinned versions directly — check [`requirements.txt`](requirements.txt) for the current pins, which at the time of writing are:
+
+```bash
+python -m pip install python-docx==1.2.0 pytesseract==0.3.13 pymupdf==1.26.7 pillow==12.3.0
+```
+
 ### Direct plugin install
 
 Install the Agent Plugins 1.0 package directly from this repository:
