@@ -37,10 +37,16 @@ jobs:
         # release-please never opens/advances a release for un-validated
         # commits.
         id: guard
+        shell: bash
         env:
           WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
+          set -euo pipefail
           current_sha=$(git ls-remote https://github.com/${{ github.repository }} refs/heads/main | cut -f1)
+          if [ -z "$current_sha" ]; then
+            echo "Failed to resolve the current tip of main via git ls-remote; refusing to guess whether this run is stale." >&2
+            exit 1
+          fi
           if [ "$current_sha" != "$WORKFLOW_RUN_HEAD_SHA" ]; then
             echo "Stale CI run: main is now at $current_sha, this run validated $WORKFLOW_RUN_HEAD_SHA. Skipping."
             echo "is_current=false" >> "$GITHUB_OUTPUT"
