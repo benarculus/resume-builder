@@ -22,7 +22,25 @@ jobs:
       github.event.workflow_run.event == 'push'
     runs-on: ubuntu-latest
     steps:
+      - name: Guard against a stale CI run
+        # workflow_run fires for the commit CI ran against, not necessarily
+        # the current tip of main. If a later commit lands on main before
+        # this run's CI completes, skip acting on the now-superseded SHA so
+        # release-please never opens/advances a release for un-validated
+        # commits.
+        id: guard
+        env:
+          WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          current_sha=$(git ls-remote https://github.com/${{ github.repository }} refs/heads/main | cut -f1)
+          if [ "$current_sha" != "$WORKFLOW_RUN_HEAD_SHA" ]; then
+            echo "Stale CI run: main is now at $current_sha, this run validated $WORKFLOW_RUN_HEAD_SHA. Skipping."
+            echo "is_current=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_current=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        if: steps.guard.outputs.is_current == 'true'
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
