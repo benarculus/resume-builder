@@ -1,9 +1,9 @@
 name: release-please
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: ["Validate resume-builder"]
+    types: [completed]
 
 permissions:
   contents: write
@@ -12,6 +12,14 @@ permissions:
 
 jobs:
   release-please:
+    # Only propose or advance a release once CI has passed on a real push to
+    # main. GITHUB_TOKEN-authored events (like release-please's own generated
+    # Release PR) never retrigger pull_request/push workflows, so this gate
+    # only ever fires from a human's push or merge to main.
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.event == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
