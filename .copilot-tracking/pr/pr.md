@@ -7,7 +7,7 @@ Adds an automated `release-please` pipeline so `resume-builder` tracks version u
 - `.release-please-manifest.json` — tracks the current released version (`0.1.0`)
 - `.github/workflows/release-please.yml` — triggers via `workflow_run`, chained after `ci.yml` ("Validate resume-builder") completes successfully on a push to `main`; guards against a stale CI run by comparing the triggering commit SHA to the live tip of `main` before acting; pinned to `googleapis/release-please-action@v5.0.0` (commit-SHA pinned per repository convention)
 
-Also enforces linear history on `main`, a prerequisite for release-please's commit-based version bumping to stay reliable: `required_linear_history` was folded into the repository's existing "Protect main" ruleset rather than adding a second ruleset, so `main` continues to be governed by one ruleset.
+Also enforces linear history on `main`, a prerequisite for release-please's commit-based version bumping to stay reliable: `required_linear_history` was folded into the repository's existing "Protect main" ruleset rather than adding a separate linear-history ruleset. `main` is still governed by two rulesets overall ("Protect main" and "Require advisory malware check"), which this change leaves intact.
 
 Includes the full research → plan → critique → implementation → review tracking record for this task under `.copilot-tracking/`.
 

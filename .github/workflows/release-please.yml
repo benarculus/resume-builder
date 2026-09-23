@@ -21,6 +21,14 @@ jobs:
       github.event.workflow_run.head_branch == 'main' &&
       github.event.workflow_run.event == 'push'
     runs-on: ubuntu-latest
+    # The stale-run guard only filters which SHA a run acts on; it does not
+    # stop two completed workflow_run events (e.g. a CI rerun plus a later
+    # push) from executing release-please-action at the same time. Serialize
+    # every invocation on one queue so only one mutates the Release PR or
+    # manifest at once; never cancel one mid-mutation.
+    concurrency:
+      group: release-please
+      cancel-in-progress: false
     steps:
       - name: Guard against a stale CI run
         # workflow_run fires for the commit CI ran against, not necessarily
