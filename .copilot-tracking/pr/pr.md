@@ -17,7 +17,7 @@ Includes the full research → plan → critique → implementation → review t
 ## Validation
 
 - [x] `python scripts/validate_repo.py` — passed (includes the hardened GitHub App token and Scorecard contracts plus workflow SHA pins)
-- [x] `python3 -m pytest -q tests/test_structure.py` — 39 passed using Python 3.9-compatible pytest 8.4.2; hosted CI remains authoritative for the repository-pinned Python 3.12 dependency set
+- [x] `python3 -m pytest -q` — 58 passed, 8 skipped using the local Python 3.9 environment; hosted CI remains authoritative for the repository-pinned Python 3.12 dependency set
 
 ## Anti-fabrication and privacy
 
@@ -27,6 +27,6 @@ Includes the full research → plan → critique → implementation → review t
 
 ## Checklist
 
-- [ ] README or shared contracts updated when behavior changed.
+- [x] README or shared contracts updated when behavior changed.
 - [x] Tests added or updated for executable behavior.
 - [x] Security-sensitive changes are called out in the description.
