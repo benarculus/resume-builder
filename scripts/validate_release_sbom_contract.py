@@ -61,10 +61,9 @@ def validate_release_sbom_contract(path: Path, expected_version: str) -> None:
     ):
         raise AssertionError("SBOM source package must identify the benarculus supplier and originator")
     misattributed = [
-        package["name"]
-        for name, matching_packages in observed_packages.items()
-        if name != "resume-builder"
-        for package in matching_packages
+        str(package.get("name", "<unnamed>"))
+        for package in packages
+        if package is not source_package
         if package.get("supplier") == SOURCE_SUPPLIER
     ]
     if misattributed:

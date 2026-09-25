@@ -74,6 +74,15 @@ The release pipeline now installs official `spdx-tools==0.8.5` from a complete P
 * Validation: Repository validation passed; focused structural suite passed 78 tests; diff hygiene passed.
 * Status: Complete; hosted Python 3.12/Linux CI passed 125 tests without skips at commit `d7a8222`.
 
+### Addressing CCR normalized root-alias finding
+
+* Related scope: P02-T02
+* Planned behavior: supplier attribution will exempt only the exact selected root package object, not every package whose name normalizes to `resume-builder`.
+* Affected files: [scripts/validate_release_sbom_contract.py](../../../scripts/validate_release_sbom_contract.py), [tests/test_spdx_sbom.py](../../../tests/test_spdx_sbom.py)
+* Behavior or functionality changed: dependency supplier validation now iterates every package except the selected exact root object. Parameterized regressions cover underscore, dot/case, and uppercase-hyphen aliases claiming the repository supplier.
+* Validation: Focused SBOM contract suite passed 16 tests with 7 expected local official-validator skips; repository validation and diff hygiene passed.
+* Status: Implemented locally; hosted confirmation remains pending.
+
 ### Addressing RV-001: Protect validator failure and dependency isolation
 
 * Related scope: P01-T02, P03-T02

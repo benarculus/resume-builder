@@ -205,6 +205,31 @@ def test_release_contract_rejects_dependency_supplier_misattribution(
         load_contract_validator().validate_release_sbom_contract(path, "0.2.0")
 
 
+@pytest.mark.parametrize("alias", ["resume_builder", "Resume.Builder", "RESUME-BUILDER"])
+def test_release_contract_rejects_root_alias_supplier_misattribution(
+    tmp_path: Path, alias: str
+) -> None:
+    path = write_prepared_document(tmp_path)
+    document = json.loads(path.read_text(encoding="utf-8"))
+    document["packages"].append(
+        {
+            "name": alias,
+            "SPDXID": f"SPDXRef-Package-{alias}",
+            "versionInfo": "9.9.9",
+            "supplier": "Organization: benarculus",
+            "downloadLocation": "NOASSERTION",
+            "filesAnalyzed": False,
+            "licenseConcluded": "NOASSERTION",
+            "licenseDeclared": "NOASSERTION",
+            "copyrightText": "NOASSERTION",
+        }
+    )
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(AssertionError, match="must not attribute dependencies"):
+        load_contract_validator().validate_release_sbom_contract(path, "0.2.0")
+
+
 @pytest.mark.parametrize("conflicting_first", [True, False])
 def test_release_contract_rejects_duplicate_runtime_version(
     tmp_path: Path, conflicting_first: bool
