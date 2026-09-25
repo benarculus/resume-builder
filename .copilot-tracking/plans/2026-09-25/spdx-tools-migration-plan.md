@@ -77,7 +77,7 @@ flowchart LR
 The migration replaces the single mixed validator with a deterministic official conformance gate followed by a repository-policy gate. Generation, enrichment, artifact transfer, checksum verification, and publication retain their existing relationships.
 
 <!-- rpi:phase id=P01 -->
-### [ ] P01: Establish the deterministic official validator environment
+### [x] P01: Establish the deterministic official validator environment
 
 Goals:
 * Make official SPDX validation reproducible and isolated from application/runtime dependencies so the release gate cannot drift through unconstrained package resolution.
@@ -109,7 +109,7 @@ flowchart LR
 Highlighted work: add and govern the Python 3.12 validation runtime and the complete binary-only dependency lock.
 
 <!-- rpi:task id=P01-T01 -->
-#### [ ] P01-T01: Add the validation-only dependency lock
+#### [x] P01-T01: Add the validation-only dependency lock
 
 Goals:
 * Provide a reviewable dependency artifact that deterministically installs `spdx-tools==0.8.5` and every transitive dependency used by hosted SPDX validation.
@@ -143,7 +143,7 @@ Dependencies:
 * None
 
 <!-- rpi:task id=P01-T02 -->
-#### [ ] P01-T02: Enforce the dependency and runtime contract structurally
+#### [x] P01-T02: Enforce the dependency and runtime contract structurally
 
 Goals:
 * Make repository validation reject incomplete locks, mutable installs, unsupported Python setup, and accidental inclusion of the validator in application dependency files.
@@ -170,7 +170,7 @@ Dependencies:
 * P01-T01
 
 <!-- rpi:phase id=P02 -->
-### [ ] P02: Separate SPDX conformance from release policy
+### [x] P02: Separate SPDX conformance from release policy
 
 Goals:
 * Give official tooling ownership of SPDX 2.3 semantics while preserving a small, explicit repository contract for release identity and dependency completeness.
@@ -203,7 +203,7 @@ flowchart LR
 Highlighted work: remove the mixed validator, add the narrowly scoped release-contract validator, and partition mutation ownership between official conformance and repository policy.
 
 <!-- rpi:task id=P02-T01 -->
-#### [ ] P02-T01: Replace the mixed validator with a release-contract validator
+#### [x] P02-T01: Replace the mixed validator with a release-contract validator
 
 Goals:
 * Expose a custom validator whose name and behavior accurately describe only the repository-specific conditions required for publication.
@@ -243,7 +243,7 @@ Dependencies:
 * P01-T01
 
 <!-- rpi:task id=P02-T02 -->
-#### [ ] P02-T02: Partition conformance and policy test ownership
+#### [x] P02-T02: Partition conformance and policy test ownership
 
 Goals:
 * Prove both gates reject their owned defect classes without keeping duplicate specification logic in repository code.
@@ -279,7 +279,7 @@ Dependencies:
 * P02-T01
 
 <!-- rpi:phase id=P03 -->
-### [ ] P03: Wire the two-gate publication boundary and finalize PR evidence
+### [x] P03: Wire the two-gate publication boundary and finalize PR evidence
 
 Goals:
 * Ensure the release workflow can publish only an SBOM that passed deterministic official conformance and repository policy, with repository contracts, documentation, and review evidence synchronized.
@@ -320,7 +320,7 @@ flowchart LR
 Highlighted work: enforce the final runtime/install/validation sequence, protect it structurally, and synchronize reviewer-facing evidence.
 
 <!-- rpi:task id=P03-T01 -->
-#### [ ] P03-T01: Integrate official and repository validation into the release job
+#### [x] P03-T01: Integrate official and repository validation into the release job
 
 Goals:
 * Make the generation job stop before artifact transfer unless the enriched SBOM passes both validators in the required order.
@@ -352,7 +352,7 @@ Dependencies:
 * P02-T01
 
 <!-- rpi:task id=P03-T02 -->
-#### [ ] P03-T02: Protect the final workflow and validation boundary
+#### [x] P03-T02: Protect the final workflow and validation boundary
 
 Goals:
 * Make structural validation fail when either validation gate, its deterministic installation, or its pre-upload ordering is weakened.
@@ -386,7 +386,7 @@ Dependencies:
 * P03-T01
 
 <!-- rpi:task id=P03-T03 -->
-#### [ ] P03-T03: Synchronize documentation, tracking, and pull-request review evidence
+#### [x] P03-T03: Synchronize documentation, tracking, and pull-request review evidence
 
 Goals:
 * Give maintainers and reviewers an accurate account of the final architecture, dependency boundary, executed validation, and resolution of the open CCR finding.

@@ -22,7 +22,7 @@ Includes the full research → plan → critique → implementation → review t
 - [x] `python scripts/validate_repo.py` — passed (includes the reviewed validator lock, Python 3.12 boundary, ordered official/repository SPDX gates, hardened GitHub App token, Scorecard, and workflow SHA-pin contracts)
 - [x] Python 3.12/Linux lock download with `--require-hashes --only-binary=:all:` — passed for all 13 reviewed artifacts
 - [x] Real SPDX generation with checksummed Syft `v1.52.0` — passed through preparation, official SPDX 2.3 validation, and the repository release contract
-- [x] `python3 -m pytest -q` — 92 passed, 8 skipped in the authoritative Python 3.12 environment with all 5 official SPDX integration cases running; 87 passed, 13 skipped on local Python 3.9
+- [x] Hosted Python 3.12 CI — 100 passed with the hash-locked official validator installed and no skips; local Python 3.12 preflight passed 92 with 8 system-binary skips, and local Python 3.9 passed 87 with 13 expected skips
 
 ## Anti-fabrication and privacy
 
