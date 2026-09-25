@@ -34,6 +34,11 @@ def spdx_document() -> dict:
             "SPDXID": "SPDXRef-Package-resume-builder",
             "versionInfo": "0.2.0",
             "supplier": "NOASSERTION",
+            "downloadLocation": "NOASSERTION",
+            "filesAnalyzed": False,
+            "licenseConcluded": "NOASSERTION",
+            "licenseDeclared": "NOASSERTION",
+            "copyrightText": "NOASSERTION",
         }
     ]
     packages.extend(
@@ -42,6 +47,11 @@ def spdx_document() -> dict:
             "SPDXID": f"SPDXRef-Package-{name}",
             "versionInfo": version,
             "supplier": "NOASSERTION",
+            "downloadLocation": "NOASSERTION",
+            "filesAnalyzed": False,
+            "licenseConcluded": "NOASSERTION",
+            "licenseDeclared": "NOASSERTION",
+            "copyrightText": "NOASSERTION",
         }
         for name, version in load_validator().expected_runtime_packages().items()
     )
@@ -121,7 +131,18 @@ def test_spdx_validator_rejects_non_object_package(tmp_path: Path) -> None:
         validator.validate_spdx_sbom(path, "0.2.0")
 
 
-@pytest.mark.parametrize("field", ["name", "SPDXID", "supplier"])
+@pytest.mark.parametrize(
+    "field",
+    [
+        "name",
+        "SPDXID",
+        "supplier",
+        "downloadLocation",
+        "licenseConcluded",
+        "licenseDeclared",
+        "copyrightText",
+    ],
+)
 @pytest.mark.parametrize("value", [42, [], ""])
 def test_spdx_validator_rejects_non_string_or_empty_package_fields(
     tmp_path: Path, field: str, value: object
@@ -132,7 +153,67 @@ def test_spdx_validator_rejects_non_string_or_empty_package_fields(
     path = tmp_path / "resume-builder.spdx.json"
     path.write_text(json.dumps(document), encoding="utf-8")
 
-    with pytest.raises(AssertionError, match="identifiers and suppliers"):
+    with pytest.raises(AssertionError, match="mandatory SPDX fields"):
+        validator.validate_spdx_sbom(path, "0.2.0")
+
+
+@pytest.mark.parametrize("value", [None, "false", 0])
+def test_spdx_validator_rejects_invalid_files_analyzed(
+    tmp_path: Path, value: object
+) -> None:
+    validator = load_validator()
+    document = spdx_document()
+    document["packages"][0]["filesAnalyzed"] = value
+    path = tmp_path / "resume-builder.spdx.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(AssertionError, match="mandatory SPDX fields"):
+        validator.validate_spdx_sbom(path, "0.2.0")
+
+
+def test_spdx_validator_requires_verification_code_for_analyzed_package(
+    tmp_path: Path,
+) -> None:
+    validator = load_validator()
+    document = spdx_document()
+    document["packages"][0]["filesAnalyzed"] = True
+    path = tmp_path / "resume-builder.spdx.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    load_preparer().prepare_spdx_sbom(path, "0.2.0")
+
+    with pytest.raises(AssertionError, match="packageVerificationCode"):
+        validator.validate_spdx_sbom(path, "0.2.0")
+
+
+def test_spdx_validator_accepts_verification_code_for_analyzed_package(
+    tmp_path: Path,
+) -> None:
+    validator = load_validator()
+    document = spdx_document()
+    document["packages"][0]["filesAnalyzed"] = True
+    document["packages"][0]["packageVerificationCode"] = {
+        "packageVerificationCodeValue": "0123456789abcdef"
+    }
+    path = tmp_path / "resume-builder.spdx.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    load_preparer().prepare_spdx_sbom(path, "0.2.0")
+
+    validator.validate_spdx_sbom(path, "0.2.0")
+
+
+def test_spdx_validator_rejects_verification_code_for_unanalyzed_package(
+    tmp_path: Path,
+) -> None:
+    validator = load_validator()
+    document = spdx_document()
+    document["packages"][0]["packageVerificationCode"] = {
+        "packageVerificationCodeValue": "0123456789abcdef"
+    }
+    path = tmp_path / "resume-builder.spdx.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    load_preparer().prepare_spdx_sbom(path, "0.2.0")
+
+    with pytest.raises(AssertionError, match="packageVerificationCode"):
         validator.validate_spdx_sbom(path, "0.2.0")
 
 

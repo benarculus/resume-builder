@@ -168,6 +168,15 @@ Implemented the full `release-please` pipeline for `resume-builder`: added the v
 * Behavior or functionality changed: release validation now binds `plugin.json`'s version and both marketplace version fields to the root version shared by `.release-please-manifest.json` and `version.txt`, with a mutation regression for every consumer field. The plan now states the actual linear-history guarantee: merge commits are excluded, while squash merges contribute one commit and rebase merges may preserve multiple commits.
 * Validation: passed — `python3 -m pytest -q tests/test_structure.py` (53 tests); `python3 scripts/validate_repo.py`; full suite (93 passed, 8 skipped); and `git diff --check`.
 
+### Enforced mandatory SPDX 2.3 package fields
+
+* Related review: Copilot Code Review finding on 2026-09-25
+* Files:
+  * [scripts/validate_spdx_sbom.py](../../../scripts/validate_spdx_sbom.py)
+  * [tests/test_spdx_sbom.py](../../../tests/test_spdx_sbom.py)
+* Behavior or functionality changed: package validation now requires the SPDX 2.3 package fields used by the release contract: non-empty `name`, `SPDXID`, `supplier`, `downloadLocation`, `licenseConcluded`, `licenseDeclared`, and `copyrightText`, plus a boolean `filesAnalyzed`. An analyzed package must include a non-empty `packageVerificationCodeValue`; an unanalyzed package must not include a verification code. The accepted fixture is now minimally conformant and mutation tests cover every mandatory field and both conditional verification-code branches.
+* Validation: passed — `python3 -m pytest -q tests/test_structure.py tests/test_spdx_sbom.py` (92 tests); `python3 scripts/validate_repo.py`; full suite (111 passed, 8 skipped); and `git diff --check`.
+
 ## Implementation-Time Plan Updates
 
 ### Fixed a missing P03 phase heading in the plan

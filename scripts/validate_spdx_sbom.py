@@ -53,17 +53,44 @@ def validate_spdx_sbom(path: Path, expected_version: str) -> None:
     packages = document.get("packages")
     if not isinstance(packages, list) or not packages:
         raise AssertionError("SBOM must contain package components")
+    required_package_strings = (
+        "name",
+        "SPDXID",
+        "supplier",
+        "downloadLocation",
+        "licenseConcluded",
+        "licenseDeclared",
+        "copyrightText",
+    )
     incomplete = [
         package.get("name", "<unnamed>") if isinstance(package, dict) else "<non-object>"
         for package in packages
         if not isinstance(package, dict)
         or not all(
             isinstance(package.get(field), str) and package[field].strip()
-            for field in ("name", "SPDXID", "supplier")
+            for field in required_package_strings
         )
+        or not isinstance(package.get("filesAnalyzed"), bool)
     ]
     if incomplete:
-        raise AssertionError(f"SBOM packages must include identifiers and suppliers: {incomplete}")
+        raise AssertionError(f"SBOM packages must include mandatory SPDX fields: {incomplete}")
+    invalid_analysis = []
+    for package in packages:
+        verification_code = package.get("packageVerificationCode")
+        if package["filesAnalyzed"]:
+            if (
+                not isinstance(verification_code, dict)
+                or not isinstance(verification_code.get("packageVerificationCodeValue"), str)
+                or not verification_code["packageVerificationCodeValue"].strip()
+            ):
+                invalid_analysis.append(package["name"])
+        elif verification_code is not None:
+            invalid_analysis.append(package["name"])
+    if invalid_analysis:
+        raise AssertionError(
+            "SBOM packageVerificationCode must be present only when filesAnalyzed is true: "
+            f"{invalid_analysis}"
+        )
     package_ids = [package["SPDXID"] for package in packages if isinstance(package, dict)]
     duplicate_ids = sorted(
         spdx_id for spdx_id in set(package_ids) if package_ids.count(spdx_id) > 1
