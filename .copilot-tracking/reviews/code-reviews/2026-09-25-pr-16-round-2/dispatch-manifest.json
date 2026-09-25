@@ -1,0 +1,133 @@
+{
+  "reviewTarget": {
+    "kind": "pull_request",
+    "provider": "github",
+    "id": "16",
+    "headSha": "02e79a76bfe1d33330e5195691382c8f990c870d"
+  },
+  "reviewProfile": "standard",
+  "recommendedPerspectives": [
+    "functional",
+    "standards",
+    "security",
+    "readiness"
+  ],
+  "selectedPerspectives": [
+    "functional",
+    "standards",
+    "security",
+    "readiness"
+  ],
+  "recommendedDepth": "comprehensive",
+  "depthTier": "comprehensive",
+  "phaseGates": {
+    "orientationConfirmed": true,
+    "humanAccepted": true,
+    "walkbackComplete": true,
+    "emissionReady": false
+  },
+  "currentPhase": "reporting",
+  "nextActions": [
+    {
+      "id": "human-edit",
+      "kind": "human-review",
+      "target": "review.md",
+      "reason": "Human validation and optional PR emission remain gated."
+    }
+  ],
+  "boardItems": [
+    {
+      "id": "CR2-1",
+      "area": "Tag and draft-release lifecycle",
+      "status": "complete",
+      "register": "register-2",
+      "summary": "Reviewed event ordering, draft discovery, reruns, and partial external state.",
+      "preliminarySignal": "The workflow can leave a tag and draft after a pre-publication failure; recovery is not documented.",
+      "links": [
+        ".github/workflows/publish-release.yml:25",
+        "README.md:7"
+      ],
+      "selectableSymbols": [
+        "Resolve draft release",
+        "Publish immutable release"
+      ]
+    },
+    {
+      "id": "CR2-2",
+      "area": "Cross-job SBOM trust boundary",
+      "status": "complete",
+      "register": "register-2",
+      "summary": "Reviewed artifact transfer, permission separation, upload, download, and digest verification.",
+      "preliminarySignal": "The read-only and write-capable jobs are separated and the published asset is digest-verified.",
+      "links": [
+        ".github/workflows/publish-release.yml:9",
+        ".github/workflows/publish-release.yml:105"
+      ],
+      "selectableSymbols": [
+        "generate",
+        "publish"
+      ]
+    },
+    {
+      "id": "CR2-3",
+      "area": "SPDX content contract",
+      "status": "complete",
+      "register": "register-2",
+      "summary": "Reviewed root identity, versions, suppliers, and relationships.",
+      "preliminarySignal": "The DESCRIBES predicate is not bound to the document and root package identifiers.",
+      "links": [
+        "scripts/validate_spdx_sbom.py:91",
+        "tests/test_spdx_sbom.py:48"
+      ],
+      "selectableSymbols": [
+        "validate_spdx_sbom",
+        "spdx_document"
+      ]
+    },
+    {
+      "id": "CR2-4",
+      "area": "App token and release permissions",
+      "status": "complete",
+      "register": "register-2",
+      "summary": "Reviewed App credentials, installation-token scope, and job permissions.",
+      "preliminarySignal": "Token boundaries are least-privilege, but App-only version-tag provenance is not enforced by a tag ruleset.",
+      "links": [
+        ".github/workflows/release-please.yml:1",
+        ".github/workflows/publish-release.yml:3"
+      ],
+      "selectableSymbols": [
+        "Create GitHub App token",
+        "generate"
+      ]
+    },
+    {
+      "id": "CR2-5",
+      "area": "Executable policy and regression tests",
+      "status": "complete",
+      "register": "register-2",
+      "summary": "Reviewed structural assertions and negative SPDX coverage.",
+      "preliminarySignal": "The strict validator is fail-closed, but the missing DESCRIBES-target regression permits a semantic gap.",
+      "links": [
+        "scripts/validate_repo.py:322",
+        "tests/test_spdx_sbom.py:79"
+      ],
+      "selectableSymbols": [
+        "validate_publish_release_workflow",
+        "test_spdx_validator_accepts_release_contract"
+      ]
+    },
+    {
+      "id": "CR2-6",
+      "area": "Governance and deliverable readiness",
+      "status": "complete",
+      "register": "register-2",
+      "summary": "Refreshed live checks, rulesets, collaborator authority, merge state, and documentation.",
+      "preliminarySignal": "Checks are green and human approval is the expected merge gate; README validation evidence is stale.",
+      "links": [
+        "README.md:97",
+        ".copilot-tracking/pr/pr.md:1"
+      ],
+      "selectableSymbols": []
+    }
+  ]
+}

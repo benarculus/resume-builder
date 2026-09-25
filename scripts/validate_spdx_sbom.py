@@ -88,14 +88,16 @@ def validate_spdx_sbom(path: Path, expected_version: str) -> None:
     if missing:
         raise AssertionError(f"SBOM is missing exact runtime package versions: {missing}")
 
+    source_id = source_package["SPDXID"]
     relationships = document.get("relationships")
     if not isinstance(relationships, list) or not any(
-        relationship.get("relationshipType") == "DESCRIBES"
+        relationship.get("spdxElementId") == document["SPDXID"]
+        and relationship.get("relationshipType") == "DESCRIBES"
+        and relationship.get("relatedSpdxElement") == source_id
         for relationship in relationships
         if isinstance(relationship, dict)
     ):
         raise AssertionError("SBOM must describe its source package")
-    source_id = source_package["SPDXID"]
     runtime_ids = {
         observed_packages[name]["SPDXID"] for name in expected_runtime_packages()
     }

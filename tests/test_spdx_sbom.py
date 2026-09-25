@@ -139,3 +139,20 @@ def test_spdx_validator_rejects_missing_runtime_relationship(tmp_path: Path) -> 
 
     with pytest.raises(AssertionError, match="relate every runtime package"):
         validator.validate_spdx_sbom(path, "0.2.0")
+
+
+def test_spdx_validator_rejects_document_describing_dependency(tmp_path: Path) -> None:
+    validator = load_validator()
+    document = spdx_document()
+    describes = next(
+        relationship
+        for relationship in document["relationships"]
+        if relationship["relationshipType"] == "DESCRIBES"
+    )
+    describes["relatedSpdxElement"] = "SPDXRef-Package-python-docx"
+    path = tmp_path / "resume-builder.spdx.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    load_preparer().prepare_spdx_sbom(path, "0.2.0")
+
+    with pytest.raises(AssertionError, match="describe its source package"):
+        validator.validate_spdx_sbom(path, "0.2.0")

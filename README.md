@@ -6,7 +6,18 @@ GitHub Copilot CLI skills for building accurate, job-tailored resumes from a ver
 
 ## Release integrity
 
-Each published version includes `resume-builder.spdx.json`, an SPDX 2.3 software bill of materials generated from the tagged source and its pinned runtime dependencies. The release remains a draft until the SBOM passes repository validation, is uploaded, and its downloaded SHA-256 digest matches the generated file. GitHub then publishes the release immutably, locking the tag and assets and generating a cryptographic release attestation.
+Each published version includes `resume-builder.spdx.json`, an SPDX 2.3 software bill of materials generated from the tagged source and its pinned runtime dependencies. The release remains a draft until the SBOM passes repository validation, is uploaded, and its downloaded SHA-256 digest matches the generated file. An active release-tag ruleset restricts creation, update, and deletion of `v*` tags to the release GitHub App. GitHub then publishes the release immutably, locking the tag and assets and generating a cryptographic release attestation.
+
+### Release recovery
+
+The publication workflow can be rerun safely while the matching release remains a draft. A run may fail before publication if the draft does not appear within the two-minute lookup window, SBOM generation or validation fails, the workflow artifact cannot be transferred, or the uploaded asset fails checksum verification.
+
+1. Confirm the tag commit is in `main` history and inspect the matching draft release and its `resume-builder.spdx.json` asset.
+2. Fix a repository validation or workflow defect through the normal pull-request process. Do not edit the generated SBOM or publish the draft manually.
+3. Rerun the failed `Publish release with SPDX SBOM` workflow. Its resolver reuses the existing draft; asset upload is idempotent and the downloaded asset is checksum-verified again before publication.
+4. If the tag or draft points to the wrong commit or version, stop and investigate before deleting either object. Deletion is a recovery action, not part of a normal retry.
+
+Do not publish a draft without the verified SBOM. After publication, release immutability locks the tag and assets; corrections require a new release rather than replacing the published artifact.
 
 ## Install
 
@@ -104,9 +115,9 @@ python scripts/validate_repo.py
 pytest -q
 ```
 
-The validation script checks skill frontmatter, `plugin.json`, marketplace metadata, workflow SHA pins, exact direct dependency pins, dependency-gate workflow structure, and the job-requirements producer/consumer contract. The test suite opens a generated `.docx` and checks its sections.
+The validation script checks skill frontmatter, `plugin.json`, marketplace metadata, exact runtime dependency pins, the job-requirements producer/consumer contract, and the security-sensitive workflow contracts. Those workflow checks include full-SHA action pins, the least-privilege GitHub App release token, draft release and SPDX publication boundaries, OpenSSF Scorecard permissions, and dependency-gate structure. The test suite covers those policies, validates SPDX preparation and rejection cases, and opens a generated `.docx` to check its sections.
 
-Pull requests also run a centralized advisory malware gate through the pinned reusable workflow `benarculus/malware-advisory-check/.github/workflows/reusable-malware-advisory-check.yml@7a825d2fdb99f459bb4595cf999a5faaa883d87f` (`v1.0.1`). This repository maps the pull-request base and head SHAs into that workflow explicitly and keeps the local validation commands above for repository structure and regression coverage.
+Pull requests also run a centralized advisory malware gate through the pinned reusable workflow `benarculus/malware-advisory-check/.github/workflows/reusable-malware-advisory-check.yml@733acbdf20304f70ac0c9a763921cac4c23882ef` (`v1.0.2`). This repository maps the pull-request base and head SHAs into that workflow explicitly and keeps the local validation commands above for repository structure and regression coverage.
 
 ## License
 

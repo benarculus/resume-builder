@@ -1,0 +1,25 @@
+{
+  "perspective": "functional",
+  "summary": "The release flow is coherent and idempotent across draft and already-published states, but the SPDX validator does not bind the document-level DESCRIBES relationship to the resume-builder root package.",
+  "findings": [
+    {
+      "number": 1,
+      "title": "Require the SPDX document to describe the root package",
+      "severity": "Medium",
+      "status": "resolved",
+      "category": "SBOM correctness",
+      "skill": null,
+      "file": "scripts/validate_spdx_sbom.py",
+      "lines": "91-98",
+      "problem": "The validator accepts any relationship whose type is DESCRIBES. A document that describes a dependency, or a relationship whose source is not SPDXRef-DOCUMENT, therefore passes even though the error and release contract require the document to describe the resume-builder source package.",
+      "current_code": "any(relationship.get(\"relationshipType\") == \"DESCRIBES\" for relationship in relationships if isinstance(relationship, dict))",
+      "suggested_fix": "Resolve source_id before this check and require one relationship with spdxElementId == document[\"SPDXID\"], relationshipType == \"DESCRIBES\", and relatedSpdxElement == source_id. Add a negative test that redirects DESCRIBES to a runtime dependency.",
+      "resolution": "Implemented the exact document-to-root predicate and added test_spdx_validator_rejects_document_describing_dependency."
+    }
+  ],
+  "positive_changes": [
+    "The generation job verifies that the tag commit is in main history before producing release material.",
+    "Draft and already-published release states are distinguished, and reruns reject a published release that lacks the expected SBOM asset.",
+    "The write-capable job consumes only the validated cross-job artifact and verifies the downloaded release asset digest before publication."
+  ]
+}
