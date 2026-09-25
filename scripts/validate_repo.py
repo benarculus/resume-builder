@@ -345,6 +345,26 @@ def validate_release_please_config() -> None:
     version = VERSION_FILE.read_text(encoding="utf-8").strip()
     if not isinstance(manifest, dict) or set(manifest) != {"."} or manifest["."] != version:
         raise AssertionError("release-please manifest and version.txt must contain the same root version")
+    plugin = json.loads(PLUGIN.read_text(encoding="utf-8"))
+    marketplace = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    consumer_versions = {
+        "plugin.json $.version": plugin.get("version"),
+        "marketplace $.metadata.version": marketplace.get("metadata", {}).get("version"),
+        "marketplace $.plugins[0].version": (
+            marketplace.get("plugins", [{}])[0].get("version")
+            if marketplace.get("plugins")
+            else None
+        ),
+    }
+    drifted_versions = {
+        field: observed
+        for field, observed in consumer_versions.items()
+        if observed != version
+    }
+    if drifted_versions:
+        raise AssertionError(
+            f"release consumer versions must match the root version {version}: {drifted_versions}"
+        )
 
 
 def validate_publish_release_workflow() -> None:

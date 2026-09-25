@@ -300,7 +300,7 @@ Dependencies:
 ### [x] P03: Require linear history on `main`
 
 Goals:
-* The commit history `release-please` parses on `main` is guaranteed to be free of true merge commits, so every merged pull request contributes exactly one clean, classifiable Conventional Commit to the changelog.
+* The commit history `release-please` parses on `main` is guaranteed to be free of true merge commits, keeping Conventional Commits linearly ordered and classifiable. Squash merges contribute one commit per pull request; rebase merges may preserve multiple commits from a pull request.
 
 Dependencies:
 * None (independent of P01/P02; can be done in either order, but should be in place before the first real Release PR is merged)

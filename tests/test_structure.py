@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -123,6 +124,38 @@ def test_release_please_config_rejects_version_seed_drift(
     monkeypatch.setattr(validator, "VERSION_FILE", drifted_version)
 
     with pytest.raises(AssertionError, match="manifest and version.txt"):
+        validator.validate_release_please_config()
+
+
+@pytest.mark.parametrize(
+    ("target", "path", "field"),
+    [
+        ("PLUGIN", "plugin.json", "plugin"),
+        ("MANIFEST", "marketplace-metadata.json", "metadata"),
+        ("MANIFEST", "marketplace-plugin.json", "marketplace-plugin"),
+    ],
+)
+def test_release_please_config_rejects_consumer_version_drift(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    target: str,
+    path: str,
+    field: str,
+) -> None:
+    validator = load_validator()
+    source = getattr(validator, target)
+    drifted = tmp_path / path
+    document = json.loads(source.read_text(encoding="utf-8"))
+    if field == "plugin":
+        document["version"] = "0.2.0"
+    elif field == "metadata":
+        document["metadata"]["version"] = "0.2.0"
+    else:
+        document["plugins"][0]["version"] = "0.2.0"
+    drifted.write_text(json.dumps(document), encoding="utf-8")
+    monkeypatch.setattr(validator, target, drifted)
+
+    with pytest.raises(AssertionError, match="consumer versions"):
         validator.validate_release_please_config()
 
 

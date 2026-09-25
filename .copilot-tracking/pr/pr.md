@@ -19,7 +19,7 @@ Includes the full research → plan → critique → implementation → review t
 
 - [x] `python scripts/validate_repo.py` — passed (includes hardened GitHub App token, SPDX publication, Scorecard, and workflow SHA-pin contracts)
 - [x] Real SPDX generation with checksummed Syft `v1.52.0` — passed; source metadata, exact runtime pins, suppliers, unique identifiers, and relationships validated
-- [x] `python3 -m pytest -q` — 90 passed, 8 skipped using the local Python 3.9 environment; hosted CI remains authoritative for the repository-pinned Python 3.12 dependency set
+- [x] `python3 -m pytest -q` — 93 passed, 8 skipped using the local Python 3.9 environment; hosted CI remains authoritative for the repository-pinned Python 3.12 dependency set
 
 ## Anti-fabrication and privacy
 

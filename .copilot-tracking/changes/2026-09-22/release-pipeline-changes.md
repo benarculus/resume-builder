@@ -158,6 +158,16 @@ Implemented the full `release-please` pipeline for `resume-builder`: added the v
 * Behavior or functionality changed: both publication checkouts now use the immutable `github.sha` from the tag creation event instead of the ambiguous short ref name, preventing a same-named branch from changing the source commit. The workflow validator enforces this identity binding. SPDX package `name`, `SPDXID`, and `supplier` fields must now be non-empty strings, so malformed field types fail through the normal validation error instead of reaching normalization or set operations.
 * Validation: passed — `python3 -m pytest -q tests/test_spdx_sbom.py tests/test_structure.py` (71 tests); `python3 scripts/validate_repo.py`; full suite (90 passed, 8 skipped); and `git diff --check`.
 
+### Completed consumer version synchronization checks and corrected linear-history scope
+
+* Related review: Copilot Code Review overview findings on 2026-09-25
+* Files:
+  * [scripts/validate_repo.py](../../../scripts/validate_repo.py)
+  * [tests/test_structure.py](../../../tests/test_structure.py)
+  * [.copilot-tracking/plans/2026-09-22/release-pipeline-plan.md](../../plans/2026-09-22/release-pipeline-plan.md)
+* Behavior or functionality changed: release validation now binds `plugin.json`'s version and both marketplace version fields to the root version shared by `.release-please-manifest.json` and `version.txt`, with a mutation regression for every consumer field. The plan now states the actual linear-history guarantee: merge commits are excluded, while squash merges contribute one commit and rebase merges may preserve multiple commits.
+* Validation: passed — `python3 -m pytest -q tests/test_structure.py` (53 tests); `python3 scripts/validate_repo.py`; full suite (93 passed, 8 skipped); and `git diff --check`.
+
 ## Implementation-Time Plan Updates
 
 ### Fixed a missing P03 phase heading in the plan
