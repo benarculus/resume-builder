@@ -99,6 +99,7 @@ jobs:
         with:
           path: .
           config: .syft.yaml
+          syft-version: v1.52.0
           format: spdx-json
           output-file: resume-builder.spdx.json
           upload-artifact: false

@@ -9,3 +9,4 @@ exclude:
   - ./.pytest_cache/**
   - ./tests/**
   - ./requirements-dev.txt
+  - ./requirements-spdx-validation.txt

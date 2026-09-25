@@ -54,6 +54,7 @@ DOWNLOAD_ARTIFACT_SHA = "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c"
 DOWNLOAD_ARTIFACT_VERSION = "v8.0.1"
 SBOM_ACTION_SHA = "3ad7283483fc7af8ff2b4ea19663c2d5ca935e26"
 SBOM_ACTION_VERSION = "v0.24.2"
+SYFT_VERSION = "v1.52.0"
 SETUP_PYTHON_SHA = "5fda3b95a4ea91299a34e894583c3862153e4b97"
 SETUP_PYTHON_VERSION = "v7.0.0"
 CODEQL_ACTION_SHA = "1c5b675653bb5c22dbe9b12b556ec555138e09fd"
@@ -577,6 +578,7 @@ def validate_publish_release_workflow() -> None:
     if sbom.get("with") != {
         "path": ".",
         "config": ".syft.yaml",
+        "syft-version": SYFT_VERSION,
         "format": "spdx-json",
         "output-file": "resume-builder.spdx.json",
         "upload-artifact": "false",
@@ -616,8 +618,16 @@ def validate_publish_release_workflow() -> None:
     if syft.get("source") != {"name": "resume-builder"}:
         raise AssertionError("Syft must identify the released product without misattributing suppliers")
     excludes = set(syft.get("exclude", []))
-    if not {"./requirements-dev.txt", "./tests/**", "./.copilot-tracking/**"} <= excludes:
-        raise AssertionError("Syft must exclude development-only and tracking content")
+    required_excludes = {
+        "./requirements-dev.txt",
+        "./requirements-spdx-validation.txt",
+        "./tests/**",
+        "./.copilot-tracking/**",
+    }
+    if not required_excludes <= excludes:
+        raise AssertionError(
+            "Syft must exclude development, validation-only, and tracking content"
+        )
 
     raw_text = PUBLISH_RELEASE_WORKFLOW.read_text(encoding="utf-8")
     expected_pins = (

@@ -65,6 +65,15 @@ The release pipeline now installs official `spdx-tools==0.8.5` from a complete P
 * Validation: Repository validation and diff hygiene passed; the focused and full local suites passed.
 * Status: Complete; hosted validation passed at remediation commit `4ef51c5`.
 
+### Addressing CCR generator-boundary findings
+
+* Related scope: P02-T01, P03-T01, P03-T02
+* Planned behavior: production SBOM generation will use the same reviewed Syft version as the real-output validation, and validation-only Python dependencies will not appear as product runtime components.
+* Affected files: [.github/workflows/publish-release.yml](../../../.github/workflows/publish-release.yml), [.syft.yaml](../../../.syft.yaml), [scripts/validate_repo.py](../../../scripts/validate_repo.py), [tests/test_structure.py](../../../tests/test_structure.py), [README.md](../../../README.md)
+* Behavior or functionality changed: the SBOM action now pins `syft-version: v1.52.0`; `.syft.yaml` excludes `requirements-spdx-validation.txt`; repository validation enforces both controls; structural mutations reject Syft version drift and restoration of the validation lock to the product catalog.
+* Validation: Repository validation passed; focused structural suite passed 78 tests; diff hygiene passed.
+* Status: Implemented locally; hosted confirmation remains pending.
+
 ### Addressing RV-001: Protect validator failure and dependency isolation
 
 * Related scope: P01-T02, P03-T02
@@ -100,6 +109,7 @@ The release pipeline now installs official `spdx-tools==0.8.5` from a complete P
 | Round-three finding remediation | CR-001 and CR-002 | Passed locally | Repository validator; focused suite: 89 passed with 7 expected local official-validator skips; full suite: 108 passed with 15 environment skips; Python compilation; diff hygiene |
 | Local Python 3.12 official-validator attempt | CR-001 | Correctly blocked by platform lock | The reviewed lock is Linux-only; pip rejected the macOS ARM PyYAML wheel hash rather than weakening `--require-hashes`. Hosted Linux remains authoritative. |
 | Hosted round-three confirmation | CR-001 and CR-002 | Passed | GitHub Actions run `36191196003`: hash-locked official validator installation succeeded and pytest reported 123 passed without skips |
+| CCR generator-boundary remediation | Syft pin and validation-lock exclusion | Passed locally | Repository validator; focused structural suite: 78 passed; diff hygiene |
 
 ## Pre-Review Reconciliation
 

@@ -542,6 +542,11 @@ def test_publish_release_workflow_rejects_validator_continue_on_error(
             'python-version: "3.11"',
             "Python 3.12",
         ),
+        (
+            "syft-version: v1.52.0",
+            "syft-version: v1.51.1",
+            "local-only configuration",
+        ),
     ],
 )
 def test_publish_release_workflow_rejects_validation_boundary_weakening(
@@ -562,6 +567,23 @@ def test_publish_release_workflow_rejects_validation_boundary_weakening(
     monkeypatch.setattr(validator, "PUBLISH_RELEASE_WORKFLOW", weakened)
 
     with pytest.raises(AssertionError, match=message):
+        validator.validate_publish_release_workflow()
+
+
+def test_publish_release_workflow_rejects_validation_lock_in_product_sbom(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / ".syft.yaml"
+    weakened.write_text(
+        (ROOT / ".syft.yaml")
+        .read_text(encoding="utf-8")
+        .replace("  - ./requirements-spdx-validation.txt\n", ""),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "SYFT_CONFIG", weakened)
+
+    with pytest.raises(AssertionError, match="validation-only"):
         validator.validate_publish_release_workflow()
 
 
