@@ -28,6 +28,7 @@ Includes the full research → plan → critique → implementation → review t
 - [x] CCR generator-boundary remediation — pinned production Syft to the real-output-tested `v1.52.0`, excluded the validation-only SPDX lock from the product SBOM, and added structural regressions for both controls
 - [x] Refreshed hosted CI after CCR remediation — 125 passed without skips at commit `d7a8222`
 - [x] CCR supplier-alias remediation — supplier attribution now exempts only the exact root package object, with underscore, dot/case, and uppercase-hyphen alias regressions
+- [x] Refreshed hosted CI after supplier-alias remediation — 128 passed without skips at commit `55075f0`
 
 ## Anti-fabrication and privacy
 

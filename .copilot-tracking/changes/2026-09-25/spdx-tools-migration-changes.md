@@ -81,7 +81,7 @@ The release pipeline now installs official `spdx-tools==0.8.5` from a complete P
 * Affected files: [scripts/validate_release_sbom_contract.py](../../../scripts/validate_release_sbom_contract.py), [tests/test_spdx_sbom.py](../../../tests/test_spdx_sbom.py)
 * Behavior or functionality changed: dependency supplier validation now iterates every package except the selected exact root object. Parameterized regressions cover underscore, dot/case, and uppercase-hyphen aliases claiming the repository supplier.
 * Validation: Focused SBOM contract suite passed 16 tests with 7 expected local official-validator skips; repository validation and diff hygiene passed.
-* Status: Implemented locally; hosted confirmation remains pending.
+* Status: Complete; hosted Python 3.12/Linux CI passed 128 tests without skips at commit `55075f0`.
 
 ### Addressing RV-001: Protect validator failure and dependency isolation
 
@@ -120,6 +120,7 @@ The release pipeline now installs official `spdx-tools==0.8.5` from a complete P
 | Hosted round-three confirmation | CR-001 and CR-002 | Passed | GitHub Actions run `36191196003`: hash-locked official validator installation succeeded and pytest reported 123 passed without skips |
 | CCR generator-boundary remediation | Syft pin and validation-lock exclusion | Passed locally | Repository validator; focused structural suite: 78 passed; diff hygiene |
 | Hosted CCR confirmation | Syft pin and validation-lock exclusion | Passed | GitHub Actions run `36193511730`: pytest reported 125 passed without skips |
+| Hosted supplier-alias confirmation | Exact root-object supplier exemption | Passed | GitHub Actions run `36195325498`: pytest reported 128 passed without skips |
 
 ## Pre-Review Reconciliation
 
