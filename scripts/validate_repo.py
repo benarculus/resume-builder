@@ -265,7 +265,7 @@ def validate_release_please_workflow() -> None:
     if token_step.get("uses") != f"actions/create-github-app-token@{CREATE_APP_TOKEN_SHA}":
         raise AssertionError("GitHub App token action must use the approved pinned release")
     if token_step.get("with") != {
-        "client-id": "${{ vars.RELEASE_PLEASE_APP_CLIENT_ID }}",
+        "client-id": "${{ secrets.RELEASE_PLEASE_APP_CLIENT_ID }}",
         "private-key": "${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}",
         "owner": "${{ github.repository_owner }}",
         "repositories": "${{ github.event.repository.name }}",
