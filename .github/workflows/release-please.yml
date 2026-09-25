@@ -1,9 +1,8 @@
 name: release-please
 
 on:
-  workflow_run:
-    workflows: ["Validate resume-builder"]
-    types: [completed]
+  push:
+    branches: [main]
 
 permissions:
   contents: write
@@ -12,49 +11,19 @@ permissions:
 
 jobs:
   release-please:
-    # Only propose or advance a release once CI has passed on a real push to
-    # main. GITHUB_TOKEN-authored events (like release-please's own generated
-    # Release PR) never retrigger pull_request/push workflows, so this gate
-    # only ever fires from a human's push or merge to main.
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main' &&
-      github.event.workflow_run.event == 'push'
+    # Use a PAT/App identity so release-please's generated Release PR is
+    # authored by a non-GITHUB_TOKEN actor. GitHub blocks GITHUB_TOKEN-authored
+    # pushes/PR updates from retriggering pull_request-scoped CI, so the only
+    # reliable way to gate the Release PR through the normal branch protections
+    # is to make the action run with a repository-scoped token that can trigger
+    # the same CI checks on the generated PR.
     runs-on: ubuntu-latest
-    # The stale-run guard only filters which SHA a run acts on; it does not
-    # stop two completed workflow_run events (e.g. a CI rerun plus a later
-    # push) from executing release-please-action at the same time. Serialize
-    # every invocation on one queue so only one mutates the Release PR or
-    # manifest at once; never cancel one mid-mutation.
     concurrency:
       group: release-please
       cancel-in-progress: false
     steps:
-      - name: Guard against a stale CI run
-        # workflow_run fires for the commit CI ran against, not necessarily
-        # the current tip of main. If a later commit lands on main before
-        # this run's CI completes, skip acting on the now-superseded SHA so
-        # release-please never opens/advances a release for un-validated
-        # commits.
-        id: guard
-        shell: bash
-        env:
-          WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-        run: |
-          set -euo pipefail
-          current_sha=$(git ls-remote https://github.com/${{ github.repository }} refs/heads/main | cut -f1)
-          if [ -z "$current_sha" ]; then
-            echo "Failed to resolve the current tip of main via git ls-remote; refusing to guess whether this run is stale." >&2
-            exit 1
-          fi
-          if [ "$current_sha" != "$WORKFLOW_RUN_HEAD_SHA" ]; then
-            echo "Stale CI run: main is now at $current_sha, this run validated $WORKFLOW_RUN_HEAD_SHA. Skipping."
-            echo "is_current=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "is_current=true" >> "$GITHUB_OUTPUT"
-          fi
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
-        if: steps.guard.outputs.is_current == 'true'
         with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json

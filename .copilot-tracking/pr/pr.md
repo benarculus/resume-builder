@@ -1,11 +1,11 @@
 ## Summary
 
-Adds an automated `release-please` pipeline so `resume-builder` tracks version updates semantically instead of by hand. On a push to `main`, once `ci.yml` ("Validate resume-builder") passes, release-please opens or updates a standing release PR that bumps the version based on Conventional Commit messages and keeps `plugin.json` and `.github/plugin/marketplace.json` in sync.
+Adds an automated `release-please` pipeline so `resume-builder` tracks version updates semantically instead of by hand. On a push to `main`, release-please opens or updates a standing Release PR that bumps the version from Conventional Commit history and keeps `plugin.json` and `.github/plugin/marketplace.json` in sync.
 
 - `release-please-config.json` — `simple` release strategy, with `extra-files` updaters for `plugin.json` (`$.version`) and `.github/plugin/marketplace.json` (`$.metadata.version`, `$.plugins[0].version`)
 - `version.txt` — release-please's own primary version file (separate from the JSON updaters, since `simple` always writes there), seeded at `0.1.0` to continue existing pre-1.0 numbering
 - `.release-please-manifest.json` — tracks the current released version (`0.1.0`)
-- `.github/workflows/release-please.yml` — triggers via `workflow_run`, chained after `ci.yml` ("Validate resume-builder") completes successfully on a push to `main`; guards against a stale CI run by comparing the triggering commit SHA to the live tip of `main` before acting; pinned to `googleapis/release-please-action@v5.0.0` (commit-SHA pinned per repository convention)
+- `.github/workflows/release-please.yml` — triggers on pushes to `main`, runs with a repository-scoped PAT/App token (`secrets.RELEASE_PLEASE_TOKEN`), and is pinned to `googleapis/release-please-action@v5.0.0` (commit-SHA pinned per repository convention)
 
 Also enforces linear history on `main`, a prerequisite for release-please's commit-based version bumping to stay reliable: `required_linear_history` was folded into the repository's existing "Protect main" ruleset rather than adding a separate linear-history ruleset. `main` is still governed by two rulesets overall ("Protect main" and "Require advisory malware check"), which this change leaves intact.
 
