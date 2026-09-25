@@ -137,6 +137,15 @@ Implemented the full `release-please` pipeline for `resume-builder`: added the v
 * Behavior or functionality changed: the resolver checkout now fetches complete history and explicitly maps `refs/heads/main` to `refs/remotes/origin/main` before the ancestry check, so a fresh runner has a reliable remote-tracking ref even after `main` advances. Both SPDX tools now reject syntactically valid non-object JSON before field access and report the failure through their normal `AssertionError` handling.
 * Validation: passed — `python3 -m pytest -q tests/test_spdx_sbom.py tests/test_structure.py` (57 tests); `python3 scripts/validate_repo.py`; full suite (76 passed, 8 skipped); and `git diff --check`.
 
+### Enforced the release version synchronization contract
+
+* Related review: Copilot Code Review overview finding on 2026-09-25
+* Files:
+  * [scripts/validate_repo.py](../../../scripts/validate_repo.py)
+  * [tests/test_structure.py](../../../tests/test_structure.py)
+* Behavior or functionality changed: the repository validator now requires exactly one root release package using the `simple` strategy, the exact three JSON updaters for `plugin.json` and both marketplace version fields, and agreement between `.release-please-manifest.json` and `version.txt`. Mutation tests cover strategy drift, missing and mistyped updater paths, and version seed divergence.
+* Validation: passed — `python3 -m pytest -q tests/test_structure.py` (49 tests); `python3 scripts/validate_repo.py`; full suite (80 passed, 8 skipped); and `git diff --check`.
+
 ## Implementation-Time Plan Updates
 
 ### Fixed a missing P03 phase heading in the plan

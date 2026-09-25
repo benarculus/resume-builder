@@ -87,6 +87,45 @@ def test_release_please_config_rejects_immediate_publication(
         validator.validate_release_please_config()
 
 
+@pytest.mark.parametrize(
+    ("old", "new", "message"),
+    [
+        ('"release-type": "simple"', '"release-type": "node"', "simple release type"),
+        ('{ "type": "json", "path": "plugin.json", "jsonpath": "$.version" },\n', "", "updater"),
+        ('"jsonpath": "$.plugins[0].version"', '"jsonpath": "$.plugins[1].version"', "updater"),
+    ],
+)
+def test_release_please_config_rejects_version_contract_drift(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    old: str,
+    new: str,
+    message: str,
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "release-please-config.json"
+    weakened.write_text(
+        (ROOT / "release-please-config.json").read_text(encoding="utf-8").replace(old, new),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "RELEASE_PLEASE_CONFIG", weakened)
+
+    with pytest.raises(AssertionError, match=message):
+        validator.validate_release_please_config()
+
+
+def test_release_please_config_rejects_version_seed_drift(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    drifted_version = tmp_path / "version.txt"
+    drifted_version.write_text("0.2.0\n", encoding="utf-8")
+    monkeypatch.setattr(validator, "VERSION_FILE", drifted_version)
+
+    with pytest.raises(AssertionError, match="manifest and version.txt"):
+        validator.validate_release_please_config()
+
+
 def test_publish_release_workflow_uses_validated_spdx_boundary() -> None:
     validator = load_validator()
     validator.validate_publish_release_workflow()

@@ -36,6 +36,8 @@ RELEASE_PLEASE_WORKFLOW = ROOT / ".github" / "workflows" / "release-please.yml"
 PUBLISH_RELEASE_WORKFLOW = ROOT / ".github" / "workflows" / "publish-release.yml"
 SCORECARD_WORKFLOW = ROOT / ".github" / "workflows" / "scorecard.yml"
 RELEASE_PLEASE_CONFIG = ROOT / "release-please-config.json"
+RELEASE_PLEASE_MANIFEST = ROOT / ".release-please-manifest.json"
+VERSION_FILE = ROOT / "version.txt"
 SYFT_CONFIG = ROOT / ".syft.yaml"
 CREATE_APP_TOKEN_SHA = "bcd2ba49218906704ab6c1aa796996da409d3eb1"
 CREATE_APP_TOKEN_VERSION = "v3.2.0"
@@ -317,6 +319,32 @@ def validate_release_please_config() -> None:
         raise AssertionError("release-please must create draft releases before SBOM publication")
     if config.get("force-tag-creation") is not True:
         raise AssertionError("release-please must create the release tag to trigger SBOM publication")
+    packages = config.get("packages")
+    if not isinstance(packages, dict) or set(packages) != {"."}:
+        raise AssertionError("release-please must configure exactly the root package")
+    root_package = packages["."]
+    if root_package.get("release-type") != "simple":
+        raise AssertionError("release-please root package must use the simple release type")
+    expected_updaters = {
+        ("json", "plugin.json", "$.version"),
+        ("json", ".github/plugin/marketplace.json", "$.metadata.version"),
+        ("json", ".github/plugin/marketplace.json", "$.plugins[0].version"),
+    }
+    extra_files = root_package.get("extra-files")
+    if not isinstance(extra_files, list):
+        raise AssertionError("release-please must configure the required version updaters")
+    observed_updaters = {
+        (updater.get("type"), updater.get("path"), updater.get("jsonpath"))
+        for updater in extra_files
+        if isinstance(updater, dict)
+    }
+    if observed_updaters != expected_updaters or len(extra_files) != len(expected_updaters):
+        raise AssertionError("release-please must configure the exact version updater set")
+
+    manifest = json.loads(RELEASE_PLEASE_MANIFEST.read_text(encoding="utf-8"))
+    version = VERSION_FILE.read_text(encoding="utf-8").strip()
+    if not isinstance(manifest, dict) or set(manifest) != {"."} or manifest["."] != version:
+        raise AssertionError("release-please manifest and version.txt must contain the same root version")
 
 
 def validate_publish_release_workflow() -> None:
