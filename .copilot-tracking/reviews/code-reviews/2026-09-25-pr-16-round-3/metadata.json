@@ -16,7 +16,7 @@
     "security",
     "readiness"
   ],
-  "verdict": "request_changes",
+  "verdict": "approve",
   "severityCounts": {
     "critical": 0,
     "high": 0,
@@ -37,12 +37,13 @@
     "duplicate runtime-package bypass reproduced locally",
     "focused remediation suite: 89 passed, 7 expected local official-validator skips",
     "full local suite: 108 passed, 15 environment skips",
-    "repository validation, Python compilation, and diff hygiene passed"
+    "repository validation, Python compilation, and diff hygiene passed",
+    "hosted Python 3.12/Linux suite: 123 passed without skips"
   ],
   "remediation": {
-    "status": "resolved_locally_pending_hosted_confirmation",
+    "status": "completed",
     "resolvedFindings": 2,
-    "hostedValidation": "pending"
+    "hostedValidation": "passed"
   },
   "prState": {
     "state": "OPEN",
@@ -55,6 +56,6 @@
     "mode": "canonical",
     "target": "review artifact",
     "status": "prepared",
-    "summary": "Both findings are resolved in the working tree; refreshed hosted validation and human review remain pending. No PR comments or review events posted."
+    "summary": "Both findings are resolved and refreshed hosted validation passed; qualified human review remains pending. No PR comments or review events posted."
   }
 }

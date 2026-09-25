@@ -54,7 +54,7 @@ The release pipeline now installs official `spdx-tools==0.8.5` from a complete P
 * Affected files: [scripts/validate_release_sbom_contract.py](../../../scripts/validate_release_sbom_contract.py), [tests/test_spdx_sbom.py](../../../tests/test_spdx_sbom.py)
 * Behavior or functionality changed: required runtime packages must now appear exactly once at the pinned version. Duplicate version and supplier-attribution mutations cover both orders so a valid later entry cannot hide a conflicting earlier entry.
 * Validation: Focused suite passed with 89 tests and 7 expected local official-validator skips; the full local suite passed with 108 tests and 15 environment skips.
-* Status: Implemented locally; hosted Python 3.12/Linux confirmation remains pending.
+* Status: Complete; hosted Python 3.12/Linux CI passed 123 tests without skips at remediation commit `4ef51c5`.
 
 ### Addressing round-three CR-002: Fail closed for already-published releases
 
@@ -63,7 +63,7 @@ The release pipeline now installs official `spdx-tools==0.8.5` from a complete P
 * Affected files: [.github/workflows/publish-release.yml](../../../.github/workflows/publish-release.yml), [scripts/validate_repo.py](../../../scripts/validate_repo.py), [tests/test_structure.py](../../../tests/test_structure.py), [README.md](../../../README.md)
 * Behavior or functionality changed: the resolver now fails when the release is already public. Repository validation rejects restoration of `state=published` or asset-name-based success, and a structural mutation recreates the forged same-name asset bypass.
 * Validation: Repository validation and diff hygiene passed; the focused and full local suites passed.
-* Status: Implemented locally; hosted workflow confirmation remains pending.
+* Status: Complete; hosted validation passed at remediation commit `4ef51c5`.
 
 ### Addressing RV-001: Protect validator failure and dependency isolation
 
@@ -99,17 +99,18 @@ The release pipeline now installs official `spdx-tools==0.8.5` from a complete P
 | Hosted correction confirmation | RV-001 and RV-002 | Passed | GitHub Actions run `36185010191`: hash-locked `spdx-tools==0.8.5` install succeeded and pytest reported 118 passed with no skips |
 | Round-three finding remediation | CR-001 and CR-002 | Passed locally | Repository validator; focused suite: 89 passed with 7 expected local official-validator skips; full suite: 108 passed with 15 environment skips; Python compilation; diff hygiene |
 | Local Python 3.12 official-validator attempt | CR-001 | Correctly blocked by platform lock | The reviewed lock is Linux-only; pip rejected the macOS ARM PyYAML wheel hash rather than weakening `--require-hashes`. Hosted Linux remains authoritative. |
+| Hosted round-three confirmation | CR-001 and CR-002 | Passed | GitHub Actions run `36191196003`: hash-locked official validator installation succeeded and pytest reported 123 passed without skips |
 
 ## Pre-Review Reconciliation
 
 * Plan markers and task-local context: Current; all phases and tasks are complete.
 * Completed-work entries and handoff prose: Current for the full declared scope.
-* Validation, blockers, remaining work, and follow-up items: Round-three findings pass targeted and full local validation. Hosted Python 3.12/Linux confirmation and the first production release lifecycle remain pending.
-* Review readiness: The two round-three findings are resolved in the working tree and need refreshed hosted checks after the changes are pushed.
+* Validation, blockers, remaining work, and follow-up items: Round-three findings pass targeted, full local, and hosted Python 3.12/Linux validation. Only the first production release lifecycle remains pending.
+* Review readiness: The two round-three findings are resolved and hosted checks pass at the remediation commit.
 
 ## Blockers
 
-* Refreshed hosted Python 3.12/Linux CI for the round-three remediation.
+* None
 
 ## Remaining Work
 
@@ -128,6 +129,6 @@ The release pipeline now installs official `spdx-tools==0.8.5` from a complete P
 * Blockers: None
 * Current plan updates: None
 * Planning and critique state: Ready; `PC-001` and `PC-002` were resolved before implementation
-* Follow-up items: Refreshed hosted Linux CI and the first production release operational acceptance
-* Review readiness or no-handoff reason: Ready to push and refresh hosted checks; both review findings are resolved locally
+* Follow-up items: First production release operational acceptance
+* Review readiness or no-handoff reason: Ready for qualified human approval; both review findings are resolved and hosted checks pass
 * Continuation owner: User

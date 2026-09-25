@@ -24,21 +24,15 @@
     "orientationConfirmed": true,
     "humanAccepted": true,
     "walkbackComplete": true,
-    "emissionReady": false
+    "emissionReady": true
   },
-  "currentPhase": "remediation_validation",
+  "currentPhase": "complete",
   "nextActions": [
-    {
-      "id": "hosted-validation",
-      "kind": "validation",
-      "target": "corrected PR head",
-      "reason": "Confirm the Linux-only official SPDX environment and complete suite after pushing the remediation."
-    },
     {
       "id": "human-review",
       "kind": "approval",
       "target": "review.md",
-      "reason": "A qualified human must validate the report and explicitly approve any PR emission."
+      "reason": "A qualified human must validate the resolved report and explicitly approve any PR emission."
     }
   ],
   "boardItems": [

@@ -24,7 +24,7 @@ Includes the full research → plan → critique → implementation → review t
 - [x] Real SPDX generation with checksummed Syft `v1.52.0` — passed through preparation, official SPDX 2.3 validation, and the repository release contract
 - [x] Hosted Python 3.12 CI — 118 passed with the hash-locked official validator installed and no skips; the expanded suite covers validator fail-open protection, dependency isolation, release-step removal/weakening/reordering, non-2.3 documents, and invalid creator arrays
 - [x] Round-three finding remediation — focused local suite passed with 89 tests and 7 expected platform skips; full local suite passed with 108 tests and 15 environment skips; repository validation, Python compilation, and diff hygiene passed
-- [ ] Refreshed hosted Python 3.12/Linux CI for the duplicate-package and already-published-release regressions
+- [x] Refreshed hosted Python 3.12/Linux CI — 123 passed without skips at remediation commit `4ef51c5`
 
 ## Anti-fabrication and privacy
 

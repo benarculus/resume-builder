@@ -18,9 +18,9 @@ The release pipeline has strong foundational boundaries: ambient permissions are
 
 The two Medium integrity gaps identified at the reviewed PR head are resolved in the working tree. The repository SBOM contract now preserves all package entries and requires exactly one entry at the pinned version for each runtime dependency. The already-published release shortcut now fails closed instead of inferring validated provenance from a same-name asset.
 
-Local repository validation, focused tests, the full suite, Python compilation, and diff hygiene pass. The reviewed PR head remains unchanged until these fixes are committed and pushed, so refreshed hosted Python 3.12/Linux validation is still required.
+Local repository validation, focused tests, the full suite, Python compilation, and diff hygiene pass. Refreshed hosted Python 3.12/Linux CI also passed 123 tests without skips at remediation commit `4ef51c5`.
 
-**Verdict for reviewed head: Request changes. Remediation status: resolved locally, pending hosted confirmation.**
+**Verdict after remediation: Approve.**
 
 ## Changed Files Overview
 
@@ -120,14 +120,13 @@ Resolved in the working tree using the fail-closed route. Published releases are
 
 - [x] Added duplicate-runtime-name contract mutations for conflicting versions and supplier attribution in both package orders.
 - [x] Added a resolver mutation for an already-published release with a forged same-name SBOM.
-- [ ] Rerun the hosted Python 3.12/Linux suite without skips after pushing the remediation. The Linux-only hash lock correctly prevented a macOS ARM installation from substituting unreviewed wheels.
+- [x] Refreshed hosted Python 3.12/Linux suite passed 123 tests without skips. The Linux-only hash lock also correctly prevented a macOS ARM installation from substituting unreviewed wheels.
 - [ ] Treat the first complete tag-to-draft-to-immutable release as the operational acceptance test, including SBOM validation and asset checksum verification. This requires the workflow to be merged to `main`.
 
 ## Recommended Actions
 
-1. Commit and push the resolved findings.
-2. Confirm refreshed hosted validation at the corrected head.
-3. Obtain qualified human approval before merge.
+1. Obtain qualified human approval before merge.
+2. Treat the first production release as the end-to-end operational acceptance test.
 
 ## Out-of-scope Observations
 
@@ -143,23 +142,21 @@ Resolved in the working tree using the fail-closed route. Published releases are
 
 ## Risk Assessment and Verdict
 
-The architecture substantially reduces credential, dependency, and artifact risk. Both findings are resolved and focused regressions pass locally. The current seven hosted checks apply to the prior reviewed head; refreshed checks are required after pushing the remediation.
+The architecture substantially reduces credential, dependency, and artifact risk. Both findings are resolved, focused regressions pass locally, and all seven refreshed hosted checks pass at the remediation commit.
 
 The pull request is open and mergeable, but `mergeStateStatus: BLOCKED` and `reviewDecision: REVIEW_REQUIRED`. The code-review verdict independently remains:
 
-**Final verdict for reviewed head: `request_changes`.**
-
-**Working-tree remediation assessment: findings resolved; hosted confirmation pending.**
+**Final verdict after remediation: `approve`.**
 
 ## PR Comment Draft (human review required)
 
 <!-- PR scope only. Edit freely. It is NOT posted until you check the box. -->
 
-**Proposed event:** REQUEST_CHANGES
+**Proposed event:** APPROVE
 
 **Comment body (edit before posting):**
 
-> The two round-three findings are resolved in the working tree. The release contract now rejects duplicate runtime entries in either package order, and already-published releases fail closed instead of treating a same-name asset as validated provenance. Focused and full local validation pass; approval remains pending refreshed hosted Python 3.12/Linux checks.
+> The two round-three findings are resolved. The release contract rejects duplicate runtime entries in either package order, and already-published releases fail closed instead of treating a same-name asset as validated provenance. Focused and full local validation pass, and refreshed hosted Python 3.12/Linux CI reported 123 passed without skips. The change is ready for qualified human approval.
 
 - [x] Reviewed, edited, and approved this comment for posting to the PR
 
