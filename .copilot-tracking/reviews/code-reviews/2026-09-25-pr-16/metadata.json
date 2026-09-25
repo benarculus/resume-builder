@@ -20,7 +20,7 @@
   "severityCounts": {
     "critical": 0,
     "high": 2,
-    "medium": 3,
+    "medium": 4,
     "low": 1
   },
   "openSeverityCounts": {
@@ -31,7 +31,7 @@
   },
   "validation": [
     "python3 scripts/validate_repo.py",
-    "python3 -m pytest -q tests/test_structure.py (39 passed)",
+    "python3 -m pytest -q (67 passed, 8 skipped)",
     "git diff origin/main...HEAD --check",
     "GitHub hosted checks at reviewed head",
     "live ruleset and immutable-release API verification"

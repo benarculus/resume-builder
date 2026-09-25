@@ -1,0 +1,144 @@
+name: Publish release with SPDX SBOM
+
+on:
+  create:
+
+permissions: {}
+
+jobs:
+  generate:
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      state: ${{ steps.release.outputs.state }}
+      release_id: ${{ steps.release.outputs.release_id }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          persist-credentials: false
+      - name: Resolve draft release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor HEAD origin/main
+
+          for attempt in {1..12}; do
+            gh api "repos/${REPOSITORY}/releases?per_page=100" > "$RUNNER_TEMP/releases.json"
+            state="$(
+              python3 - "$RUNNER_TEMP/releases.json" "$TAG_NAME" "$GITHUB_OUTPUT" <<'PY'
+          import json
+          import sys
+
+          releases_path, tag_name, output_path = sys.argv[1:]
+          releases = json.load(open(releases_path, encoding="utf-8"))
+          release = next((item for item in releases if item["tag_name"] == tag_name), None)
+          if release is None:
+              print("missing")
+              raise SystemExit
+
+          asset_names = {asset["name"] for asset in release.get("assets", [])}
+          if not release["draft"]:
+              if "resume-builder.spdx.json" not in asset_names:
+                  raise SystemExit("immutable release exists without resume-builder.spdx.json")
+              with open(output_path, "a", encoding="utf-8") as output:
+                  output.write("state=published\n")
+              print("published")
+              raise SystemExit
+
+          with open(output_path, "a", encoding="utf-8") as output:
+              output.write("state=draft\n")
+              output.write(f"release_id={release['id']}\n")
+              output.write(f"version={tag_name.removeprefix('v')}\n")
+          print("draft")
+          PY
+            )"
+            if [ "$state" = "draft" ] || [ "$state" = "published" ]; then
+              exit 0
+            fi
+            sleep 10
+          done
+
+          echo "Timed out waiting for draft release ${TAG_NAME}" >&2
+          exit 1
+      - name: Generate SPDX SBOM
+        if: steps.release.outputs.state == 'draft'
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        env:
+          SYFT_SOURCE_VERSION: ${{ steps.release.outputs.version }}
+        with:
+          path: .
+          config: .syft.yaml
+          format: spdx-json
+          output-file: resume-builder.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Prepare SPDX product metadata
+        if: steps.release.outputs.state == 'draft'
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: python3 scripts/prepare_spdx_sbom.py resume-builder.spdx.json "$RELEASE_VERSION"
+      - name: Validate SPDX SBOM
+        if: steps.release.outputs.state == 'draft'
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: python3 scripts/validate_spdx_sbom.py resume-builder.spdx.json "$RELEASE_VERSION"
+      - name: Upload validated SPDX SBOM
+        if: steps.release.outputs.state == 'draft'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-spdx-sbom
+          path: resume-builder.spdx.json
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: generate
+    if: needs.generate.outputs.state == 'draft'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Download validated SPDX SBOM
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-spdx-sbom
+      - name: Attach and verify SPDX SBOM
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          TAG_NAME: ${{ github.ref_name }}
+          RELEASE_ID: ${{ needs.generate.outputs.release_id }}
+        run: |
+          set -euo pipefail
+          gh release upload "$TAG_NAME" resume-builder.spdx.json --clobber --repo "$REPOSITORY"
+          mkdir "$RUNNER_TEMP/release-assets"
+          asset_id="$(
+            gh api "repos/${REPOSITORY}/releases/${RELEASE_ID}/assets" \
+              --jq '.[] | select(.name == "resume-builder.spdx.json") | .id'
+          )"
+          test -n "$asset_id"
+          gh api "repos/${REPOSITORY}/releases/assets/${asset_id}" \
+            -H "Accept: application/octet-stream" > "$RUNNER_TEMP/release-assets/resume-builder.spdx.json"
+          test "$(shasum -a 256 resume-builder.spdx.json | cut -d ' ' -f 1)" = \
+            "$(shasum -a 256 "$RUNNER_TEMP/release-assets/resume-builder.spdx.json" | cut -d ' ' -f 1)"
+      - name: Publish immutable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ needs.generate.outputs.release_id }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh api --method PATCH "repos/${REPOSITORY}/releases/${RELEASE_ID}" -F draft=false \
+            --jq '{draft,immutable,tag_name,assets:[.assets[].name]}'

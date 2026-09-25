@@ -33,7 +33,10 @@ DEPENDABOT = ROOT / ".github" / "dependabot.yml"
 DEPENDENCY_REVIEW_WORKFLOW = ROOT / ".github" / "workflows" / "dependency-review.yml"
 MALWARE_WORKFLOW = ROOT / ".github" / "workflows" / "advisory-malware.yml"
 RELEASE_PLEASE_WORKFLOW = ROOT / ".github" / "workflows" / "release-please.yml"
+PUBLISH_RELEASE_WORKFLOW = ROOT / ".github" / "workflows" / "publish-release.yml"
 SCORECARD_WORKFLOW = ROOT / ".github" / "workflows" / "scorecard.yml"
+RELEASE_PLEASE_CONFIG = ROOT / "release-please-config.json"
+SYFT_CONFIG = ROOT / ".syft.yaml"
 CREATE_APP_TOKEN_SHA = "bcd2ba49218906704ab6c1aa796996da409d3eb1"
 CREATE_APP_TOKEN_VERSION = "v3.2.0"
 RELEASE_PLEASE_ACTION_SHA = "45996ed1f6d02564a971a2fa1b5860e934307cf7"
@@ -42,6 +45,10 @@ SCORECARD_ACTION_SHA = "2d1146689b8cda280b9bc96326124645441f03bc"
 SCORECARD_ACTION_VERSION = "v2.4.4"
 UPLOAD_ARTIFACT_SHA = "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
 UPLOAD_ARTIFACT_VERSION = "v7.0.1"
+DOWNLOAD_ARTIFACT_SHA = "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c"
+DOWNLOAD_ARTIFACT_VERSION = "v8.0.1"
+SBOM_ACTION_SHA = "3ad7283483fc7af8ff2b4ea19663c2d5ca935e26"
+SBOM_ACTION_VERSION = "v0.24.2"
 CODEQL_ACTION_SHA = "1c5b675653bb5c22dbe9b12b556ec555138e09fd"
 CODEQL_ACTION_VERSION = "v4.38.1"
 MALWARE_REUSABLE_OWNER_REPO = "benarculus/malware-advisory-check"
@@ -304,6 +311,114 @@ def validate_release_please_workflow() -> None:
         raise AssertionError("release-please workflow contains a forbidden broad or long-lived token pattern")
 
 
+def validate_release_please_config() -> None:
+    config = json.loads(RELEASE_PLEASE_CONFIG.read_text(encoding="utf-8"))
+    if config.get("draft") is not True:
+        raise AssertionError("release-please must create draft releases before SBOM publication")
+    if config.get("force-tag-creation") is not True:
+        raise AssertionError("release-please must create the release tag to trigger SBOM publication")
+
+
+def validate_publish_release_workflow() -> None:
+    workflow = yaml.load(PUBLISH_RELEASE_WORKFLOW.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    if not isinstance(workflow, dict):
+        raise AssertionError("release publication workflow must be a mapping")
+    if workflow.get("on") != {"create": ""}:
+        raise AssertionError("release publication workflow must run only for created refs")
+    if workflow.get("permissions") != {}:
+        raise AssertionError("release publication workflow must disable ambient permissions")
+
+    jobs = workflow.get("jobs", {})
+    if set(jobs) != {"generate", "publish"}:
+        raise AssertionError("release publication workflow must separate generation and publication")
+    generate = jobs["generate"]
+    publish = jobs["publish"]
+    expected_tag_guard = "github.ref_type == 'tag' && startsWith(github.ref_name, 'v')"
+    if generate.get("if") != expected_tag_guard:
+        raise AssertionError("SBOM generation must be restricted to version tags")
+    if generate.get("permissions") != {"contents": "read"}:
+        raise AssertionError("SBOM generation must receive read-only repository access")
+    if publish.get("permissions") != {"contents": "write"}:
+        raise AssertionError("only the release publication job may receive contents write")
+    if publish.get("needs") != "generate" or publish.get("if") != (
+        "needs.generate.outputs.state == 'draft'"
+    ):
+        raise AssertionError("release publication must consume only a validated draft SBOM")
+
+    generate_steps = generate.get("steps", [])
+    publish_steps = publish.get("steps", [])
+    if len(generate_steps) != 6 or len(publish_steps) != 3:
+        raise AssertionError("release publication workflow has an unexpected step contract")
+    checkout, resolve, sbom, prepare, validate, upload = generate_steps
+    download, attach, finalize = publish_steps
+    if checkout.get("with") != {
+        "ref": "${{ github.ref_name }}",
+        "persist-credentials": "false",
+    }:
+        raise AssertionError("release checkout must use the tag without persisted credentials")
+    if resolve.get("id") != "release":
+        raise AssertionError("release resolution must expose draft metadata")
+    resolve_script = str(resolve.get("run", ""))
+    required_resolution_checks = (
+        "git merge-base --is-ancestor HEAD origin/main",
+        "immutable release exists without resume-builder.spdx.json",
+        "release_id=",
+        "state=published",
+        "state=draft",
+    )
+    if any(value not in resolve_script for value in required_resolution_checks):
+        raise AssertionError("release resolution must enforce ancestry and idempotent draft handling")
+    if sbom.get("uses") != f"anchore/sbom-action@{SBOM_ACTION_SHA}":
+        raise AssertionError("SPDX generation must use the approved pinned SBOM action")
+    if sbom.get("with") != {
+        "path": ".",
+        "config": ".syft.yaml",
+        "format": "spdx-json",
+        "output-file": "resume-builder.spdx.json",
+        "upload-artifact": "false",
+        "upload-release-assets": "false",
+    }:
+        raise AssertionError("SPDX generation must use the approved local-only configuration")
+    if prepare.get("run") != (
+        'python3 scripts/prepare_spdx_sbom.py resume-builder.spdx.json "$RELEASE_VERSION"'
+    ):
+        raise AssertionError("generated SPDX output must receive repository-owned product metadata")
+    if validate.get("run") != (
+        'python3 scripts/validate_spdx_sbom.py resume-builder.spdx.json "$RELEASE_VERSION"'
+    ):
+        raise AssertionError("generated SPDX output must pass the repository validator")
+    if upload.get("uses") != f"actions/upload-artifact@{UPLOAD_ARTIFACT_SHA}":
+        raise AssertionError("validated SPDX artifact must use the approved pinned uploader")
+    if download.get("uses") != f"actions/download-artifact@{DOWNLOAD_ARTIFACT_SHA}":
+        raise AssertionError("release publication must use the approved pinned downloader")
+    attach_script = str(attach.get("run", ""))
+    if "gh release upload" not in attach_script or "shasum -a 256" not in attach_script:
+        raise AssertionError("release publication must upload and checksum-verify the SPDX asset")
+    finalize_script = str(finalize.get("run", ""))
+    if "--method PATCH" not in finalize_script or "-F draft=false" not in finalize_script:
+        raise AssertionError("release publication must publish only after the SPDX asset is verified")
+
+    syft = yaml.safe_load(SYFT_CONFIG.read_text(encoding="utf-8"))
+    if syft.get("source") != {"name": "resume-builder"}:
+        raise AssertionError("Syft must identify the released product without misattributing suppliers")
+    excludes = set(syft.get("exclude", []))
+    if not {"./requirements-dev.txt", "./tests/**", "./.copilot-tracking/**"} <= excludes:
+        raise AssertionError("Syft must exclude development-only and tracking content")
+
+    raw_text = PUBLISH_RELEASE_WORKFLOW.read_text(encoding="utf-8")
+    expected_pins = (
+        (SBOM_ACTION_SHA, SBOM_ACTION_VERSION),
+        (UPLOAD_ARTIFACT_SHA, UPLOAD_ARTIFACT_VERSION),
+        (DOWNLOAD_ARTIFACT_SHA, DOWNLOAD_ARTIFACT_VERSION),
+    )
+    for sha, version in expected_pins:
+        if not re.search(rf"@{sha}\s+#\s+{re.escape(version)}\b", raw_text):
+            raise AssertionError(f"release publication must document pinned action version {version}")
+    forbidden = ("pull_request_target", "secrets:", "RELEASE_PLEASE_APP_PRIVATE_KEY")
+    if any(value in raw_text for value in forbidden):
+        raise AssertionError("release publication must not expose privileged triggers or repository secrets")
+
+
 def validate_scorecard_workflow() -> None:
     workflow = yaml.load(SCORECARD_WORKFLOW.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
     if not isinstance(workflow, dict):
@@ -464,12 +579,14 @@ def main() -> int:
     validate_dependabot_policy()
     validate_dependency_check_workflows()
     validate_release_please_workflow()
+    validate_release_please_config()
+    validate_publish_release_workflow()
     validate_scorecard_workflow()
     validate_job_requirements_contract()
     print(
         f"Validated {len(skill_files)} skills, plugin and marketplace JSON, "
-        "workflow SHA pins, release-token and Scorecard hardening, Dependabot policy, dependency gates, "
-        "exact dependency pins, and job-requirements round-trip."
+        "workflow SHA pins, release-token, SPDX publication, and Scorecard hardening, Dependabot policy, "
+        "dependency gates, exact dependency pins, and job-requirements round-trip."
     )
     return 0
 

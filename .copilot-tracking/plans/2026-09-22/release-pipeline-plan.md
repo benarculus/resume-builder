@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-* Bottom line: Add a `release-please` GitHub Actions workflow so every push to `main` maintains a standing Release PR built from Conventional Commit history; merging that PR bumps `plugin.json` and both version fields in `.github/plugin/marketplace.json`, generates `CHANGELOG.md`, tags the commit, and publishes a GitHub Release. Pair it with a repository ruleset that requires linear history on `main` so the changelog stays clean.
+* Bottom line: Add a `release-please` GitHub Actions workflow so every push to `main` maintains a standing Release PR built from Conventional Commit history; merging that PR bumps `plugin.json` and both version fields in `.github/plugin/marketplace.json`, generates `CHANGELOG.md`, tags the commit, creates a draft GitHub Release, attaches a validated SPDX SBOM, and publishes the immutable release. Pair it with a repository ruleset that requires linear history on `main` so the changelog stays clean.
 * Why this matters: `resume-builder` currently has no release automation, no tags, and no changelog; `plugin.json` and `marketplace.json` both sit at a hand-set `"0.1.0"` with nothing keeping them in sync. This plan makes SemVer tracking automatic and evidence-based instead of manual.
 * Planning result: Complete. All three phases are evidence-backed from the confirmed research decisions; no open decision blocks implementation.
 * Confidence and uncertainty: High. The mechanism (manifest-driven `release-please`, JSON `extra-files` updaters, GitHub ruleset "Require linear history") is documented by the vendor and GitHub, and every file this plan touches or creates was directly inspected. The only genuinely untested step is the pipeline's first real run against this repo's actual commit history, which the implementer should treat as the practical acceptance check for Phase P02.
@@ -437,7 +437,7 @@ No unresolved material planning decisions remain. All three decisions carried in
 * FR-001: `release-please` reads a single, version-tracked package definition (`release-please-config.json`), a version manifest (`.release-please-manifest.json`), and its own primary version file (`version.txt`), all rooted at `.` (the repository root).
 * FR-002: On each Release PR merge, `release-please` updates the `version` field in `plugin.json` and the `metadata.version` and `plugins[0].version` fields in `.github/plugin/marketplace.json` to the same newly derived version.
 * FR-003: A GitHub Actions workflow runs `release-please-action` on every push to `main`, opening or updating a single standing Release PR reflecting unreleased Conventional Commits.
-* FR-004: Merging the Release PR causes `release-please` to update `CHANGELOG.md`, tag the merge commit with the new version, and create a corresponding GitHub Release.
+* FR-004: Merging the Release PR causes `release-please` to update `CHANGELOG.md`, tag the merge commit with the new version, and create a draft GitHub Release; the tag-triggered publication workflow generates and validates `resume-builder.spdx.json`, verifies the uploaded asset by SHA-256, and only then publishes the immutable release.
 * FR-005: A repository ruleset on `main` enforces linear history (no true merge commits), while continuing to permit squash and rebase merges.
 
 ## Non-Functional Requirements

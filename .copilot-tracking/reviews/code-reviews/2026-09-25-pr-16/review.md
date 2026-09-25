@@ -10,14 +10,14 @@
 | Date | 2026-09-25 |
 | Profile / depth | standard / comprehensive |
 | Perspectives | functional, standards, security, readiness, supply-chain |
-| Severity counts | Critical 0 · High 2 · Medium 3 · Low 1 |
+| Severity counts | Critical 0 · High 2 · Medium 4 · Low 1 |
 | Open severity counts | Critical 0 · High 0 · Medium 0 · Low 0 |
 
 ## Summary
 
 The release workflow remains functionally sound: it disables the default `GITHUB_TOKEN`, mints a repository-scoped installation token from SHA-pinned code, requests only the release permissions it uses, serializes mutations, and passes the ephemeral token to release-please. The three documentation findings were corrected.
 
-The focused supply-chain review found three actionable gaps and all were remediated. The live ruleset now requires one fresh code-owner approval, last-push separation, resolved review threads, strict required checks, and no bypass actors. Immutable releases now lock future release tags/assets and generate native release attestations. A SHA-pinned OpenSSF Scorecard workflow publishes OIDC-authenticated results and uploads SARIF to code scanning, with executable policy tests guarding the configuration.
+The focused supply-chain review found four actionable gaps and all were remediated. The live ruleset now requires one fresh code-owner approval, last-push separation, resolved review threads, strict required checks, and no bypass actors. Release-please now creates a draft and version tag; a separate least-privilege workflow generates, validates, uploads, and checksum-verifies an SPDX 2.3 SBOM before publishing. Immutable releases then lock the tag/assets and generate native release attestations. A SHA-pinned OpenSSF Scorecard workflow publishes OIDC-authenticated results and uploads SARIF to code scanning, with executable policy tests guarding the configuration.
 
 **Verdict: Approve.**
 
@@ -26,11 +26,16 @@ The focused supply-chain review found three actionable gaps and all were remedia
 | File | Change | Risk | Issues |
 |---|---|---:|---:|
 | `.github/workflows/release-please.yml` | App-token-backed release workflow | High | 0 |
+| `.github/workflows/publish-release.yml` | Draft release, SPDX generation, checksum verification, immutable publication | High | 0 |
 | `release-please-config.json` | Release strategy and version updaters | Medium | 0 |
+| `.syft.yaml` | Product-focused SBOM scan configuration | Medium | 0 |
 | `.release-please-manifest.json` | Current release version | Medium | 0 |
 | `version.txt` | Simple-strategy primary version | Low | 0 |
 | `scripts/validate_repo.py` | Hardened workflow contract validation | Medium | 0 |
+| `scripts/prepare_spdx_sbom.py` | Root product supplier enrichment | Medium | 0 |
+| `scripts/validate_spdx_sbom.py` | SPDX and runtime dependency validation | Medium | 0 |
 | `tests/test_structure.py` | Positive and negative regression tests | Medium | 0 |
+| `tests/test_spdx_sbom.py` | SPDX preparation and rejection regressions | Medium | 0 |
 | `.copilot-tracking/plans/2026-09-22/release-pipeline-plan.md` | Authoritative plan and acceptance contract | Low | 1 |
 | `.copilot-tracking/reviews/logs/2026-09-22/release-pipeline-review.md` | Prior implementation review | Low | 1 |
 | `.copilot-tracking/research/2026-09-22/release-pipeline-research.md` | Release-tool research record | Low | 1 |
@@ -128,6 +133,12 @@ The research rationale and W3 evidence disposition now distinguish generated-PR 
 - **Evidence:** No Scorecard workflow existed.
 - **Resolution:** Added `.github/workflows/scorecard.yml` with full-SHA action pins, read-only defaults, minimal SARIF/OIDC writes, public result publishing, short-lived SARIF retention, code-scanning upload, and structural regression tests.
 
+### SSSC-004. Published releases lacked a distributable SPDX SBOM — Resolved
+
+- **Severity:** Medium
+- **Evidence:** Immutable publication previously occurred without a repository-specific SBOM asset.
+- **Resolution:** Release-please creates a draft and version tag. The tag workflow generates SPDX 2.3 under read-only permissions, validates the product/version and exact runtime pins, passes only the validated artifact into the contents-write job, verifies the uploaded SHA-256 digest, and publishes the immutable release.
+
 ## Acceptance Criteria Coverage
 
 | Requirement | Status | Notes |
@@ -148,6 +159,7 @@ The research rationale and W3 evidence disposition now distinguish generated-PR 
 - The App is not a ruleset bypass actor; the live rulesets require `validate` and the advisory-malware check.
 - One fresh human code-owner approval, last-push separation, resolved review threads, and an up-to-date branch are required.
 - Future GitHub Releases are immutable and receive native release attestations.
+- Every future release includes a validated `resume-builder.spdx.json` asset before immutable publication.
 - OpenSSF Scorecard continuously reports supply-chain posture to code scanning and the public Scorecard service.
 - The validator turns the security contract into executable policy, and negative tests cover two meaningful weakening attempts.
 - All hosted checks passed on the reviewed head and the PR is cleanly mergeable.
@@ -161,8 +173,7 @@ The research rationale and W3 evidence disposition now distinguish generated-PR 
 
 ## Recommended Actions
 
-1. Treat the first post-merge release workflow and generated Release PR as the end-to-end acceptance test.
-2. If the project later publishes built assets, redesign release publication around a draft release so an SPDX SBOM can be generated and attested before immutable publication.
+1. Treat the first post-merge release workflow, generated Release PR, draft release, SBOM attachment, and immutable publication as the end-to-end acceptance test.
 
 ## Out-of-scope Observations
 
@@ -189,7 +200,7 @@ Runtime risk is moderated by strong token boundaries, full-SHA action pins, exec
 
 **Comment body (edit before posting):**
 
-> The release flow and its supply-chain controls now look ready for human approval. The documentation drift is resolved; the ruleset requires fresh code-owner approval, last-push separation, resolved threads, strict CI, and no bypass; immutable releases lock future tags/assets and generate release attestations; and OpenSSF Scorecard is SHA-pinned, policy-validated, and uploads SARIF to code scanning. The remaining acceptance step is the first post-merge release lifecycle.
+> The release flow and its supply-chain controls now look ready for human approval. The documentation drift is resolved; the ruleset requires fresh code-owner approval, last-push separation, resolved threads, strict CI, and no bypass; release-please creates a draft and tag so a validated SPDX 2.3 SBOM can be checksum-verified before immutable publication; and OpenSSF Scorecard is SHA-pinned, policy-validated, and uploads SARIF to code scanning. The remaining acceptance step is the first post-merge release lifecycle.
 
 - [ ] Reviewed, edited, and approved this comment for posting to the PR
 

@@ -4,6 +4,10 @@
 
 GitHub Copilot CLI skills for building accurate, job-tailored resumes from a verified career document. The workflow is intentionally anti-fabrication: it asks for missing evidence instead of inventing experience, numbers, titles, or accomplishments.
 
+## Release integrity
+
+Each published version includes `resume-builder.spdx.json`, an SPDX 2.3 software bill of materials generated from the tagged source and its pinned runtime dependencies. The release remains a draft until the SBOM passes repository validation, is uploaded, and its downloaded SHA-256 digest matches the generated file. GitHub then publishes the release immutably, locking the tag and assets and generating a cryptographic release attestation.
+
 ## Install
 
 ### System prerequisites

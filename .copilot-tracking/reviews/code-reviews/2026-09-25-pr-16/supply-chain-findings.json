@@ -6,7 +6,7 @@
     "Sigstore",
     "NTIA SBOM minimum elements"
   ],
-  "summary": "The release supply chain now has enforced human review, strict CI gating, immutable releases with native release attestations, and continuous OpenSSF Scorecard analysis. All actionable findings from this review were remediated.",
+  "summary": "The release supply chain now has enforced human review, strict CI gating, pre-publication SPDX SBOM generation, immutable releases with native release attestations, and continuous OpenSSF Scorecard analysis. All actionable findings from this review were remediated.",
   "findings": [
     {
       "id": "SSSC-001",
@@ -31,14 +31,17 @@
       "status": "resolved",
       "evidence": "No Scorecard workflow existed.",
       "resolution": "Added a SHA-pinned, OIDC-publishing Scorecard workflow with SARIF artifact retention and code-scanning upload, plus executable validation and negative regression tests."
+    },
+    {
+      "id": "SSSC-004",
+      "title": "Published releases lacked a distributable SPDX SBOM",
+      "severity": "Medium",
+      "status": "resolved",
+      "evidence": "Immutable publication previously occurred without a repository-specific SBOM asset.",
+      "resolution": "Release-please now creates a draft and version tag. A tag-triggered workflow generates an SPDX 2.3 SBOM under read-only permissions, validates source and exact runtime package metadata, transfers only the validated artifact into a contents-write job, checksum-verifies the uploaded asset, and publishes the immutable release."
     }
   ],
   "residuals": [
-    {
-      "topic": "SBOM",
-      "status": "deferred-by-design",
-      "reason": "The current release is source/plugin content rather than a built binary. Immutable releases prevent attaching an SBOM after publication, so a future packaged-artifact flow must generate and attest the SBOM before publishing a draft release."
-    },
     {
       "topic": "SLSA",
       "status": "release-integrity-covered",

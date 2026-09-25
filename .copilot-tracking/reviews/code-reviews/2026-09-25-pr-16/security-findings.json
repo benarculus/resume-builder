@@ -1,6 +1,6 @@
 {
   "perspective": "security",
-  "summary": "No unresolved security defects remain. The default GITHUB_TOKEN has no permissions, actions are SHA-pinned, the installation token is scoped to the current repository and three required permissions, immutable releases are enabled, and the live main rulesets require fresh human approval with no bypass actors.",
+  "summary": "No unresolved security defects remain. The default release-please GITHUB_TOKEN has no permissions, actions are SHA-pinned, the installation token is scoped to the current repository and three required permissions, SPDX generation is isolated in a read-only job, only the publication job receives contents write, immutable releases are enabled, and the live main rulesets require fresh human approval with no bypass actors.",
   "findings": [],
   "limitations": [
     "The reviewer token cannot inspect the GitHub App installation's configured repository selection or granted permissions through the installation API, so those settings remain an operational verification item.",

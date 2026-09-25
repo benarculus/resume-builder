@@ -65,6 +65,50 @@ def test_release_please_workflow_rejects_broad_app_scope(
         validator.validate_release_please_workflow()
 
 
+def test_release_please_config_requires_draft_release_publication() -> None:
+    validator = load_validator()
+    validator.validate_release_please_config()
+
+
+def test_release_please_config_rejects_immediate_publication(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "release-please-config.json"
+    weakened.write_text(
+        (ROOT / "release-please-config.json")
+        .read_text(encoding="utf-8")
+        .replace('"draft": true', '"draft": false'),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "RELEASE_PLEASE_CONFIG", weakened)
+
+    with pytest.raises(AssertionError, match="draft releases"):
+        validator.validate_release_please_config()
+
+
+def test_publish_release_workflow_uses_validated_spdx_boundary() -> None:
+    validator = load_validator()
+    validator.validate_publish_release_workflow()
+
+
+def test_publish_release_workflow_rejects_write_access_during_generation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "publish-release.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/publish-release.yml")
+        .read_text(encoding="utf-8")
+        .replace("      contents: read", "      contents: write", 1),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "PUBLISH_RELEASE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="read-only"):
+        validator.validate_publish_release_workflow()
+
+
 def test_scorecard_workflow_uses_hardened_published_results() -> None:
     validator = load_validator()
     validator.validate_scorecard_workflow()

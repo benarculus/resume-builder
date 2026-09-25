@@ -77,7 +77,21 @@ Implemented the full `release-please` pipeline for `resume-builder`: added the v
   * [README.md](../../../README.md)
 * Behavior or functionality changed: added a SHA-pinned OpenSSF Scorecard workflow that runs on pushes to `main`, branch-rule changes, and a weekly schedule; publishes OIDC-authenticated results to the public Scorecard service; retains SARIF evidence for five days; and uploads findings to GitHub code scanning. Extended the repository validator and negative tests so credential persistence, repository-secret use, permission drift, or action-pin drift fail CI. Strengthened the live "Protect main" ruleset to require one fresh approving code-owner review, dismiss stale approvals after pushes, require approval from someone other than the last pusher, resolve review threads, and test an up-to-date branch, with no bypass actors. Enabled immutable releases so future release tags and assets cannot be moved or replaced after publication and GitHub creates a cryptographic release attestation.
 * Validation: passed — `python3 scripts/validate_repo.py`; `python3 -m pytest -q tests/test_structure.py` (39 tests); `git diff --check`; `gh api repos/benarculus/resume-builder/rulesets/23698833` confirms the approval, thread-resolution, strict-check, and no-bypass policy; `gh api repos/benarculus/resume-builder/immutable-releases` returns `{"enabled":true,"enforced_by_owner":false}`.
-* Scope note: no standalone SBOM asset was added. This repository currently publishes source/plugin releases rather than a built binary, and immutable releases reject assets uploaded after publication. GitHub's native immutable-release attestation covers release/tag identity now; a future packaged-artifact design should create the SBOM before publishing the draft release and attest it in the same release transaction.
+* Scope note: the initial hardening pass did not add a standalone SBOM because immutable releases reject assets uploaded after publication. The subsequent SBOM implementation resolved this by configuring release-please to create the tag and a draft release, then generating and attaching the SBOM before publication.
+
+### Added SPDX SBOM generation before immutable publication
+
+* Related review: supply-chain follow-up `SSSC-004`
+* Files:
+  * [release-please-config.json](../../../release-please-config.json)
+  * [.github/workflows/publish-release.yml](../../../.github/workflows/publish-release.yml)
+  * [.syft.yaml](../../../.syft.yaml)
+  * [scripts/validate_spdx_sbom.py](../../../scripts/validate_spdx_sbom.py)
+  * [tests/test_spdx_sbom.py](../../../tests/test_spdx_sbom.py)
+  * [scripts/validate_repo.py](../../../scripts/validate_repo.py)
+  * [tests/test_structure.py](../../../tests/test_structure.py)
+* Behavior or functionality changed: release-please now creates draft releases and forces immediate version-tag creation. The App-created tag triggers a separate publication workflow that waits for the matching draft, verifies the tag commit is on `main`, and supports idempotent reruns. The generation job has read-only repository access and uses SHA-pinned `anchore/sbom-action@v0.24.2` to create `resume-builder.spdx.json` from the tagged source while excluding development-only and tracking content. A repository validator enforces SPDX 2.3 metadata, the released source version, all exactly pinned runtime dependencies, and a `DESCRIBES` relationship. Only the validated file crosses into a separate contents-write job, which uploads it, downloads it through the release-assets API, compares SHA-256 digests, and then publishes the draft. Immutable-release enforcement locks the tag and SBOM after publication and generates GitHub's release attestation.
+* Validation: passed — generated a real SBOM locally with checksummed Syft `v1.52.0` and validated its source and runtime package metadata; `python3 scripts/validate_repo.py`; focused structural/SPDX tests; full repository test suite; JSON/YAML parsing; and `git diff --check`.
 
 ## Implementation-Time Plan Updates
 
@@ -117,9 +131,11 @@ Implemented the full `release-please` pipeline for `resume-builder`: added the v
 | `release-please-action` tag currency | P02-T01 | Passed | `gh api repos/googleapis/release-please-action/tags` confirms `v5.0.0` is still the latest tag at implementation time |
 | End-to-end pipeline run | P02-T01 (practical acceptance) | Unavailable | Requires a real push/merge to `main` after this change lands; not exercisable during this implementation session, consistent with the plan's stated confidence caveat |
 | OpenSSF Scorecard contract | Supply-chain follow-up | Passed | SHA-pinned analysis/artifact/SARIF actions, read-only workflow default, minimal job writes, OIDC publishing, and no repository secrets are enforced by `scripts/validate_repo.py` |
-| Structural tests | Supply-chain follow-up | Passed | `python3 -m pytest -q tests/test_structure.py` — 39 passed |
+| Structural and SPDX tests | Supply-chain follow-up | Passed | `python3 -m pytest -q tests/test_structure.py tests/test_spdx_sbom.py` — 48 passed |
+| Full Python suite | Supply-chain follow-up | Passed | `python3 -m pytest -q` — 67 passed, 8 skipped for guarded local system-binary limitations |
 | Human review gate | Supply-chain follow-up | Passed | Live "Protect main" requires one fresh code-owner approval, last-push separation, resolved threads, strict required checks, and no bypass actors |
 | Immutable releases | Supply-chain follow-up | Passed | Repository immutable-release endpoint reports `enabled: true`; future releases receive locked tags/assets and native release attestations |
+| Real SPDX generation | Supply-chain follow-up | Passed | Checksummed Syft `v1.52.0` generated an SPDX 2.3 document containing `resume-builder` and all four exact runtime pins; `scripts/validate_spdx_sbom.py` accepted it |
 
 ## Pre-Review Reconciliation
 
