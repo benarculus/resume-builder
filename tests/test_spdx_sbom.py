@@ -110,6 +110,30 @@ def test_spdx_validator_rejects_non_object_package(tmp_path: Path) -> None:
         validator.validate_spdx_sbom(path, "0.2.0")
 
 
+@pytest.mark.parametrize(
+    ("package_name", "duplicate_id"),
+    [
+        ("pymupdf", "SPDXRef-Package-python-docx"),
+        ("pymupdf", "SPDXRef-DOCUMENT"),
+    ],
+)
+def test_spdx_validator_rejects_duplicate_element_identifiers(
+    tmp_path: Path, package_name: str, duplicate_id: str
+) -> None:
+    validator = load_validator()
+    document = spdx_document()
+    package = next(
+        package for package in document["packages"] if package["name"] == package_name
+    )
+    package["SPDXID"] = duplicate_id
+    path = tmp_path / "resume-builder.spdx.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    load_preparer().prepare_spdx_sbom(path, "0.2.0")
+
+    with pytest.raises(AssertionError, match="identifiers must be unique"):
+        validator.validate_spdx_sbom(path, "0.2.0")
+
+
 def test_spdx_validator_rejects_wrong_release_version(tmp_path: Path) -> None:
     validator = load_validator()
     path = tmp_path / "resume-builder.spdx.json"

@@ -115,6 +115,15 @@ Implemented the full `release-please` pipeline for `resume-builder`: added the v
 * Behavior or functionality changed: split draft discovery from SBOM generation because GitHub's releases API does not expose draft releases to a read-only token. The new `resolve` job has `contents: write`, checks tag ancestry, polls for the draft, and exports only state, release ID, and version. The dependent `generate` job retains `contents: read`, executes repository SBOM code, and transfers only the validated artifact to the write-capable `publish` job. The SPDX validator now labels non-object package entries safely and rejects them through its normal `AssertionError` path instead of raising `AttributeError`.
 * Validation: passed — `python3 -m pytest -q tests/test_spdx_sbom.py tests/test_structure.py` (51 tests); `python3 scripts/validate_repo.py`; full suite (70 passed, 8 skipped); and `git diff --check`.
 
+### Rejected duplicate SPDX element identifiers
+
+* Related review: Copilot Code Review overview finding on 2026-09-25
+* Files:
+  * [scripts/validate_spdx_sbom.py](../../../scripts/validate_spdx_sbom.py)
+  * [tests/test_spdx_sbom.py](../../../tests/test_spdx_sbom.py)
+* Behavior or functionality changed: the release validator now rejects duplicate package `SPDXID` values and any package that reuses the document identifier `SPDXRef-DOCUMENT`, preserving the SPDX requirement that every element identifier be unique within the document.
+* Validation: passed — `python3 -m pytest -q tests/test_spdx_sbom.py tests/test_structure.py` (53 tests); `python3 scripts/validate_repo.py`; full suite (72 passed, 8 skipped); and `git diff --check`.
+
 ## Implementation-Time Plan Updates
 
 ### Fixed a missing P03 phase heading in the plan

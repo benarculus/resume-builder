@@ -60,6 +60,17 @@ def validate_spdx_sbom(path: Path, expected_version: str) -> None:
     ]
     if incomplete:
         raise AssertionError(f"SBOM packages must include identifiers and suppliers: {incomplete}")
+    package_ids = [package["SPDXID"] for package in packages if isinstance(package, dict)]
+    duplicate_ids = sorted(
+        spdx_id for spdx_id in set(package_ids) if package_ids.count(spdx_id) > 1
+    )
+    document_id = document["SPDXID"]
+    if document_id in package_ids:
+        duplicate_ids.append(document_id)
+    if duplicate_ids:
+        raise AssertionError(
+            f"SBOM element identifiers must be unique: {sorted(set(duplicate_ids))}"
+        )
     observed_packages = {
         normalized_name(package["name"]): package
         for package in packages
