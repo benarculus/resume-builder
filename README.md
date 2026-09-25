@@ -6,7 +6,7 @@ GitHub Copilot CLI skills for building accurate, job-tailored resumes from a ver
 
 ## Release integrity
 
-Each published version includes `resume-builder.spdx.json`, an SPDX 2.3 software bill of materials generated from the tagged source and its pinned runtime dependencies. The release remains a draft until the SBOM passes repository validation, is uploaded, and its downloaded SHA-256 digest matches the generated file. An active release-tag ruleset restricts creation, update, and deletion of `v*` tags to the release GitHub App. GitHub then publishes the release immutably, locking the tag and assets and generating a cryptographic release attestation.
+Each published version includes `resume-builder.spdx.json`, an SPDX 2.3 software bill of materials generated from the tagged source and its pinned runtime dependencies. A small write-capable resolver locates the draft release, then a separate read-only job generates and validates the SBOM. The release remains a draft until the SBOM is uploaded and its downloaded SHA-256 digest matches the generated file. An active release-tag ruleset restricts creation, update, and deletion of `v*` tags to the release GitHub App. GitHub then publishes the release immutably, locking the tag and assets and generating a cryptographic release attestation.
 
 ### Release recovery
 

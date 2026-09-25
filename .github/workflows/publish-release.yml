@@ -6,12 +6,12 @@ on:
 permissions: {}
 
 jobs:
-  generate:
+  resolve:
     if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      contents: read
+      contents: write
     outputs:
       state: ${{ steps.release.outputs.state }}
       release_id: ${{ steps.release.outputs.release_id }}
@@ -71,11 +71,24 @@ jobs:
 
           echo "Timed out waiting for draft release ${TAG_NAME}" >&2
           exit 1
+
+  generate:
+    needs: resolve
+    if: needs.resolve.outputs.state == 'draft'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          persist-credentials: false
       - name: Generate SPDX SBOM
-        if: steps.release.outputs.state == 'draft'
         uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
         env:
-          SYFT_SOURCE_VERSION: ${{ steps.release.outputs.version }}
+          SYFT_SOURCE_VERSION: ${{ needs.resolve.outputs.version }}
         with:
           path: .
           config: .syft.yaml
@@ -84,17 +97,14 @@ jobs:
           upload-artifact: false
           upload-release-assets: false
       - name: Prepare SPDX product metadata
-        if: steps.release.outputs.state == 'draft'
         env:
-          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          RELEASE_VERSION: ${{ needs.resolve.outputs.version }}
         run: python3 scripts/prepare_spdx_sbom.py resume-builder.spdx.json "$RELEASE_VERSION"
       - name: Validate SPDX SBOM
-        if: steps.release.outputs.state == 'draft'
         env:
-          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          RELEASE_VERSION: ${{ needs.resolve.outputs.version }}
         run: python3 scripts/validate_spdx_sbom.py resume-builder.spdx.json "$RELEASE_VERSION"
       - name: Upload validated SPDX SBOM
-        if: steps.release.outputs.state == 'draft'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-spdx-sbom
@@ -103,8 +113,8 @@ jobs:
           retention-days: 1
 
   publish:
-    needs: generate
-    if: needs.generate.outputs.state == 'draft'
+    needs: [resolve, generate]
+    if: needs.resolve.outputs.state == 'draft'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -119,7 +129,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           TAG_NAME: ${{ github.ref_name }}
-          RELEASE_ID: ${{ needs.generate.outputs.release_id }}
+          RELEASE_ID: ${{ needs.resolve.outputs.release_id }}
         run: |
           set -euo pipefail
           gh release upload "$TAG_NAME" resume-builder.spdx.json --clobber --repo "$REPOSITORY"
@@ -136,7 +146,7 @@ jobs:
       - name: Publish immutable release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_ID: ${{ needs.generate.outputs.release_id }}
+          RELEASE_ID: ${{ needs.resolve.outputs.release_id }}
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail

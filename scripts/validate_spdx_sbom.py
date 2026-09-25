@@ -52,7 +52,7 @@ def validate_spdx_sbom(path: Path, expected_version: str) -> None:
     if not isinstance(packages, list) or not packages:
         raise AssertionError("SBOM must contain package components")
     incomplete = [
-        package.get("name", "<unnamed>")
+        package.get("name", "<unnamed>") if isinstance(package, dict) else "<non-object>"
         for package in packages
         if not isinstance(package, dict)
         or not package.get("SPDXID")

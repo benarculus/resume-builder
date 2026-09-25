@@ -329,36 +329,48 @@ def validate_publish_release_workflow() -> None:
         raise AssertionError("release publication workflow must disable ambient permissions")
 
     jobs = workflow.get("jobs", {})
-    if set(jobs) != {"generate", "publish"}:
-        raise AssertionError("release publication workflow must separate generation and publication")
+    if set(jobs) != {"resolve", "generate", "publish"}:
+        raise AssertionError(
+            "release publication workflow must separate resolution, generation, and publication"
+        )
+    resolve = jobs["resolve"]
     generate = jobs["generate"]
     publish = jobs["publish"]
     expected_tag_guard = "github.ref_type == 'tag' && startsWith(github.ref_name, 'v')"
-    if generate.get("if") != expected_tag_guard:
-        raise AssertionError("SBOM generation must be restricted to version tags")
+    if resolve.get("if") != expected_tag_guard:
+        raise AssertionError("release resolution must be restricted to version tags")
+    if resolve.get("permissions") != {"contents": "write"}:
+        raise AssertionError("draft release resolution must receive contents write")
     if generate.get("permissions") != {"contents": "read"}:
         raise AssertionError("SBOM generation must receive read-only repository access")
+    if generate.get("needs") != "resolve" or generate.get("if") != (
+        "needs.resolve.outputs.state == 'draft'"
+    ):
+        raise AssertionError("SBOM generation must consume only resolved draft metadata")
     if publish.get("permissions") != {"contents": "write"}:
-        raise AssertionError("only the release publication job may receive contents write")
-    if publish.get("needs") != "generate" or publish.get("if") != (
-        "needs.generate.outputs.state == 'draft'"
+        raise AssertionError("release publication must receive contents write")
+    if publish.get("needs") != ["resolve", "generate"] or publish.get("if") != (
+        "needs.resolve.outputs.state == 'draft'"
     ):
         raise AssertionError("release publication must consume only a validated draft SBOM")
 
+    resolve_steps = resolve.get("steps", [])
     generate_steps = generate.get("steps", [])
     publish_steps = publish.get("steps", [])
-    if len(generate_steps) != 6 or len(publish_steps) != 3:
+    if len(resolve_steps) != 2 or len(generate_steps) != 5 or len(publish_steps) != 3:
         raise AssertionError("release publication workflow has an unexpected step contract")
-    checkout, resolve, sbom, prepare, validate, upload = generate_steps
+    resolve_checkout, release = resolve_steps
+    checkout, sbom, prepare, validate, upload = generate_steps
     download, attach, finalize = publish_steps
-    if checkout.get("with") != {
+    expected_checkout = {
         "ref": "${{ github.ref_name }}",
         "persist-credentials": "false",
-    }:
-        raise AssertionError("release checkout must use the tag without persisted credentials")
-    if resolve.get("id") != "release":
+    }
+    if resolve_checkout.get("with") != expected_checkout or checkout.get("with") != expected_checkout:
+        raise AssertionError("release checkouts must use the tag without persisted credentials")
+    if release.get("id") != "release":
         raise AssertionError("release resolution must expose draft metadata")
-    resolve_script = str(resolve.get("run", ""))
+    resolve_script = str(release.get("run", ""))
     required_resolution_checks = (
         "git merge-base --is-ancestor HEAD origin/main",
         "immutable release exists without resume-builder.spdx.json",
@@ -368,6 +380,8 @@ def validate_publish_release_workflow() -> None:
     )
     if any(value not in resolve_script for value in required_resolution_checks):
         raise AssertionError("release resolution must enforce ancestry and idempotent draft handling")
+    if "gh api" in "\n".join(str(step.get("run", "")) for step in generate_steps):
+        raise AssertionError("read-only SBOM generation must not query draft releases")
     if sbom.get("uses") != f"anchore/sbom-action@{SBOM_ACTION_SHA}":
         raise AssertionError("SPDX generation must use the approved pinned SBOM action")
     if sbom.get("with") != {

@@ -103,6 +103,18 @@ Implemented the full `release-please` pipeline for `resume-builder`: added the v
 * Behavior or functionality changed: tightened the SPDX acceptance contract so `SPDXRef-DOCUMENT` must specifically `DESCRIBE` the `resume-builder` root package and added a negative regression where the document describes a dependency. Refreshed the contributor validation documentation to the current malware workflow `v1.0.2` pin and the release, SPDX, Scorecard, dependency, and action-pin checks. Added a recovery runbook for draft lookup timeouts, validation failures, artifact-transfer failures, checksum failures, safe reruns, and the immutable publication boundary. Created active tag ruleset `24008744` (`Protect release tags`) for `refs/tags/v*`; ruleset creation, update, and deletion restrictions can be bypassed only by release GitHub App ID `5074470`, while the repository owner has no direct bypass.
 * Validation: passed — `python3 -m pytest -q tests/test_spdx_sbom.py tests/test_structure.py` (49 tests); `python3 scripts/validate_repo.py`; `git diff --check`; and `gh api repos/benarculus/resume-builder/rulesets/24008744` confirms the active tag target, `refs/tags/v*` condition, creation/update/deletion rules, sole Integration bypass actor `5074470`, and `current_user_can_bypass: never`.
 
+### Corrected draft-release visibility and malformed SPDX handling
+
+* Related review: Copilot Code Review findings on 2026-09-25
+* Files:
+  * [.github/workflows/publish-release.yml](../../../.github/workflows/publish-release.yml)
+  * [scripts/validate_repo.py](../../../scripts/validate_repo.py)
+  * [scripts/validate_spdx_sbom.py](../../../scripts/validate_spdx_sbom.py)
+  * [tests/test_structure.py](../../../tests/test_structure.py)
+  * [tests/test_spdx_sbom.py](../../../tests/test_spdx_sbom.py)
+* Behavior or functionality changed: split draft discovery from SBOM generation because GitHub's releases API does not expose draft releases to a read-only token. The new `resolve` job has `contents: write`, checks tag ancestry, polls for the draft, and exports only state, release ID, and version. The dependent `generate` job retains `contents: read`, executes repository SBOM code, and transfers only the validated artifact to the write-capable `publish` job. The SPDX validator now labels non-object package entries safely and rejects them through its normal `AssertionError` path instead of raising `AttributeError`.
+* Validation: passed — `python3 -m pytest -q tests/test_spdx_sbom.py tests/test_structure.py` (51 tests); `python3 scripts/validate_repo.py`; full suite (70 passed, 8 skipped); and `git diff --check`.
+
 ## Implementation-Time Plan Updates
 
 ### Fixed a missing P03 phase heading in the plan

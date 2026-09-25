@@ -99,6 +99,17 @@ def test_spdx_validator_rejects_missing_runtime_package(tmp_path: Path) -> None:
         validator.validate_spdx_sbom(path, "0.2.0")
 
 
+def test_spdx_validator_rejects_non_object_package(tmp_path: Path) -> None:
+    validator = load_validator()
+    document = spdx_document()
+    document["packages"].append("malformed")
+    path = tmp_path / "resume-builder.spdx.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(AssertionError, match="<non-object>"):
+        validator.validate_spdx_sbom(path, "0.2.0")
+
+
 def test_spdx_validator_rejects_wrong_release_version(tmp_path: Path) -> None:
     validator = load_validator()
     path = tmp_path / "resume-builder.spdx.json"
