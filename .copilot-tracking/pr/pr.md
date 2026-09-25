@@ -15,8 +15,8 @@ Includes the full research → plan → critique → implementation → review t
 
 ## Validation
 
-- [x] `python scripts/validate_repo.py` — passed (validates plugin/marketplace JSON and workflow SHA pins, among other checks)
-- [ ] `pytest -q` — not run; this change touches only pipeline configuration and tracking docs, no Python source under test
+- [x] `python scripts/validate_repo.py` — passed (includes the hardened GitHub App token contract and workflow SHA pins)
+- [x] `python3 -m pytest -q tests/test_structure.py` — 36 passed using Python 3.9-compatible pytest 8.4.2; hosted CI remains authoritative for the repository-pinned Python 3.12 dependency set
 
 ## Anti-fabrication and privacy
 
@@ -27,5 +27,5 @@ Includes the full research → plan → critique → implementation → review t
 ## Checklist
 
 - [ ] README or shared contracts updated when behavior changed.
-- [ ] Tests added or updated for executable behavior.
+- [x] Tests added or updated for executable behavior.
 - [x] Security-sensitive changes are called out in the description.
