@@ -127,6 +127,8 @@ def test_official_spdx_validator_accepts_release_fixture(tmp_path: Path) -> None
     [
         lambda document: document["creationInfo"].update({"created": 42}),
         lambda document: document["creationInfo"].update({"creators": "Tool: syft"}),
+        lambda document: document["creationInfo"].update({"creators": [42]}),
+        lambda document: document.update({"spdxVersion": "SPDX-2.2"}),
         lambda document: document["packages"][1].update(
             {"SPDXID": "SPDXRef-Package-resume-builder"}
         ),
@@ -135,6 +137,8 @@ def test_official_spdx_validator_accepts_release_fixture(tmp_path: Path) -> None
     ids=[
         "integer-created",
         "string-creators",
+        "invalid-creator-array",
+        "wrong-spdx-version",
         "duplicate-spdxid",
         "missing-download-location",
     ],

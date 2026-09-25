@@ -224,6 +224,15 @@ def validate_requirement_pins() -> None:
 
 
 def validate_spdx_validation_lock() -> None:
+    for requirements in REQUIREMENTS:
+        if re.search(
+            r"(?im)^\s*spdx[-_.]tools(?:\s|[<>=!~])",
+            requirements.read_text(encoding="utf-8"),
+        ):
+            raise AssertionError(
+                "spdx-tools must remain isolated from general requirement files"
+            )
+
     physical_lines = SPDX_VALIDATION_REQUIREMENTS.read_text(encoding="utf-8").splitlines()
     logical_lines = []
     for index in range(0, len(physical_lines), 2):
@@ -577,12 +586,16 @@ def validate_publish_release_workflow() -> None:
         "pyspdxtools -i resume-builder.spdx.json --version SPDX-2.3"
     ):
         raise AssertionError("generated SPDX output must pass official SPDX 2.3 validation")
+    if "continue-on-error" in official:
+        raise AssertionError("official SPDX validation must remain fail-closed")
     expected_contract = (
         'python3 scripts/validate_release_sbom_contract.py '
         'resume-builder.spdx.json "$RELEASE_VERSION"'
     )
     if " ".join(str(contract.get("run", "")).split()) != expected_contract:
         raise AssertionError("officially valid SPDX output must pass the release contract")
+    if "continue-on-error" in contract:
+        raise AssertionError("release SBOM contract validation must remain fail-closed")
     if upload.get("uses") != f"actions/upload-artifact@{UPLOAD_ARTIFACT_SHA}":
         raise AssertionError("validated SPDX artifact must use the approved pinned uploader")
     if download.get("uses") != f"actions/download-artifact@{DOWNLOAD_ARTIFACT_SHA}":

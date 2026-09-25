@@ -348,6 +348,52 @@ def test_ci_requires_hash_locked_spdx_validator_install(
         validator.validate_spdx_validation_lock()
 
 
+@pytest.mark.parametrize("requirements_name", ["requirements.txt", "requirements-dev.txt"])
+def test_spdx_validation_lock_rejects_general_dependency_misattribution(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, requirements_name: str
+) -> None:
+    validator = load_validator()
+    general = tmp_path / requirements_name
+    general.write_text("spdx-tools==0.8.5\n", encoding="utf-8")
+    unchanged = ROOT / (
+        "requirements-dev.txt"
+        if requirements_name == "requirements.txt"
+        else "requirements.txt"
+    )
+    monkeypatch.setattr(validator, "REQUIREMENTS", (general, unchanged))
+
+    with pytest.raises(AssertionError, match="isolated from general requirement files"):
+        validator.validate_spdx_validation_lock()
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "message"),
+    [
+        ('python-version: "3.12"', 'python-version: "3.11"', "Python 3.12"),
+        ("--only-binary=:all:", "", "hash-locked SPDX validator"),
+    ],
+)
+def test_ci_rejects_spdx_runtime_or_install_weakening(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    old: str,
+    new: str,
+    message: str,
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "ci.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/ci.yml")
+        .read_text(encoding="utf-8")
+        .replace(old, new),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "CI_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match=message):
+        validator.validate_spdx_validation_lock()
+
+
 def test_publish_release_workflow_requires_official_gate_before_contract(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -375,6 +421,135 @@ def test_publish_release_workflow_requires_official_gate_before_contract(
     monkeypatch.setattr(validator, "PUBLISH_RELEASE_WORKFLOW", weakened)
 
     with pytest.raises(AssertionError, match="official SPDX 2.3"):
+        validator.validate_publish_release_workflow()
+
+
+@pytest.mark.parametrize(
+    "step_name",
+    [
+        "Set up Python",
+        "Install SPDX validation dependencies",
+        "Validate SPDX 2.3 conformance",
+        "Validate release SBOM contract",
+    ],
+)
+def test_publish_release_workflow_rejects_required_step_removal(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, step_name: str
+) -> None:
+    validator = load_validator()
+    original = (ROOT / ".github/workflows/publish-release.yml").read_text(
+        encoding="utf-8"
+    )
+    step_start = original.index(f"      - name: {step_name}\n")
+    next_step = original.find("\n      - name:", step_start + 1)
+    if next_step == -1:
+        next_step = original.index("\n\n  publish:", step_start)
+    weakened = tmp_path / "publish-release.yml"
+    weakened.write_text(
+        f"{original[:step_start]}{original[next_step + 1:]}",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "PUBLISH_RELEASE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="unexpected step contract"):
+        validator.validate_publish_release_workflow()
+
+
+@pytest.mark.parametrize(
+    "step_name",
+    ["Validate SPDX 2.3 conformance", "Validate release SBOM contract"],
+)
+def test_publish_release_workflow_rejects_validator_continue_on_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, step_name: str
+) -> None:
+    validator = load_validator()
+    original = (ROOT / ".github/workflows/publish-release.yml").read_text(
+        encoding="utf-8"
+    )
+    weakened = tmp_path / "publish-release.yml"
+    weakened.write_text(
+        original.replace(
+            f"      - name: {step_name}\n",
+            f"      - name: {step_name}\n        continue-on-error: true\n",
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "PUBLISH_RELEASE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="fail-closed"):
+        validator.validate_publish_release_workflow()
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "message"),
+    [
+        (
+            "pyspdxtools -i resume-builder.spdx.json --version SPDX-2.3",
+            "pyspdxtools -i resume-builder.spdx.json",
+            "official SPDX 2.3",
+        ),
+        (
+            "python3 scripts/validate_release_sbom_contract.py",
+            "python3 -c 'print(\"contract bypassed\")'",
+            "release contract",
+        ),
+        (
+            "--require-hashes --only-binary=:all:",
+            "--require-hashes",
+            "hash-locked SPDX validator",
+        ),
+        (
+            'python-version: "3.12"',
+            'python-version: "3.11"',
+            "Python 3.12",
+        ),
+    ],
+)
+def test_publish_release_workflow_rejects_validation_boundary_weakening(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    old: str,
+    new: str,
+    message: str,
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "publish-release.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/publish-release.yml")
+        .read_text(encoding="utf-8")
+        .replace(old, new),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "PUBLISH_RELEASE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match=message):
+        validator.validate_publish_release_workflow()
+
+
+@pytest.mark.parametrize(
+    "gate_name",
+    ["Validate SPDX 2.3 conformance", "Validate release SBOM contract"],
+)
+def test_publish_release_workflow_rejects_upload_before_validation_gate(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, gate_name: str
+) -> None:
+    validator = load_validator()
+    original = (ROOT / ".github/workflows/publish-release.yml").read_text(
+        encoding="utf-8"
+    )
+    upload_start = original.index("      - name: Upload validated SPDX SBOM")
+    upload_end = original.index("\n\n  publish:", upload_start)
+    upload = original[upload_start:upload_end]
+    without_upload = f"{original[:upload_start]}{original[upload_end:]}"
+    gate_start = without_upload.index(f"      - name: {gate_name}")
+    weakened = tmp_path / "publish-release.yml"
+    weakened.write_text(
+        f"{without_upload[:gate_start]}{upload}\n{without_upload[gate_start:]}",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "PUBLISH_RELEASE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="official SPDX 2.3|release contract"):
         validator.validate_publish_release_workflow()
 
 
