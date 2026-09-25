@@ -126,6 +126,27 @@ def test_publish_release_workflow_rejects_read_only_draft_resolution(
         validator.validate_publish_release_workflow()
 
 
+def test_publish_release_workflow_requires_complete_main_history(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "publish-release.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/publish-release.yml")
+        .read_text(encoding="utf-8")
+        .replace("          fetch-depth: 0\n", "")
+        .replace(
+            'git fetch --no-tags origin \\\n            "+refs/heads/main:refs/remotes/origin/main"',
+            "git fetch --no-tags origin main",
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "PUBLISH_RELEASE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="release checkouts|ancestry"):
+        validator.validate_publish_release_workflow()
+
+
 def test_scorecard_workflow_uses_hardened_published_results() -> None:
     validator = load_validator()
     validator.validate_scorecard_workflow()

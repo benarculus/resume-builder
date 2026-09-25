@@ -124,6 +124,19 @@ Implemented the full `release-please` pipeline for `resume-builder`: added the v
 * Behavior or functionality changed: the release validator now rejects duplicate package `SPDXID` values and any package that reuses the document identifier `SPDXRef-DOCUMENT`, preserving the SPDX requirement that every element identifier be unique within the document.
 * Validation: passed — `python3 -m pytest -q tests/test_spdx_sbom.py tests/test_structure.py` (53 tests); `python3 scripts/validate_repo.py`; full suite (72 passed, 8 skipped); and `git diff --check`.
 
+### Made tag ancestry checks reliable and rejected non-object SPDX documents
+
+* Related review: Copilot Code Review findings on 2026-09-25
+* Files:
+  * [.github/workflows/publish-release.yml](../../../.github/workflows/publish-release.yml)
+  * [scripts/validate_repo.py](../../../scripts/validate_repo.py)
+  * [scripts/prepare_spdx_sbom.py](../../../scripts/prepare_spdx_sbom.py)
+  * [scripts/validate_spdx_sbom.py](../../../scripts/validate_spdx_sbom.py)
+  * [tests/test_structure.py](../../../tests/test_structure.py)
+  * [tests/test_spdx_sbom.py](../../../tests/test_spdx_sbom.py)
+* Behavior or functionality changed: the resolver checkout now fetches complete history and explicitly maps `refs/heads/main` to `refs/remotes/origin/main` before the ancestry check, so a fresh runner has a reliable remote-tracking ref even after `main` advances. Both SPDX tools now reject syntactically valid non-object JSON before field access and report the failure through their normal `AssertionError` handling.
+* Validation: passed — `python3 -m pytest -q tests/test_spdx_sbom.py tests/test_structure.py` (57 tests); `python3 scripts/validate_repo.py`; full suite (76 passed, 8 skipped); and `git diff --check`.
+
 ## Implementation-Time Plan Updates
 
 ### Fixed a missing P03 phase heading in the plan

@@ -21,6 +21,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.ref_name }}
+          fetch-depth: 0
           persist-credentials: false
       - name: Resolve draft release
         id: release
@@ -30,7 +31,8 @@ jobs:
           TAG_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          git fetch --no-tags origin main
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main"
           git merge-base --is-ancestor HEAD origin/main
 
           for attempt in {1..12}; do

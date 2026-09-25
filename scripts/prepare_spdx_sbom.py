@@ -12,6 +12,8 @@ SUPPLIER = "Organization: benarculus"
 
 def prepare_spdx_sbom(path: Path, expected_version: str) -> None:
     document = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(document, dict):
+        raise AssertionError("SBOM document must be a JSON object")
     packages = document.get("packages")
     if not isinstance(packages, list):
         raise AssertionError("SBOM must contain packages before enrichment")

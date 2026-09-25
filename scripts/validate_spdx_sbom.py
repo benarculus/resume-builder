@@ -33,6 +33,8 @@ def expected_runtime_packages() -> dict[str, str]:
 
 def validate_spdx_sbom(path: Path, expected_version: str) -> None:
     document = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(document, dict):
+        raise AssertionError("SBOM document must be a JSON object")
     if document.get("spdxVersion") != "SPDX-2.3":
         raise AssertionError("SBOM must use SPDX 2.3")
     if document.get("dataLicense") != "CC0-1.0":

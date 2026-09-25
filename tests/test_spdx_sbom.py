@@ -85,6 +85,17 @@ def test_spdx_validator_accepts_release_contract(tmp_path: Path) -> None:
     validator.validate_spdx_sbom(path, "0.2.0")
 
 
+@pytest.mark.parametrize("document", [[], "not-an-object", 42])
+def test_spdx_tools_reject_non_object_document(tmp_path: Path, document: object) -> None:
+    path = tmp_path / "resume-builder.spdx.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(AssertionError, match="JSON object"):
+        load_preparer().prepare_spdx_sbom(path, "0.2.0")
+    with pytest.raises(AssertionError, match="JSON object"):
+        load_validator().validate_spdx_sbom(path, "0.2.0")
+
+
 def test_spdx_validator_rejects_missing_runtime_package(tmp_path: Path) -> None:
     validator = load_validator()
     document = spdx_document()

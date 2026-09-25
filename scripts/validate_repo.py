@@ -362,16 +362,25 @@ def validate_publish_release_workflow() -> None:
     resolve_checkout, release = resolve_steps
     checkout, sbom, prepare, validate, upload = generate_steps
     download, attach, finalize = publish_steps
-    expected_checkout = {
+    expected_resolve_checkout = {
+        "ref": "${{ github.ref_name }}",
+        "fetch-depth": "0",
+        "persist-credentials": "false",
+    }
+    expected_generate_checkout = {
         "ref": "${{ github.ref_name }}",
         "persist-credentials": "false",
     }
-    if resolve_checkout.get("with") != expected_checkout or checkout.get("with") != expected_checkout:
+    if (
+        resolve_checkout.get("with") != expected_resolve_checkout
+        or checkout.get("with") != expected_generate_checkout
+    ):
         raise AssertionError("release checkouts must use the tag without persisted credentials")
     if release.get("id") != "release":
         raise AssertionError("release resolution must expose draft metadata")
     resolve_script = str(release.get("run", ""))
     required_resolution_checks = (
+        "+refs/heads/main:refs/remotes/origin/main",
         "git merge-base --is-ancestor HEAD origin/main",
         "immutable release exists without resume-builder.spdx.json",
         "release_id=",
