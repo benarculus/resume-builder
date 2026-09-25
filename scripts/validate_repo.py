@@ -391,19 +391,21 @@ def validate_publish_release_workflow() -> None:
     checkout, sbom, prepare, validate, upload = generate_steps
     download, attach, finalize = publish_steps
     expected_resolve_checkout = {
-        "ref": "${{ github.ref_name }}",
+        "ref": "${{ github.sha }}",
         "fetch-depth": "0",
         "persist-credentials": "false",
     }
     expected_generate_checkout = {
-        "ref": "${{ github.ref_name }}",
+        "ref": "${{ github.sha }}",
         "persist-credentials": "false",
     }
     if (
         resolve_checkout.get("with") != expected_resolve_checkout
         or checkout.get("with") != expected_generate_checkout
     ):
-        raise AssertionError("release checkouts must use the tag without persisted credentials")
+        raise AssertionError(
+            "release checkouts must use the triggering commit without persisted credentials"
+        )
     if release.get("id") != "release":
         raise AssertionError("release resolution must expose draft metadata")
     resolve_script = str(release.get("run", ""))

@@ -146,6 +146,18 @@ Implemented the full `release-please` pipeline for `resume-builder`: added the v
 * Behavior or functionality changed: the repository validator now requires exactly one root release package using the `simple` strategy, the exact three JSON updaters for `plugin.json` and both marketplace version fields, and agreement between `.release-please-manifest.json` and `version.txt`. Mutation tests cover strategy drift, missing and mistyped updater paths, and version seed divergence.
 * Validation: passed — `python3 -m pytest -q tests/test_structure.py` (49 tests); `python3 scripts/validate_repo.py`; full suite (80 passed, 8 skipped); and `git diff --check`.
 
+### Bound SBOM generation to the tag event commit and hardened package fields
+
+* Related review: Copilot Code Review overview findings on 2026-09-25
+* Files:
+  * [.github/workflows/publish-release.yml](../../../.github/workflows/publish-release.yml)
+  * [scripts/validate_repo.py](../../../scripts/validate_repo.py)
+  * [scripts/validate_spdx_sbom.py](../../../scripts/validate_spdx_sbom.py)
+  * [tests/test_structure.py](../../../tests/test_structure.py)
+  * [tests/test_spdx_sbom.py](../../../tests/test_spdx_sbom.py)
+* Behavior or functionality changed: both publication checkouts now use the immutable `github.sha` from the tag creation event instead of the ambiguous short ref name, preventing a same-named branch from changing the source commit. The workflow validator enforces this identity binding. SPDX package `name`, `SPDXID`, and `supplier` fields must now be non-empty strings, so malformed field types fail through the normal validation error instead of reaching normalization or set operations.
+* Validation: passed — `python3 -m pytest -q tests/test_spdx_sbom.py tests/test_structure.py` (71 tests); `python3 scripts/validate_repo.py`; full suite (90 passed, 8 skipped); and `git diff --check`.
+
 ## Implementation-Time Plan Updates
 
 ### Fixed a missing P03 phase heading in the plan

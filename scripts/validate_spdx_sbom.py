@@ -57,8 +57,10 @@ def validate_spdx_sbom(path: Path, expected_version: str) -> None:
         package.get("name", "<unnamed>") if isinstance(package, dict) else "<non-object>"
         for package in packages
         if not isinstance(package, dict)
-        or not package.get("SPDXID")
-        or not package.get("supplier")
+        or not all(
+            isinstance(package.get(field), str) and package[field].strip()
+            for field in ("name", "SPDXID", "supplier")
+        )
     ]
     if incomplete:
         raise AssertionError(f"SBOM packages must include identifiers and suppliers: {incomplete}")

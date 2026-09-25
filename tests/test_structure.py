@@ -186,6 +186,23 @@ def test_publish_release_workflow_requires_complete_main_history(
         validator.validate_publish_release_workflow()
 
 
+def test_publish_release_workflow_rejects_ambiguous_tag_checkout(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "publish-release.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/publish-release.yml")
+        .read_text(encoding="utf-8")
+        .replace("          ref: ${{ github.sha }}", "          ref: ${{ github.ref_name }}"),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "PUBLISH_RELEASE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="triggering commit"):
+        validator.validate_publish_release_workflow()
+
+
 def test_scorecard_workflow_uses_hardened_published_results() -> None:
     validator = load_validator()
     validator.validate_scorecard_workflow()

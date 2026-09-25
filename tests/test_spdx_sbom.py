@@ -121,6 +121,21 @@ def test_spdx_validator_rejects_non_object_package(tmp_path: Path) -> None:
         validator.validate_spdx_sbom(path, "0.2.0")
 
 
+@pytest.mark.parametrize("field", ["name", "SPDXID", "supplier"])
+@pytest.mark.parametrize("value", [42, [], ""])
+def test_spdx_validator_rejects_non_string_or_empty_package_fields(
+    tmp_path: Path, field: str, value: object
+) -> None:
+    validator = load_validator()
+    document = spdx_document()
+    document["packages"][0][field] = value
+    path = tmp_path / "resume-builder.spdx.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(AssertionError, match="identifiers and suppliers"):
+        validator.validate_spdx_sbom(path, "0.2.0")
+
+
 @pytest.mark.parametrize(
     ("package_name", "duplicate_id"),
     [
