@@ -236,6 +236,45 @@ def test_publish_release_workflow_rejects_ambiguous_tag_checkout(
         validator.validate_publish_release_workflow()
 
 
+def test_publish_release_workflow_rejects_published_asset_name_bypass(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    original = (ROOT / ".github/workflows/publish-release.yml").read_text(
+        encoding="utf-8"
+    )
+    fail_closed = (
+        "          if not release[\"draft\"]:\n"
+        "              raise SystemExit(\n"
+        "                  \"release is already published; refusing to infer "
+        "validated provenance \"\n"
+        "                  \"from immutable release assets\"\n"
+        "              )\n"
+    )
+    filename_bypass = (
+        "          asset_names = {asset[\"name\"] for asset in release.get(\"assets\", [])}\n"
+        "          if not release[\"draft\"]:\n"
+        "              if \"resume-builder.spdx.json\" not in asset_names:\n"
+        "                  raise SystemExit(\"published release is missing the SBOM\")\n"
+        "              with open(output_path, \"a\", encoding=\"utf-8\") as output:\n"
+        "                  output.write(\"state=published\\n\")\n"
+        "              print(\"published\")\n"
+        "              raise SystemExit\n"
+    )
+    weakened = tmp_path / "publish-release.yml"
+    weakened.write_text(
+        original.replace(fail_closed, filename_bypass).replace(
+            'if [ "$state" = "draft" ]; then',
+            'if [ "$state" = "draft" ] || [ "$state" = "published" ]; then',
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "PUBLISH_RELEASE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="published-release failure|asset-name presence"):
+        validator.validate_publish_release_workflow()
+
+
 def test_scorecard_workflow_uses_hardened_published_results() -> None:
     validator = load_validator()
     validator.validate_scorecard_workflow()

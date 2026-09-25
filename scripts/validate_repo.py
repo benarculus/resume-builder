@@ -548,13 +548,18 @@ def validate_publish_release_workflow() -> None:
     required_resolution_checks = (
         "+refs/heads/main:refs/remotes/origin/main",
         "git merge-base --is-ancestor HEAD origin/main",
-        "immutable release exists without resume-builder.spdx.json",
+        "release is already published; refusing to infer validated provenance",
         "release_id=",
-        "state=published",
         "state=draft",
     )
     if any(value not in resolve_script for value in required_resolution_checks):
-        raise AssertionError("release resolution must enforce ancestry and idempotent draft handling")
+        raise AssertionError(
+            "release resolution must enforce ancestry, draft retries, and published-release failure"
+        )
+    if "state=published" in resolve_script or "asset_names" in resolve_script:
+        raise AssertionError(
+            "release resolution must not infer validated publication from asset-name presence"
+        )
     if "gh api" in "\n".join(str(step.get("run", "")) for step in generate_steps):
         raise AssertionError("read-only SBOM generation must not query draft releases")
     if sbom.get("uses") != f"anchore/sbom-action@{SBOM_ACTION_SHA}":

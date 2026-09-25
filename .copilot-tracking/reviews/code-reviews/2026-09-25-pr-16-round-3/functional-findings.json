@@ -1,0 +1,30 @@
+{
+  "perspective": "functional",
+  "summary": "The release lifecycle and validation ordering are generally fail-closed, but duplicate package names are collapsed during repository-contract validation and can hide conflicting runtime metadata.",
+  "findings": [
+    {
+      "title": "Reject duplicate runtime package entries",
+      "severity": "Medium",
+      "category": "SBOM contract",
+      "file": "scripts/validate_release_sbom_contract.py",
+      "lines": "43-46, 63-76",
+      "problem": "The observed_packages dictionary retains only the last package for each normalized name. An earlier duplicate with a conflicting version or repository supplier is ignored when a later entry is valid, so ambiguous runtime-package data can pass the release contract.",
+      "current_code": "observed_packages = {normalized_name(package[\"name\"]): package for package in packages ...}",
+      "suggested_fix": "Preserve every entry per normalized name, require exactly one entry for each expected runtime package at the pinned version, and check supplier attribution across all package entries. Add both package-order regressions.",
+      "confidence": "High",
+      "board_item": "CR3-4 / CR3-5"
+    }
+  ],
+  "positive_changes": [
+    "Tag ancestry and draft resolution are checked before generation.",
+    "Both SBOM gates precede artifact upload in the read-only generation job.",
+    "The publication path downloads and verifies the uploaded asset before publishing."
+  ],
+  "testing_recommendations": [
+    "Add duplicate runtime-name mutations for conflicting versions and supplier attribution in both package orders.",
+    "Use the first complete release lifecycle as an end-to-end operational acceptance test."
+  ],
+  "recommended_actions": [
+    "Reject ambiguous duplicate entries for required runtime package names before publication."
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "reviewTarget": {
+    "kind": "pull_request",
+    "provider": "github",
+    "id": "16",
+    "url": "https://github.com/benarculus/resume-builder/pull/16",
+    "baseRef": "main",
+    "headRef": "benarculus-release-pipeline-research",
+    "headSha": "8b692df05152a4091bfcb0bce27783080015caae"
+  },
+  "reviewProfile": "standard",
+  "changeBrief": "PR #16 introduces the semantic release pipeline and its hardened publication controls, then migrates SPDX 2.3 conformance to a hash-locked official spdx-tools environment followed by a repository-specific release contract. The latest changes add structural fail-closed regressions and complete the official invalid-document mutation matrix.",
+  "diff": {
+    "base": "origin/main",
+    "mergeBase": "29d48d546c128c6eb8bb2829e47a89c1886f24f1",
+    "changedFiles": 45,
+    "insertions": 5543,
+    "deletions": 15,
+    "serializedDiff": "/Users/benarculus/.copilot/session-state/24817e45-d634-4bfd-ac89-38ff3514f42c/files/pr-16-round-3.diff",
+    "sha256": "717e90dbac84cea5a0bf32572885ee70bdb4430cc75d8a110364adb49001bfe9"
+  },
+  "changeRiskEvidence": {
+    "changeScope": {
+      "state": "observed",
+      "evidence": "45 changed files and 5,543 insertions. Executable behavior spans four workflows, release configuration, a validation dependency lock, SPDX preparation and policy scripts, the repository validator, and two large mutation suites; the remainder is durable planning and review evidence."
+    },
+    "pathCriticality": {
+      "state": "observed",
+      "evidence": "The diff controls GitHub App credentials, write-capable release tokens, protected tag creation, draft and immutable release mutation, third-party Actions, dependency installation, cross-job artifact transfer, checksum verification, and JSON/SBOM parsing."
+    },
+    "history": {
+      "state": "observed",
+      "evidence": "Twenty-seven branch commits show repeated redesign and CCR remediation around workflow triggering, authentication, version synchronization, release ancestry, SPDX semantics, and structural fail-closed tests."
+    },
+    "testPresence": {
+      "state": "observed",
+      "evidence": "The branch includes repository contract validation, negative workflow mutations, official SPDX subprocess mutations, local Python 3.9 and 3.12 runs, a checksummed real Syft chain, and hosted CI reporting 118 passed with no skips."
+    },
+    "coverage": {
+      "state": "unavailable",
+      "evidence": "No line or branch coverage report is supplied, and the tag-to-draft-to-immutable release lifecycle cannot execute end to end until the workflow exists on main."
+    },
+    "rollback": {
+      "state": "qualitative",
+      "evidence": "The branch can be reverted before release, but a published immutable release is intentionally difficult to reverse and a pre-publication failure can leave durable tag and draft-release state."
+    }
+  },
+  "recommendedDepth": "comprehensive",
+  "depthTier": "comprehensive",
+  "depthRationale": "Human approved comprehensive depth because the change spans 45 files and critical release, credential, supply-chain, SBOM, artifact-transfer, and irreversible publication paths; line coverage and an end-to-end production release run are unavailable.",
+  "hotspots": [
+    ".github/workflows/release-please.yml",
+    ".github/workflows/publish-release.yml",
+    ".github/workflows/ci.yml",
+    "requirements-spdx-validation.txt",
+    "scripts/prepare_spdx_sbom.py",
+    "scripts/validate_release_sbom_contract.py",
+    "scripts/validate_repo.py",
+    "tests/test_spdx_sbom.py",
+    "tests/test_structure.py",
+    "README.md",
+    ".copilot-tracking/pr/pr.md"
+  ],
+  "specialistConcerns": [
+    {
+      "concern": "security",
+      "signals": [
+        "GitHub App private key",
+        "write-capable installation token",
+        "contents-write release publication",
+        "shell and GitHub API boundaries",
+        "JSON parsing"
+      ],
+      "availability": "available"
+    },
+    {
+      "concern": "supply-chain",
+      "signals": [
+        "dependency lock",
+        "GitHub Actions workflows",
+        "third-party action pins",
+        "SBOM generation and validation",
+        "artifact transfer",
+        "release publication"
+      ],
+      "availability": "available"
+    }
+  ],
+  "outOfScope": [
+    "accessibility: no user interface or interactive end-user surface changed"
+  ],
+  "prContext": {
+    "title": "feat: add release-please semantic-release pipeline",
+    "state": "OPEN",
+    "mergeable": "MERGEABLE",
+    "reviewDecision": "REVIEW_REQUIRED",
+    "checks": "All seven refreshed checks succeeded"
+  },
+  "task": {
+    "kind": "perspective_batch",
+    "outputs": {
+      "functional": ".copilot-tracking/reviews/code-reviews/2026-09-25-pr-16-round-3/functional-findings.json",
+      "standards": ".copilot-tracking/reviews/code-reviews/2026-09-25-pr-16-round-3/standards-findings.json",
+      "security": ".copilot-tracking/reviews/code-reviews/2026-09-25-pr-16-round-3/security-findings.json",
+      "readiness": ".copilot-tracking/reviews/code-reviews/2026-09-25-pr-16-round-3/readiness-findings.json"
+    }
+  }
+}

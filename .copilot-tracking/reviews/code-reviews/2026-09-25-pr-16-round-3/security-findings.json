@@ -1,0 +1,30 @@
+{
+  "perspective": "security",
+  "summary": "The App token, action pins, dependency lock, read-only generation job, and artifact boundary are strongly constrained. The already-published retry path nevertheless accepts an asset name as proof of validated publication.",
+  "findings": [
+    {
+      "title": "Do not accept an unverified published release as a successful run",
+      "severity": "Medium",
+      "category": "Release integrity",
+      "file": ".github/workflows/publish-release.yml",
+      "lines": "52-59",
+      "problem": "For an already-public release, the resolver reports success when an asset named resume-builder.spdx.json exists. It does not verify the asset digest or provenance and skips generation and both validation gates. A contents-write principal can publish or alter the draft with an arbitrary same-name asset before resolution, causing this workflow to report success for a release that did not pass its validated publication path.",
+      "current_code": "if not release[\"draft\"]: ... output.write(\"state=published\\n\")",
+      "suggested_fix": "Fail closed unless the published release carries verifiable evidence binding its SBOM digest and publication to the trusted workflow and triggering commit. Do not treat filename presence alone as successful completion.",
+      "confidence": "High",
+      "board_item": "CR3-2"
+    }
+  ],
+  "positive_changes": [
+    "Release-please uses a short-lived repository-scoped App token and ambient workflow permissions are disabled.",
+    "The resolver verifies tag ancestry and generation checks out the immutable event SHA without persisted credentials.",
+    "Third-party actions are SHA-pinned and SPDX dependencies are hash-locked and binary-only."
+  ],
+  "testing_recommendations": [
+    "Add resolver regressions for a published release with a forged same-name SBOM and for publication outside the trusted flow.",
+    "Exercise a pre-publication mutation in a disposable repository and verify the workflow fails closed."
+  ],
+  "recommended_actions": [
+    "Bind the published-state shortcut to validated asset provenance and digest before relying on it as success evidence."
+  ]
+}

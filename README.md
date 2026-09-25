@@ -10,7 +10,7 @@ Each published version includes `resume-builder.spdx.json`, an SPDX 2.3 software
 
 ### Release recovery
 
-The publication workflow can be rerun safely while the matching release remains a draft. A run may fail before publication if the draft does not appear within the two-minute lookup window, SBOM generation or validation fails, the workflow artifact cannot be transferred, or the uploaded asset fails checksum verification.
+The publication workflow can be rerun safely while the matching release remains a draft. A run may fail before publication if the draft does not appear within the two-minute lookup window, SBOM generation or validation fails, the workflow artifact cannot be transferred, or the uploaded asset fails checksum verification. Once the release is public, reruns fail closed rather than treating the presence of a same-name asset as proof that the validated workflow completed.
 
 1. Confirm the tag commit is in `main` history and inspect the matching draft release and its `resume-builder.spdx.json` asset.
 2. Fix a repository validation or workflow defect through the normal pull-request process. Do not edit the generated SBOM or publish the draft manually.

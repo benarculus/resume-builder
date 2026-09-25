@@ -49,14 +49,11 @@ jobs:
               print("missing")
               raise SystemExit
 
-          asset_names = {asset["name"] for asset in release.get("assets", [])}
           if not release["draft"]:
-              if "resume-builder.spdx.json" not in asset_names:
-                  raise SystemExit("immutable release exists without resume-builder.spdx.json")
-              with open(output_path, "a", encoding="utf-8") as output:
-                  output.write("state=published\n")
-              print("published")
-              raise SystemExit
+              raise SystemExit(
+                  "release is already published; refusing to infer validated provenance "
+                  "from immutable release assets"
+              )
 
           with open(output_path, "a", encoding="utf-8") as output:
               output.write("state=draft\n")
@@ -65,7 +62,7 @@ jobs:
           print("draft")
           PY
             )"
-            if [ "$state" = "draft" ] || [ "$state" = "published" ]; then
+            if [ "$state" = "draft" ]; then
               exit 0
             fi
             sleep 10

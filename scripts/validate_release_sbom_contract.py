@@ -40,11 +40,11 @@ def validate_release_sbom_contract(path: Path, expected_version: str) -> None:
         raise AssertionError("SBOM must contain package components")
     if any(not isinstance(package, dict) for package in packages):
         raise AssertionError("SBOM packages must be objects")
-    observed_packages = {
-        normalized_name(package["name"]): package
-        for package in packages
-        if isinstance(package.get("name"), str) and package["name"]
-    }
+    observed_packages: dict[str, list[dict[str, object]]] = {}
+    for package in packages:
+        name = package.get("name")
+        if isinstance(name, str) and name:
+            observed_packages.setdefault(normalized_name(name), []).append(package)
     source_packages = [
         package
         for package in packages
@@ -62,18 +62,30 @@ def validate_release_sbom_contract(path: Path, expected_version: str) -> None:
         raise AssertionError("SBOM source package must identify the benarculus supplier and originator")
     misattributed = [
         package["name"]
-        for name, package in observed_packages.items()
-        if name != "resume-builder" and package.get("supplier") == SOURCE_SUPPLIER
+        for name, matching_packages in observed_packages.items()
+        if name != "resume-builder"
+        for package in matching_packages
+        if package.get("supplier") == SOURCE_SUPPLIER
     ]
     if misattributed:
         raise AssertionError(f"SBOM must not attribute dependencies to benarculus: {misattributed}")
-    missing = {
-        name: version
-        for name, version in expected_runtime_packages().items()
-        if str(observed_packages.get(name, {}).get("versionInfo", "")) != version
+    runtime_packages = expected_runtime_packages()
+    invalid_runtime_packages = {
+        name: {
+            "expected_version": version,
+            "observed_versions": [
+                str(package.get("versionInfo", "")) for package in observed_packages.get(name, [])
+            ],
+        }
+        for name, version in runtime_packages.items()
+        if len(observed_packages.get(name, [])) != 1
+        or str(observed_packages[name][0].get("versionInfo", "")) != version
     }
-    if missing:
-        raise AssertionError(f"SBOM is missing exact runtime package versions: {missing}")
+    if invalid_runtime_packages:
+        raise AssertionError(
+            "SBOM must contain exactly one package at each exact runtime version: "
+            f"{invalid_runtime_packages}"
+        )
 
     source_id = source_package.get("SPDXID")
     document_id = document.get("SPDXID")
@@ -101,7 +113,7 @@ def validate_release_sbom_contract(path: Path, expected_version: str) -> None:
     if unrelated_describes:
         raise AssertionError("SBOM document must not describe dependency packages")
     runtime_ids = {
-        observed_packages[name]["SPDXID"] for name in expected_runtime_packages()
+        observed_packages[name][0]["SPDXID"] for name in runtime_packages
     }
     related_runtime_ids = {
         relationship.get("relatedSpdxElement")

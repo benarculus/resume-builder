@@ -47,6 +47,24 @@ The release pipeline now installs official `spdx-tools==0.8.5` from a complete P
 
 ## Accepted Review Finding Implementation
 
+### Addressing round-three CR-001: Reject ambiguous duplicate runtime packages
+
+* Related scope: P02-T02, P03-T02
+* Planned behavior: the release contract will preserve every package entry per normalized name, reject missing or duplicate required runtime names, require the exact pinned version, and inspect supplier attribution across every entry.
+* Affected files: [scripts/validate_release_sbom_contract.py](../../../scripts/validate_release_sbom_contract.py), [tests/test_spdx_sbom.py](../../../tests/test_spdx_sbom.py)
+* Behavior or functionality changed: required runtime packages must now appear exactly once at the pinned version. Duplicate version and supplier-attribution mutations cover both orders so a valid later entry cannot hide a conflicting earlier entry.
+* Validation: Focused suite passed with 89 tests and 7 expected local official-validator skips; the full local suite passed with 108 tests and 15 environment skips.
+* Status: Implemented locally; hosted Python 3.12/Linux confirmation remains pending.
+
+### Addressing round-three CR-002: Fail closed for already-published releases
+
+* Related scope: P03-T02, P03-T03
+* Planned behavior: a workflow rerun may reuse a draft, but must not infer validated publication from the presence of a same-name immutable release asset.
+* Affected files: [.github/workflows/publish-release.yml](../../../.github/workflows/publish-release.yml), [scripts/validate_repo.py](../../../scripts/validate_repo.py), [tests/test_structure.py](../../../tests/test_structure.py), [README.md](../../../README.md)
+* Behavior or functionality changed: the resolver now fails when the release is already public. Repository validation rejects restoration of `state=published` or asset-name-based success, and a structural mutation recreates the forged same-name asset bypass.
+* Validation: Repository validation and diff hygiene passed; the focused and full local suites passed.
+* Status: Implemented locally; hosted workflow confirmation remains pending.
+
 ### Addressing RV-001: Protect validator failure and dependency isolation
 
 * Related scope: P01-T02, P03-T02
@@ -79,21 +97,23 @@ The release pipeline now installs official `spdx-tools==0.8.5` from a complete P
 | Diff hygiene | Full plan | Passed | `git diff --check` |
 | Accepted review corrections | RV-001 and RV-002 | Passed locally | `python3 scripts/validate_repo.py`; focused Python 3.12 suite: 91 passed with no skips; full Python 3.12 suite: 110 passed, 8 system-binary skips; `git diff --check` |
 | Hosted correction confirmation | RV-001 and RV-002 | Passed | GitHub Actions run `36185010191`: hash-locked `spdx-tools==0.8.5` install succeeded and pytest reported 118 passed with no skips |
+| Round-three finding remediation | CR-001 and CR-002 | Passed locally | Repository validator; focused suite: 89 passed with 7 expected local official-validator skips; full suite: 108 passed with 15 environment skips; Python compilation; diff hygiene |
+| Local Python 3.12 official-validator attempt | CR-001 | Correctly blocked by platform lock | The reviewed lock is Linux-only; pip rejected the macOS ARM PyYAML wheel hash rather than weakening `--require-hashes`. Hosted Linux remains authoritative. |
 
 ## Pre-Review Reconciliation
 
 * Plan markers and task-local context: Current; all phases and tasks are complete.
 * Completed-work entries and handoff prose: Current for the full declared scope.
-* Validation, blockers, remaining work, and follow-up items: Targeted correction validation passed locally and in hosted CI; no blockers, remaining work, or follow-up items.
-* Review readiness: A second Review is not required; accepted findings are being implemented as ordinary continuation work.
+* Validation, blockers, remaining work, and follow-up items: Round-three findings pass targeted and full local validation. Hosted Python 3.12/Linux confirmation and the first production release lifecycle remain pending.
+* Review readiness: The two round-three findings are resolved in the working tree and need refreshed hosted checks after the changes are pushed.
 
 ## Blockers
 
-* None
+* Refreshed hosted Python 3.12/Linux CI for the round-three remediation.
 
 ## Remaining Work
 
-* None
+* Treat the first production tag-to-draft-to-immutable lifecycle as operational acceptance; this cannot execute before the workflow is merged to `main`.
 
 ## Follow-Up Items
 
@@ -104,10 +124,10 @@ The release pipeline now installs official `spdx-tools==0.8.5` from a complete P
 
 * Implementation execution status: Complete
 * Declared scope and markers: Full plan; P01 through P03 and all seven tasks complete
-* Validation coverage: Correction-focused repository validation, 91-test official/structural suite without skips, 110-pass local Python 3.12 full suite, diff hygiene, and hosted Python 3.12 CI with 118 passes and no skips
+* Validation coverage: Prior hosted validation remains green; round-three remediation passed repository validation, 89 focused tests with 7 expected local official-validator skips, 108 full-suite tests with 15 environment skips, Python compilation, and diff hygiene
 * Blockers: None
 * Current plan updates: None
 * Planning and critique state: Ready; `PC-001` and `PC-002` were resolved before implementation
-* Follow-up items: None
-* Review readiness or no-handoff reason: No second Review is required by the accepted review route; all corrections and hosted evidence are complete
+* Follow-up items: Refreshed hosted Linux CI and the first production release operational acceptance
+* Review readiness or no-handoff reason: Ready to push and refresh hosted checks; both review findings are resolved locally
 * Continuation owner: User
