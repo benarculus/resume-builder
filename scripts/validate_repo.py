@@ -32,6 +32,11 @@ REQUIREMENTS = (ROOT / "requirements.txt", ROOT / "requirements-dev.txt")
 DEPENDABOT = ROOT / ".github" / "dependabot.yml"
 DEPENDENCY_REVIEW_WORKFLOW = ROOT / ".github" / "workflows" / "dependency-review.yml"
 MALWARE_WORKFLOW = ROOT / ".github" / "workflows" / "advisory-malware.yml"
+RELEASE_PLEASE_WORKFLOW = ROOT / ".github" / "workflows" / "release-please.yml"
+CREATE_APP_TOKEN_SHA = "bcd2ba49218906704ab6c1aa796996da409d3eb1"
+CREATE_APP_TOKEN_VERSION = "v3.2.0"
+RELEASE_PLEASE_ACTION_SHA = "45996ed1f6d02564a971a2fa1b5860e934307cf7"
+RELEASE_PLEASE_ACTION_VERSION = "v5.0.0"
 MALWARE_REUSABLE_OWNER_REPO = "benarculus/malware-advisory-check"
 MALWARE_REUSABLE_WORKFLOW = (
     f"{MALWARE_REUSABLE_OWNER_REPO}/.github/workflows/reusable-malware-advisory-check.yml"
@@ -232,6 +237,66 @@ def validate_dependency_check_workflows() -> None:
     validate_malware_reusable_workflow(malware)
 
 
+def validate_release_please_workflow() -> None:
+    workflow = yaml.load(RELEASE_PLEASE_WORKFLOW.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    if not isinstance(workflow, dict):
+        raise AssertionError("release-please workflow must be a mapping")
+    if workflow.get("on") != {"push": {"branches": ["main"]}}:
+        raise AssertionError("release-please workflow must run only on pushes to main")
+    if workflow.get("permissions") != {}:
+        raise AssertionError("release-please workflow must disable the default GITHUB_TOKEN permissions")
+
+    jobs = workflow.get("jobs", {})
+    if set(jobs) != {"release-please"}:
+        raise AssertionError("release-please workflow must keep one release-please job")
+    job = jobs["release-please"]
+    if job.get("concurrency") != {
+        "group": "release-please",
+        "cancel-in-progress": "false",
+    }:
+        raise AssertionError("release-please workflow must serialize mutations without cancelling active runs")
+
+    steps = job.get("steps", [])
+    if len(steps) != 2:
+        raise AssertionError("release-please workflow must contain only token creation and release steps")
+    token_step, release_step = steps
+    if token_step.get("id") != "app-token":
+        raise AssertionError("release-please workflow must expose the app-token step output")
+    if token_step.get("uses") != f"actions/create-github-app-token@{CREATE_APP_TOKEN_SHA}":
+        raise AssertionError("GitHub App token action must use the approved pinned release")
+    if token_step.get("with") != {
+        "client-id": "${{ vars.RELEASE_PLEASE_APP_CLIENT_ID }}",
+        "private-key": "${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}",
+        "owner": "${{ github.repository_owner }}",
+        "repositories": "${{ github.event.repository.name }}",
+        "permission-contents": "write",
+        "permission-pull-requests": "write",
+        "permission-issues": "write",
+    }:
+        raise AssertionError("GitHub App token must be scoped to this repository and required permissions")
+
+    if release_step.get("uses") != f"googleapis/release-please-action@{RELEASE_PLEASE_ACTION_SHA}":
+        raise AssertionError("release-please action must use the approved pinned release")
+    if release_step.get("with") != {
+        "token": "${{ steps.app-token.outputs.token }}",
+        "config-file": "release-please-config.json",
+        "manifest-file": ".release-please-manifest.json",
+    }:
+        raise AssertionError("release-please must consume only the ephemeral GitHub App token")
+
+    raw_text = RELEASE_PLEASE_WORKFLOW.read_text(encoding="utf-8")
+    expected_pins = (
+        (CREATE_APP_TOKEN_SHA, CREATE_APP_TOKEN_VERSION),
+        (RELEASE_PLEASE_ACTION_SHA, RELEASE_PLEASE_ACTION_VERSION),
+    )
+    for sha, version in expected_pins:
+        if not re.search(rf"@{sha}\s+#\s+{re.escape(version)}\b", raw_text):
+            raise AssertionError(f"release-please workflow must document pinned action version {version}")
+    forbidden = ("RELEASE_PLEASE_TOKEN", "pull_request_target", "secrets: inherit")
+    if any(value in raw_text for value in forbidden):
+        raise AssertionError("release-please workflow contains a forbidden broad or long-lived token pattern")
+
+
 def recursively_find_key(value: object, key: str) -> bool:
     if isinstance(value, dict):
         return key in value or any(recursively_find_key(child, key) for child in value.values())
@@ -325,10 +390,11 @@ def main() -> int:
     validate_requirement_pins()
     validate_dependabot_policy()
     validate_dependency_check_workflows()
+    validate_release_please_workflow()
     validate_job_requirements_contract()
     print(
         f"Validated {len(skill_files)} skills, plugin and marketplace JSON, "
-        "workflow SHA pins, Dependabot policy, dependency gates, exact dependency pins, "
+        "workflow SHA pins, release-token hardening, Dependabot policy, dependency gates, exact dependency pins, "
         "and job-requirements round-trip."
     )
     return 0

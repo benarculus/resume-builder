@@ -268,18 +268,21 @@ Goals:
 
 Requirements:
 * FR-003, FR-004, NFR-001
-* Binding contract — the workflow MUST declare top-level `permissions: { contents: write, pull-requests: write, issues: write }` and MUST NOT declare broader permissions (no `packages`, `actions`, `id-token`, etc.).
+* Binding contract — the workflow MUST declare top-level `permissions: {}` so its default `GITHUB_TOKEN` has no repository permissions; all release mutations MUST use a short-lived GitHub App installation token.
 * The `uses:` step MUST pin `googleapis/release-please-action` to a full commit SHA with a trailing version comment, matching this repository's existing action-pinning convention.
-* The step MUST set an explicit `token:` input using a repository-scoped PAT/App token (`secrets.RELEASE_PLEASE_TOKEN`) so the action is authenticated as a non-`GITHUB_TOKEN` actor and the generated Release PR can trigger `pull_request`-scoped CI before merge.
-* The workflow MUST trigger on `push` to `main` (not via `workflow_run`) so every real commit to `main` can open or advance the Release PR, while the PAT-backed Release PR itself is now authored by an identity that is allowed to retrigger the usual CI checks.
+* The workflow MUST mint a short-lived installation token using SHA-pinned `actions/create-github-app-token@v3.2.0`, `vars.RELEASE_PLEASE_APP_CLIENT_ID`, and `secrets.RELEASE_PLEASE_APP_PRIVATE_KEY`.
+* Token creation MUST explicitly scope `owner` and `repositories` to the current repository and request only `contents: write`, `pull-requests: write`, and `issues: write`; it MUST NOT rely on all repositories or all permissions granted to the App installation.
+* The release step MUST set `token: ${{ steps.app-token.outputs.token }}` so the action is authenticated as a non-`GITHUB_TOKEN` actor and the generated Release PR can trigger `pull_request`-scoped CI before merge.
+* The workflow MUST trigger on `push` to `main` (not via `workflow_run`) so every real commit to `main` can open or advance the Release PR, while the App-backed Release PR is authored by an identity that is allowed to retrigger the usual CI checks.
 * The job MUST serialize release-please invocations with a `concurrency` group (e.g. `group: release-please`, `cancel-in-progress: false`) so overlapping `push` events cannot race on the same Release PR/manifest mutation.
 * The step MUST reference `config-file: release-please-config.json` and `manifest-file: .release-please-manifest.json` explicitly (even though these are the tool's defaults) so the workflow is self-documenting.
 
 Details:
-* Trigger via `on: push: branches: [main]` and pass `token: ${{ secrets.RELEASE_PLEASE_TOKEN }}` into `googleapis/release-please-action`. This is the design that eliminates the GitHub anti-recursion problem: `GITHUB_TOKEN`-authored branch pushes and PR updates never retrigger `pull_request` or `push`-scoped CI, so the generated Release PR would otherwise never pass the normal branch-protection gate. Using a repo-scoped PAT/App identity means the Release PR is created by a non-`GITHUB_TOKEN` actor, allowing the normal `ci.yml` checks to run on that PR before merge.
+* Trigger via `on: push: branches: [main]`. A SHA-pinned `actions/create-github-app-token@v3.2.0` step exchanges the App Client ID and private key for a one-hour installation token scoped to the current owner/repository and exactly the three required write permissions. Pass that ephemeral output into `googleapis/release-please-action`. This eliminates the GitHub anti-recursion problem without storing a reusable PAT: `GITHUB_TOKEN`-authored branch pushes and PR updates never retrigger `pull_request` or `push`-scoped CI, while an App-authored Release PR can run the normal `ci.yml` checks before merge.
 * There is still a concurrency lane (`group: release-please`, `cancel-in-progress: false`) so two rapid `push` events do not mutate the same Release PR/manifest at the same time. This is not a substitute for the PAT-based gating on the Release PR itself, but it prevents release-please runs from overlapping each other when the branch is updated quickly.
 * Pin `googleapis/release-please-action` to the `v5.0.0` tag's commit SHA `45996ed1f6d02564a971a2fa1b5860e934307cf7` with a `# v5.0.0` trailing comment, following the exact pinning style already used in [.github/workflows/ci.yml](../../../.github/workflows/ci.yml) (e.g. `actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1`). Confirm this is still the latest stable tag at implementation time and update the pin/comment together if a newer patch/minor has shipped; the repository's Dependabot `github-actions` group (per [.github/dependabot.yml](../../../.github/dependabot.yml)) will keep it current afterward.
-* A repository secret named `RELEASE_PLEASE_TOKEN` is required for this workflow. It must be a PAT or GitHub App token with the repository's write permissions needed to create/update the Release PR and tag/changelog resources; the repository itself must also define branch protection rules requiring the standard CI checks on the Release PR before merge. This is the explicit operational trade-off that makes the Release PR gateable and closes the previously observed `GITHUB_TOKEN` anti-recursion gap.
+* A repository variable named `RELEASE_PLEASE_APP_CLIENT_ID` and a repository secret named `RELEASE_PLEASE_APP_PRIVATE_KEY` are required. The App must be installed only on `resume-builder`, grant only Contents/Pull requests/Issues write, and have no ruleset bypass. The private key remains the long-lived credential, but the workflow exposes only a repository-scoped installation token that expires after about one hour.
+* The "Protect main" ruleset MUST require the GitHub Actions `validate` check (integration ID `15368`) and retain an empty bypass-actor list, so the App-authored Release PR cannot merge until `ci.yml` succeeds and the App cannot circumvent the gate.
 * This workflow does not need a `PULL_REQUEST_TEMPLATE.md`, `CODEOWNERS`, or `dependabot.yml` change; it is additive and does not alter any other workflow's triggers or permissions.
 
 References:
@@ -453,7 +456,8 @@ No unresolved material planning decisions remain. All three decisions carried in
 
 ## Dependencies
 
-* `googleapis/release-please-action@v5.0.0` (pinned by SHA `45996ed1f6d02564a971a2fa1b5860e934307cf7`): the GitHub Action that runs `release-please` in CI; no new secret is required beyond the default `GITHUB_TOKEN`.
+* `actions/create-github-app-token@v3.2.0` (pinned by SHA `bcd2ba49218906704ab6c1aa796996da409d3eb1`): mints a one-hour installation token from the repository variable `RELEASE_PLEASE_APP_CLIENT_ID` and secret `RELEASE_PLEASE_APP_PRIVATE_KEY`, scoped to this repository and the three required write permissions.
+* `googleapis/release-please-action@v5.0.0` (pinned by SHA `45996ed1f6d02564a971a2fa1b5860e934307cf7`): runs `release-please` using the ephemeral App token rather than the workflow's default `GITHUB_TOKEN`.
 * GitHub repository rulesets API/UI access (`gh api` or equivalent admin permission on the repository): required to create the `main` linear-history ruleset in P03-T01.
 
 ## Sources

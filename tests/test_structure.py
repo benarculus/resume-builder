@@ -23,6 +23,48 @@ def test_repository_validation_script() -> None:
     subprocess.run([sys.executable, str(VALIDATOR)], check=True)
 
 
+def test_release_please_workflow_uses_hardened_app_token() -> None:
+    validator = load_validator()
+    validator.validate_release_please_workflow()
+
+
+def test_release_please_workflow_rejects_long_lived_token(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "release-please.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/release-please.yml")
+        .read_text(encoding="utf-8")
+        .replace(
+            "token: ${{ steps.app-token.outputs.token }}",
+            "token: ${{ secrets.RELEASE_PLEASE_TOKEN }}",
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "RELEASE_PLEASE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="ephemeral GitHub App token"):
+        validator.validate_release_please_workflow()
+
+
+def test_release_please_workflow_rejects_broad_app_scope(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "release-please.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/release-please.yml")
+        .read_text(encoding="utf-8")
+        .replace("          repositories: ${{ github.event.repository.name }}\n", ""),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "RELEASE_PLEASE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="scoped to this repository"):
+        validator.validate_release_please_workflow()
+
+
 def test_workflow_action_pin_pattern_requires_sha_and_version_comment() -> None:
     validator = load_validator()
     assert validator.SHA_PINNED_ACTION.search(
