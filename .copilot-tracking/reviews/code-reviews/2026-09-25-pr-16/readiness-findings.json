@@ -1,0 +1,24 @@
+{
+  "perspective": "readiness",
+  "summary": "The PR is open and hosted checks passed at the reviewed head. The stale final acceptance table was updated and the finding is resolved.",
+  "findings": [
+    {
+      "id": "CR-F2",
+      "title": "Update the final acceptance table to the current release design",
+      "severity": "Medium",
+      "status": "resolved",
+      "category": "Deliverable readiness",
+      "file": ".copilot-tracking/reviews/logs/2026-09-22/release-pipeline-review.md",
+      "lines": "116-121",
+      "problem": "The acceptance table certifies the deleted ruleset 23850509, claims three top-level workflow write permissions, and says the workflow has no explicit token. The current state uses ruleset 23698833, permissions: {}, and an explicit ephemeral App-token handoff. Because this section presents the final acceptance coverage rather than a historical snapshot, it now reports materially false evidence.",
+      "current_code": "FR-005 ... rulesets/23850509 ... / NFR-001 ... exactly contents: write ... / P02-T01 ... no explicit token",
+      "suggested_fix": "Update FR-005/P03-T01 to the consolidated Protect main ruleset, and update NFR-001/P02-T01 to the empty default permissions plus repository-scoped App installation token contract.",
+      "resolution": "The acceptance table now records ruleset 23698833, empty ambient permissions, and the explicit ephemeral App-token handoff."
+    }
+  ],
+  "pr_state": {
+    "merge_state": "BLOCKED_PENDING_APPROVAL_AFTER_HARDENING",
+    "checks": "all passing",
+    "review_decision": "one fresh human approval required"
+  }
+}

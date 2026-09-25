@@ -33,10 +33,17 @@ DEPENDABOT = ROOT / ".github" / "dependabot.yml"
 DEPENDENCY_REVIEW_WORKFLOW = ROOT / ".github" / "workflows" / "dependency-review.yml"
 MALWARE_WORKFLOW = ROOT / ".github" / "workflows" / "advisory-malware.yml"
 RELEASE_PLEASE_WORKFLOW = ROOT / ".github" / "workflows" / "release-please.yml"
+SCORECARD_WORKFLOW = ROOT / ".github" / "workflows" / "scorecard.yml"
 CREATE_APP_TOKEN_SHA = "bcd2ba49218906704ab6c1aa796996da409d3eb1"
 CREATE_APP_TOKEN_VERSION = "v3.2.0"
 RELEASE_PLEASE_ACTION_SHA = "45996ed1f6d02564a971a2fa1b5860e934307cf7"
 RELEASE_PLEASE_ACTION_VERSION = "v5.0.0"
+SCORECARD_ACTION_SHA = "2d1146689b8cda280b9bc96326124645441f03bc"
+SCORECARD_ACTION_VERSION = "v2.4.4"
+UPLOAD_ARTIFACT_SHA = "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+UPLOAD_ARTIFACT_VERSION = "v7.0.1"
+CODEQL_ACTION_SHA = "1c5b675653bb5c22dbe9b12b556ec555138e09fd"
+CODEQL_ACTION_VERSION = "v4.38.1"
 MALWARE_REUSABLE_OWNER_REPO = "benarculus/malware-advisory-check"
 MALWARE_REUSABLE_WORKFLOW = (
     f"{MALWARE_REUSABLE_OWNER_REPO}/.github/workflows/reusable-malware-advisory-check.yml"
@@ -297,6 +304,72 @@ def validate_release_please_workflow() -> None:
         raise AssertionError("release-please workflow contains a forbidden broad or long-lived token pattern")
 
 
+def validate_scorecard_workflow() -> None:
+    workflow = yaml.load(SCORECARD_WORKFLOW.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    if not isinstance(workflow, dict):
+        raise AssertionError("Scorecard workflow must be a mapping")
+    if workflow.get("on") != {
+        "branch_protection_rule": "",
+        "schedule": [{"cron": "19 6 * * 1"}],
+        "push": {"branches": ["main"]},
+    }:
+        raise AssertionError("Scorecard workflow must monitor main, branch rules, and a weekly schedule")
+    if workflow.get("permissions") != "read-all":
+        raise AssertionError("Scorecard workflow must default to read-only permissions")
+
+    jobs = workflow.get("jobs", {})
+    if set(jobs) != {"analysis"}:
+        raise AssertionError("Scorecard workflow must keep one analysis job")
+    job = jobs["analysis"]
+    if job.get("runs-on") != "ubuntu-latest":
+        raise AssertionError("Scorecard must run on a GitHub-hosted Ubuntu runner")
+    if job.get("permissions") != {
+        "contents": "read",
+        "security-events": "write",
+        "id-token": "write",
+    }:
+        raise AssertionError("Scorecard job permissions must be limited to source, SARIF, and OIDC")
+
+    steps = job.get("steps", [])
+    if len(steps) != 4:
+        raise AssertionError("Scorecard workflow must contain checkout, analysis, artifact, and SARIF steps")
+    checkout, analysis, artifact, sarif = steps
+    if checkout.get("with") != {"persist-credentials": "false"}:
+        raise AssertionError("Scorecard checkout must not persist credentials")
+    if analysis.get("uses") != f"ossf/scorecard-action@{SCORECARD_ACTION_SHA}":
+        raise AssertionError("Scorecard analysis must use the approved pinned release")
+    if analysis.get("with") != {
+        "results_file": "results.sarif",
+        "results_format": "sarif",
+        "publish_results": "true",
+    }:
+        raise AssertionError("Scorecard must publish SARIF results with OIDC")
+    if artifact.get("uses") != f"actions/upload-artifact@{UPLOAD_ARTIFACT_SHA}":
+        raise AssertionError("Scorecard artifact upload must use the approved pinned release")
+    if artifact.get("with") != {
+        "name": "scorecard-results",
+        "path": "results.sarif",
+        "retention-days": "5",
+    }:
+        raise AssertionError("Scorecard SARIF artifact must use the approved retention policy")
+    if sarif.get("uses") != f"github/codeql-action/upload-sarif@{CODEQL_ACTION_SHA}":
+        raise AssertionError("Scorecard SARIF upload must use the approved pinned CodeQL release")
+    if sarif.get("with") != {"sarif_file": "results.sarif"}:
+        raise AssertionError("Scorecard SARIF upload must publish the generated results")
+
+    raw_text = SCORECARD_WORKFLOW.read_text(encoding="utf-8")
+    expected_pins = (
+        (SCORECARD_ACTION_SHA, SCORECARD_ACTION_VERSION),
+        (UPLOAD_ARTIFACT_SHA, UPLOAD_ARTIFACT_VERSION),
+        (CODEQL_ACTION_SHA, CODEQL_ACTION_VERSION),
+    )
+    for sha, version in expected_pins:
+        if not re.search(rf"@{sha}\s+#\s+{re.escape(version)}\b", raw_text):
+            raise AssertionError(f"Scorecard workflow must document pinned action version {version}")
+    if "pull_request_target" in raw_text or "secrets:" in raw_text:
+        raise AssertionError("Scorecard workflow must not use privileged PR triggers or repository secrets")
+
+
 def recursively_find_key(value: object, key: str) -> bool:
     if isinstance(value, dict):
         return key in value or any(recursively_find_key(child, key) for child in value.values())
@@ -391,11 +464,12 @@ def main() -> int:
     validate_dependabot_policy()
     validate_dependency_check_workflows()
     validate_release_please_workflow()
+    validate_scorecard_workflow()
     validate_job_requirements_contract()
     print(
         f"Validated {len(skill_files)} skills, plugin and marketplace JSON, "
-        "workflow SHA pins, release-token hardening, Dependabot policy, dependency gates, exact dependency pins, "
-        "and job-requirements round-trip."
+        "workflow SHA pins, release-token and Scorecard hardening, Dependabot policy, dependency gates, "
+        "exact dependency pins, and job-requirements round-trip."
     )
     return 0
 

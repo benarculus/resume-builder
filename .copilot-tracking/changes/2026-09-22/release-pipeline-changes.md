@@ -67,6 +67,18 @@ Implemented the full `release-please` pipeline for `resume-builder`: added the v
 * Behavior or functionality changed: the review noted that a pre-existing, unrelated ruleset ("Protect main", ID `23698833`) still advertised `"merge"` as an allowed method even though the new standalone "Require linear history on main" ruleset (ID `23850509`) would already block true merge commits — a correct but potentially confusing dual-ruleset state. Per the user's explicit decision during the review walkthrough ("fold `required_linear_history` into 'Protect main', then delete the new separate ruleset"), added the `required_linear_history` rule to "Protect main"'s rule set via `gh api ... --method PUT`, then deleted the standalone ruleset (`23850509`) via `gh api ... --method DELETE`. `main` is now governed by exactly one ruleset ("Protect main") that includes linear-history enforcement alongside its existing deletion, non-fast-forward, pull-request, status-check, and Copilot code-review rules; the separate "Require advisory malware check" ruleset is untouched.
 * Validation: passed — `gh api repos/benarculus/resume-builder/rulesets` now lists only two active rulesets ("Protect main", "Require advisory malware check"), confirming `23850509` no longer exists; `gh api repos/benarculus/resume-builder/rulesets/23698833` shows `required_linear_history` present in its `rules` alongside all previously existing rule types, none dropped; `gh api repos/benarculus/resume-builder` confirms `allow_squash_merge`/`allow_rebase_merge`/`allow_merge_commit` are all still `true` at the repository-settings level (unaffected by ruleset consolidation).
 
+### Hardened release governance and supply-chain monitoring
+
+* Related review: comprehensive code review and focused supply-chain follow-up on 2026-09-25
+* Files:
+  * [.github/workflows/scorecard.yml](../../../.github/workflows/scorecard.yml)
+  * [scripts/validate_repo.py](../../../scripts/validate_repo.py)
+  * [tests/test_structure.py](../../../tests/test_structure.py)
+  * [README.md](../../../README.md)
+* Behavior or functionality changed: added a SHA-pinned OpenSSF Scorecard workflow that runs on pushes to `main`, branch-rule changes, and a weekly schedule; publishes OIDC-authenticated results to the public Scorecard service; retains SARIF evidence for five days; and uploads findings to GitHub code scanning. Extended the repository validator and negative tests so credential persistence, repository-secret use, permission drift, or action-pin drift fail CI. Strengthened the live "Protect main" ruleset to require one fresh approving code-owner review, dismiss stale approvals after pushes, require approval from someone other than the last pusher, resolve review threads, and test an up-to-date branch, with no bypass actors. Enabled immutable releases so future release tags and assets cannot be moved or replaced after publication and GitHub creates a cryptographic release attestation.
+* Validation: passed — `python3 scripts/validate_repo.py`; `python3 -m pytest -q tests/test_structure.py` (39 tests); `git diff --check`; `gh api repos/benarculus/resume-builder/rulesets/23698833` confirms the approval, thread-resolution, strict-check, and no-bypass policy; `gh api repos/benarculus/resume-builder/immutable-releases` returns `{"enabled":true,"enforced_by_owner":false}`.
+* Scope note: no standalone SBOM asset was added. This repository currently publishes source/plugin releases rather than a built binary, and immutable releases reject assets uploaded after publication. GitHub's native immutable-release attestation covers release/tag identity now; a future packaged-artifact design should create the SBOM before publishing the draft release and attest it in the same release transaction.
+
 ## Implementation-Time Plan Updates
 
 ### Fixed a missing P03 phase heading in the plan
@@ -104,6 +116,10 @@ Implemented the full `release-please` pipeline for `resume-builder`: added the v
 | `bootstrap-sha` currency | P01-T01 | Passed | `git rev-parse HEAD`/`origin main` at implementation time still `29d48d546c128c6eb8bb2829e47a89c1886f24f1`, matching the plan's pinned value; no update needed |
 | `release-please-action` tag currency | P02-T01 | Passed | `gh api repos/googleapis/release-please-action/tags` confirms `v5.0.0` is still the latest tag at implementation time |
 | End-to-end pipeline run | P02-T01 (practical acceptance) | Unavailable | Requires a real push/merge to `main` after this change lands; not exercisable during this implementation session, consistent with the plan's stated confidence caveat |
+| OpenSSF Scorecard contract | Supply-chain follow-up | Passed | SHA-pinned analysis/artifact/SARIF actions, read-only workflow default, minimal job writes, OIDC publishing, and no repository secrets are enforced by `scripts/validate_repo.py` |
+| Structural tests | Supply-chain follow-up | Passed | `python3 -m pytest -q tests/test_structure.py` — 39 passed |
+| Human review gate | Supply-chain follow-up | Passed | Live "Protect main" requires one fresh code-owner approval, last-push separation, resolved threads, strict required checks, and no bypass actors |
+| Immutable releases | Supply-chain follow-up | Passed | Repository immutable-release endpoint reports `enabled: true`; future releases receive locked tags/assets and native release attestations |
 
 ## Pre-Review Reconciliation
 

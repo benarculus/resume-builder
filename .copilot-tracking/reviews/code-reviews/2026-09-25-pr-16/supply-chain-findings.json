@@ -1,0 +1,48 @@
+{
+  "perspective": "supply-chain",
+  "standards": [
+    "OpenSSF Scorecard",
+    "SLSA v1.0 Build",
+    "Sigstore",
+    "NTIA SBOM minimum elements"
+  ],
+  "summary": "The release supply chain now has enforced human review, strict CI gating, immutable releases with native release attestations, and continuous OpenSSF Scorecard analysis. All actionable findings from this review were remediated.",
+  "findings": [
+    {
+      "id": "SSSC-001",
+      "title": "Release credential workflows could merge without human approval",
+      "severity": "High",
+      "status": "resolved",
+      "evidence": "The live Protect main ruleset previously required zero approvals.",
+      "resolution": "The ruleset now requires one fresh code-owner approval, dismisses stale approvals, requires approval from someone other than the last pusher, requires resolved review threads, uses strict required checks, and retains no bypass actors."
+    },
+    {
+      "id": "SSSC-002",
+      "title": "Published release tags and assets were mutable",
+      "severity": "High",
+      "status": "resolved",
+      "evidence": "The repository immutable-release endpoint was not enabled.",
+      "resolution": "Immutable releases are enabled. Future release tags and assets are locked after publication and GitHub generates a cryptographic release attestation."
+    },
+    {
+      "id": "SSSC-003",
+      "title": "No continuous OpenSSF Scorecard assessment",
+      "severity": "Medium",
+      "status": "resolved",
+      "evidence": "No Scorecard workflow existed.",
+      "resolution": "Added a SHA-pinned, OIDC-publishing Scorecard workflow with SARIF artifact retention and code-scanning upload, plus executable validation and negative regression tests."
+    }
+  ],
+  "residuals": [
+    {
+      "topic": "SBOM",
+      "status": "deferred-by-design",
+      "reason": "The current release is source/plugin content rather than a built binary. Immutable releases prevent attaching an SBOM after publication, so a future packaged-artifact flow must generate and attest the SBOM before publishing a draft release."
+    },
+    {
+      "topic": "SLSA",
+      "status": "release-integrity-covered",
+      "reason": "GitHub immutable releases provide a cryptographic release attestation for the tag, commit, and assets. A higher SLSA Build level becomes relevant when the project introduces a separate build artifact."
+    }
+  ]
+}

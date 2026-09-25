@@ -65,6 +65,44 @@ def test_release_please_workflow_rejects_broad_app_scope(
         validator.validate_release_please_workflow()
 
 
+def test_scorecard_workflow_uses_hardened_published_results() -> None:
+    validator = load_validator()
+    validator.validate_scorecard_workflow()
+
+
+def test_scorecard_workflow_rejects_repository_secrets(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "scorecard.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/scorecard.yml").read_text(encoding="utf-8")
+        + "\n# secrets: must-not-be-added\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "SCORECARD_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="repository secrets"):
+        validator.validate_scorecard_workflow()
+
+
+def test_scorecard_workflow_rejects_credential_persistence(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "scorecard.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/scorecard.yml")
+        .read_text(encoding="utf-8")
+        .replace("persist-credentials: false", "persist-credentials: true"),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "SCORECARD_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="must not persist credentials"):
+        validator.validate_scorecard_workflow()
+
+
 def test_workflow_action_pin_pattern_requires_sha_and_version_comment() -> None:
     validator = load_validator()
     assert validator.SHA_PINNED_ACTION.search(

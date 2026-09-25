@@ -1,0 +1,87 @@
+{
+  "reviewTarget": {
+    "kind": "pull_request",
+    "provider": "github",
+    "id": "16",
+    "url": "https://github.com/benarculus/resume-builder/pull/16",
+    "baseRef": "main",
+    "headRef": "benarculus-release-pipeline-research",
+    "headSha": "575e3b9ce82021d051062eba92eee2c57511e3a9"
+  },
+  "reviewProfile": "standard",
+  "changeBrief": "PR #16 adds release-please configuration and a push-to-main workflow that exchanges GitHub App credentials for a repository-scoped installation token, creates or updates a Release PR, synchronizes three version fields, and relies on repository rulesets to require CI and linear history. It also extends structural validation and tests and adds the full RPI evidence trail.",
+  "diff": {
+    "base": "origin/main",
+    "mergeBase": "29d48d546c128c6eb8bb2829e47a89c1886f24f1",
+    "changedFiles": 12,
+    "insertions": 1306,
+    "deletions": 13
+  },
+  "changeRiskEvidence": {
+    "changeScope": {
+      "state": "observed",
+      "evidence": "12 changed files and 1,306 insertions; executable behavior is concentrated in one workflow, one validator, two tests, and three release-state files, while six tracking artifacts form most of the volume."
+    },
+    "pathCriticality": {
+      "state": "observed",
+      "evidence": "The workflow handles a long-lived GitHub App private key, mints write-capable installation tokens, creates branches/PRs/tags/releases, and is coupled to branch rulesets."
+    },
+    "history": {
+      "state": "observed",
+      "evidence": "Ten commits show repeated CCR-driven redesign of the trigger, race handling, concurrency, and authentication model; this makes the workflow and its documentation the primary hotspots without proving a defect."
+    },
+    "testPresence": {
+      "state": "observed",
+      "evidence": "The repository validator now enforces the expected YAML shape and three focused tests exercise the accepted contract plus long-lived-token and broad-scope rejection."
+    },
+    "coverage": {
+      "state": "unavailable",
+      "evidence": "No runtime coverage exists for GitHub-hosted token minting, release-please API behavior, Release PR creation, or branch-protection interaction."
+    },
+    "rollback": {
+      "state": "qualitative",
+      "evidence": "Tracked workflow/config changes are reversible, but the live ruleset update and installed App credentials are external configuration requiring separate manual rollback or revocation."
+    }
+  },
+  "recommendedDepth": "comprehensive",
+  "depthTier": "comprehensive",
+  "depthRationale": "Recommended comprehensive because this change crosses a secrets and authorization boundary, mutates release and repository state, depends on external configuration not represented fully in git, and lacks an end-to-end acceptance run.",
+  "hotspots": [
+    ".github/workflows/release-please.yml",
+    "scripts/validate_repo.py",
+    "release-please-config.json",
+    ".release-please-manifest.json",
+    "tests/test_structure.py",
+    "repository ruleset 23698833",
+    ".copilot-tracking/pr/pr.md"
+  ],
+  "specialistConcerns": [
+    {
+      "concern": "security",
+      "signals": [
+        "GitHub App private key",
+        "write-capable installation token",
+        "repository permission scoping",
+        "branch-protection enforcement"
+      ]
+    },
+    {
+      "concern": "supply-chain",
+      "signals": [
+        "new third-party GitHub Action",
+        "full-SHA action pins",
+        "automated tag and GitHub Release creation"
+      ]
+    }
+  ],
+  "outOfScope": [],
+  "task": {
+    "kind": "perspective_batch",
+    "outputs": {
+      "functional": ".copilot-tracking/reviews/code-reviews/2026-09-25-pr-16/functional-findings.json",
+      "standards": ".copilot-tracking/reviews/code-reviews/2026-09-25-pr-16/standards-findings.json",
+      "security": ".copilot-tracking/reviews/code-reviews/2026-09-25-pr-16/security-findings.json",
+      "readiness": ".copilot-tracking/reviews/code-reviews/2026-09-25-pr-16/readiness-findings.json"
+    }
+  }
+}

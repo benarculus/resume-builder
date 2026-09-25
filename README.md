@@ -1,5 +1,7 @@
 # resume-builder
 
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/benarculus/resume-builder/badge)](https://scorecard.dev/viewer/?uri=github.com/benarculus/resume-builder)
+
 GitHub Copilot CLI skills for building accurate, job-tailored resumes from a verified career document. The workflow is intentionally anti-fabrication: it asks for missing evidence instead of inventing experience, numbers, titles, or accomplishments.
 
 ## Install
