@@ -177,6 +177,19 @@ Implemented the full `release-please` pipeline for `resume-builder`: added the v
 * Behavior or functionality changed: package validation now requires the SPDX 2.3 package fields used by the release contract: non-empty `name`, `SPDXID`, `supplier`, `downloadLocation`, `licenseConcluded`, `licenseDeclared`, and `copyrightText`, plus a boolean `filesAnalyzed`. An analyzed package must include a non-empty `packageVerificationCodeValue`; an unanalyzed package must not include a verification code. The accepted fixture is now minimally conformant and mutation tests cover every mandatory field and both conditional verification-code branches.
 * Validation: passed — `python3 -m pytest -q tests/test_structure.py tests/test_spdx_sbom.py` (92 tests); `python3 scripts/validate_repo.py`; full suite (111 passed, 8 skipped); and `git diff --check`.
 
+### Migrated SPDX conformance to official hash-locked tooling
+
+* Related plan: [.copilot-tracking/plans/2026-09-25/spdx-tools-migration-plan.md](../../plans/2026-09-25/spdx-tools-migration-plan.md)
+* Files:
+  * [requirements-spdx-validation.txt](../../../requirements-spdx-validation.txt)
+  * [scripts/validate_release_sbom_contract.py](../../../scripts/validate_release_sbom_contract.py)
+  * [.github/workflows/ci.yml](../../../.github/workflows/ci.yml)
+  * [.github/workflows/publish-release.yml](../../../.github/workflows/publish-release.yml)
+  * [tests/test_spdx_sbom.py](../../../tests/test_spdx_sbom.py)
+  * [tests/test_structure.py](../../../tests/test_structure.py)
+* Behavior or functionality changed: replaced the combined hand-written SPDX validator with two ordered gates. Official `spdx-tools==0.8.5`, installed on Python 3.12 from a complete binary-only hash lock, owns SPDX 2.3 parsing and specification conformance. The renamed stdlib-only release-contract validator retains only repository-owned product, version, supplier/originator, exact runtime dependency, and relationship topology requirements. Hosted CI installs the official environment before pytest so official mutations cannot skip on the required check; local Python 3.9 runs the contract tests and reports explicit official-integration skips.
+* Validation: passed — reviewed Linux/Python 3.12 wheel lock downloaded with `--require-hashes --only-binary=:all:`; focused suite 73 passed with official integration active; authoritative Python 3.12 full suite 92 passed, 8 skipped; local Python 3.9 full suite 87 passed, 13 skipped; `python3 scripts/validate_repo.py`; checksum-verified Syft `v1.52.0` generate → prepare → official validate → contract validate; and `git diff --check`.
+
 ## Implementation-Time Plan Updates
 
 ### Fixed a missing P03 phase heading in the plan
@@ -220,6 +233,7 @@ Implemented the full `release-please` pipeline for `resume-builder`: added the v
 | Human review gate | Supply-chain follow-up | Passed | Live "Protect main" requires one fresh code-owner approval, last-push separation, resolved threads, strict required checks, and no bypass actors |
 | Immutable releases | Supply-chain follow-up | Passed | Repository immutable-release endpoint reports `enabled: true`; future releases receive locked tags/assets and native release attestations |
 | Real SPDX generation | Supply-chain follow-up | Passed | Checksummed Syft `v1.52.0` generated an SPDX 2.3 document containing `resume-builder` and all four exact runtime pins; `scripts/validate_spdx_sbom.py` accepted it |
+| Official SPDX validator migration | SPDX tools migration | Passed | Python 3.12/Linux hash lock verified; 5 official integration cases ran; real Syft output passed official SPDX 2.3 validation followed by `scripts/validate_release_sbom_contract.py` |
 
 ## Pre-Review Reconciliation
 

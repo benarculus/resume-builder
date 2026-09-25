@@ -290,6 +290,106 @@ def test_requirement_pin_pattern_allows_exact_direct_pins_only() -> None:
     assert not validator.REQUIREMENT_PIN.match("pytest~=8.4")
 
 
+def test_spdx_validation_lock_uses_reviewed_hashes_and_hosted_python() -> None:
+    validator = load_validator()
+    validator.validate_spdx_validation_lock()
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "message"),
+    [
+        (
+            "spdx-tools==0.8.5",
+            "spdx-tools==0.8.4",
+            "reviewed wheel resolution",
+        ),
+        (
+            "7c2d5865941be9d2e898f5b084e8d5422dd298dc5a29320ddb198fec304f59c4",
+            "0" * 64,
+            "reviewed wheel resolution",
+        ),
+    ],
+)
+def test_spdx_validation_lock_rejects_dependency_or_hash_drift(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    old: str,
+    new: str,
+    message: str,
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "requirements-spdx-validation.txt"
+    weakened.write_text(
+        (ROOT / "requirements-spdx-validation.txt")
+        .read_text(encoding="utf-8")
+        .replace(old, new),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "SPDX_VALIDATION_REQUIREMENTS", weakened)
+
+    with pytest.raises(AssertionError, match=message):
+        validator.validate_spdx_validation_lock()
+
+
+def test_ci_requires_hash_locked_spdx_validator_install(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "ci.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/ci.yml")
+        .read_text(encoding="utf-8")
+        .replace("--require-hashes ", ""),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "CI_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="hash-locked SPDX validator"):
+        validator.validate_spdx_validation_lock()
+
+
+def test_publish_release_workflow_requires_official_gate_before_contract(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    original = (ROOT / ".github/workflows/publish-release.yml").read_text(
+        encoding="utf-8"
+    )
+    official = (
+        "      - name: Validate SPDX 2.3 conformance\n"
+        "        run: pyspdxtools -i resume-builder.spdx.json --version SPDX-2.3\n"
+    )
+    contract = (
+        "      - name: Validate release SBOM contract\n"
+        "        env:\n"
+        "          RELEASE_VERSION: ${{ needs.resolve.outputs.version }}\n"
+        "        run: >-\n"
+        "          python3 scripts/validate_release_sbom_contract.py\n"
+        '          resume-builder.spdx.json "$RELEASE_VERSION"\n'
+    )
+    weakened = tmp_path / "publish-release.yml"
+    weakened.write_text(
+        original.replace(f"{official}{contract}", f"{contract}{official}"),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "PUBLISH_RELEASE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="official SPDX 2.3"):
+        validator.validate_publish_release_workflow()
+
+
+def test_publish_release_workflow_rejects_obsolete_mixed_validator(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    obsolete = tmp_path / "validate_spdx_sbom.py"
+    obsolete.write_text("# obsolete\n", encoding="utf-8")
+    monkeypatch.setattr(validator, "OBSOLETE_SPDX_VALIDATOR", obsolete)
+
+    with pytest.raises(AssertionError, match="obsolete mixed SPDX validator"):
+        validator.validate_publish_release_workflow()
+
+
 def test_dependabot_policy_requires_approved_groups_and_cooldown() -> None:
     validator = load_validator()
     validator.validate_dependabot_policy()

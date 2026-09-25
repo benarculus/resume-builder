@@ -87,6 +87,14 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install SPDX validation dependencies
+        run: >-
+          python -m pip install --require-hashes --only-binary=:all:
+          -r requirements-spdx-validation.txt
       - name: Generate SPDX SBOM
         uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
         env:
@@ -102,10 +110,14 @@ jobs:
         env:
           RELEASE_VERSION: ${{ needs.resolve.outputs.version }}
         run: python3 scripts/prepare_spdx_sbom.py resume-builder.spdx.json "$RELEASE_VERSION"
-      - name: Validate SPDX SBOM
+      - name: Validate SPDX 2.3 conformance
+        run: pyspdxtools -i resume-builder.spdx.json --version SPDX-2.3
+      - name: Validate release SBOM contract
         env:
           RELEASE_VERSION: ${{ needs.resolve.outputs.version }}
-        run: python3 scripts/validate_spdx_sbom.py resume-builder.spdx.json "$RELEASE_VERSION"
+        run: >-
+          python3 scripts/validate_release_sbom_contract.py
+          resume-builder.spdx.json "$RELEASE_VERSION"
       - name: Upload validated SPDX SBOM
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

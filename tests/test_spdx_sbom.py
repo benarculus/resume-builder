@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-VALIDATOR = ROOT / "scripts/validate_spdx_sbom.py"
+CONTRACT_VALIDATOR = ROOT / "scripts/validate_release_sbom_contract.py"
 PREPARER = ROOT / "scripts/prepare_spdx_sbom.py"
 
 
@@ -19,12 +22,21 @@ def load_module(name: str, path: Path):
     return module
 
 
-def load_validator():
-    return load_module("validate_spdx_sbom", VALIDATOR)
+def load_contract_validator():
+    return load_module("validate_release_sbom_contract", CONTRACT_VALIDATOR)
 
 
 def load_preparer():
     return load_module("prepare_spdx_sbom", PREPARER)
+
+
+def official_validator() -> str:
+    executable = shutil.which("pyspdxtools")
+    if executable:
+        return executable
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        pytest.fail("hosted CI must install and run the official SPDX validator")
+    pytest.skip("official SPDX integration requires the Python 3.12 validation environment")
 
 
 def spdx_document() -> dict:
@@ -34,6 +46,7 @@ def spdx_document() -> dict:
             "SPDXID": "SPDXRef-Package-resume-builder",
             "versionInfo": "0.2.0",
             "supplier": "NOASSERTION",
+            "originator": "NOASSERTION",
             "downloadLocation": "NOASSERTION",
             "filesAnalyzed": False,
             "licenseConcluded": "NOASSERTION",
@@ -53,7 +66,7 @@ def spdx_document() -> dict:
             "licenseDeclared": "NOASSERTION",
             "copyrightText": "NOASSERTION",
         }
-        for name, version in load_validator().expected_runtime_packages().items()
+        for name, version in load_contract_validator().expected_runtime_packages().items()
     )
     relationships = [
         {
@@ -76,7 +89,9 @@ def spdx_document() -> dict:
         "dataLicense": "CC0-1.0",
         "SPDXID": "SPDXRef-DOCUMENT",
         "name": "resume-builder",
-        "documentNamespace": "https://github.com/benarculus/resume-builder/releases/tag/v0.2.0",
+        "documentNamespace": (
+            "https://github.com/benarculus/resume-builder/releases/tag/v0.2.0"
+        ),
         "creationInfo": {
             "created": "2026-09-25T14:00:00Z",
             "creators": ["Tool: syft"],
@@ -86,215 +101,139 @@ def spdx_document() -> dict:
     }
 
 
-def test_spdx_validator_accepts_release_contract(tmp_path: Path) -> None:
-    validator = load_validator()
+def write_prepared_document(tmp_path: Path, document: dict | None = None) -> Path:
     path = tmp_path / "resume-builder.spdx.json"
-    path.write_text(json.dumps(spdx_document()), encoding="utf-8")
+    path.write_text(json.dumps(document or spdx_document()), encoding="utf-8")
     load_preparer().prepare_spdx_sbom(path, "0.2.0")
-
-    validator.validate_spdx_sbom(path, "0.2.0")
-
-
-@pytest.mark.parametrize("document", [[], "not-an-object", 42])
-def test_spdx_tools_reject_non_object_document(tmp_path: Path, document: object) -> None:
-    path = tmp_path / "resume-builder.spdx.json"
-    path.write_text(json.dumps(document), encoding="utf-8")
-
-    with pytest.raises(AssertionError, match="JSON object"):
-        load_preparer().prepare_spdx_sbom(path, "0.2.0")
-    with pytest.raises(AssertionError, match="JSON object"):
-        load_validator().validate_spdx_sbom(path, "0.2.0")
+    return path
 
 
-def test_spdx_validator_rejects_missing_runtime_package(tmp_path: Path) -> None:
-    validator = load_validator()
-    document = spdx_document()
-    document["packages"] = [
-        package for package in document["packages"] if package["name"] != "pymupdf"
-    ]
-    path = tmp_path / "resume-builder.spdx.json"
-    path.write_text(json.dumps(document), encoding="utf-8")
-    load_preparer().prepare_spdx_sbom(path, "0.2.0")
-
-    with pytest.raises(AssertionError, match="runtime package versions"):
-        validator.validate_spdx_sbom(path, "0.2.0")
-
-
-def test_spdx_validator_rejects_non_object_package(tmp_path: Path) -> None:
-    validator = load_validator()
-    document = spdx_document()
-    document["packages"].append("malformed")
-    path = tmp_path / "resume-builder.spdx.json"
-    path.write_text(json.dumps(document), encoding="utf-8")
-
-    with pytest.raises(AssertionError, match="<non-object>"):
-        validator.validate_spdx_sbom(path, "0.2.0")
-
-
-@pytest.mark.parametrize(
-    "field",
-    [
-        "name",
-        "SPDXID",
-        "supplier",
-        "downloadLocation",
-        "licenseConcluded",
-        "licenseDeclared",
-        "copyrightText",
-    ],
-)
-@pytest.mark.parametrize("value", [42, [], ""])
-def test_spdx_validator_rejects_non_string_or_empty_package_fields(
-    tmp_path: Path, field: str, value: object
-) -> None:
-    validator = load_validator()
-    document = spdx_document()
-    document["packages"][0][field] = value
-    path = tmp_path / "resume-builder.spdx.json"
-    path.write_text(json.dumps(document), encoding="utf-8")
-
-    with pytest.raises(AssertionError, match="mandatory SPDX fields"):
-        validator.validate_spdx_sbom(path, "0.2.0")
-
-
-@pytest.mark.parametrize("value", [None, "false", 0])
-def test_spdx_validator_rejects_invalid_files_analyzed(
-    tmp_path: Path, value: object
-) -> None:
-    validator = load_validator()
-    document = spdx_document()
-    document["packages"][0]["filesAnalyzed"] = value
-    path = tmp_path / "resume-builder.spdx.json"
-    path.write_text(json.dumps(document), encoding="utf-8")
-
-    with pytest.raises(AssertionError, match="mandatory SPDX fields"):
-        validator.validate_spdx_sbom(path, "0.2.0")
-
-
-def test_spdx_validator_requires_verification_code_for_analyzed_package(
-    tmp_path: Path,
-) -> None:
-    validator = load_validator()
-    document = spdx_document()
-    document["packages"][0]["filesAnalyzed"] = True
-    path = tmp_path / "resume-builder.spdx.json"
-    path.write_text(json.dumps(document), encoding="utf-8")
-    load_preparer().prepare_spdx_sbom(path, "0.2.0")
-
-    with pytest.raises(AssertionError, match="packageVerificationCode"):
-        validator.validate_spdx_sbom(path, "0.2.0")
-
-
-def test_spdx_validator_accepts_verification_code_for_analyzed_package(
-    tmp_path: Path,
-) -> None:
-    validator = load_validator()
-    document = spdx_document()
-    document["packages"][0]["filesAnalyzed"] = True
-    document["packages"][0]["packageVerificationCode"] = {
-        "packageVerificationCodeValue": "0123456789abcdef"
-    }
-    path = tmp_path / "resume-builder.spdx.json"
-    path.write_text(json.dumps(document), encoding="utf-8")
-    load_preparer().prepare_spdx_sbom(path, "0.2.0")
-
-    validator.validate_spdx_sbom(path, "0.2.0")
-
-
-def test_spdx_validator_rejects_verification_code_for_unanalyzed_package(
-    tmp_path: Path,
-) -> None:
-    validator = load_validator()
-    document = spdx_document()
-    document["packages"][0]["packageVerificationCode"] = {
-        "packageVerificationCodeValue": "0123456789abcdef"
-    }
-    path = tmp_path / "resume-builder.spdx.json"
-    path.write_text(json.dumps(document), encoding="utf-8")
-    load_preparer().prepare_spdx_sbom(path, "0.2.0")
-
-    with pytest.raises(AssertionError, match="packageVerificationCode"):
-        validator.validate_spdx_sbom(path, "0.2.0")
-
-
-@pytest.mark.parametrize(
-    ("package_name", "duplicate_id"),
-    [
-        ("pymupdf", "SPDXRef-Package-python-docx"),
-        ("pymupdf", "SPDXRef-DOCUMENT"),
-    ],
-)
-def test_spdx_validator_rejects_duplicate_element_identifiers(
-    tmp_path: Path, package_name: str, duplicate_id: str
-) -> None:
-    validator = load_validator()
-    document = spdx_document()
-    package = next(
-        package for package in document["packages"] if package["name"] == package_name
+def run_official_validator(path: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [official_validator(), "-i", str(path), "--version", "SPDX-2.3"],
+        capture_output=True,
+        text=True,
+        check=False,
     )
-    package["SPDXID"] = duplicate_id
-    path = tmp_path / "resume-builder.spdx.json"
-    path.write_text(json.dumps(document), encoding="utf-8")
-    load_preparer().prepare_spdx_sbom(path, "0.2.0")
-
-    with pytest.raises(AssertionError, match="identifiers must be unique"):
-        validator.validate_spdx_sbom(path, "0.2.0")
 
 
-def test_spdx_validator_rejects_wrong_release_version(tmp_path: Path) -> None:
-    validator = load_validator()
-    path = tmp_path / "resume-builder.spdx.json"
-    path.write_text(json.dumps(spdx_document()), encoding="utf-8")
-    load_preparer().prepare_spdx_sbom(path, "0.2.0")
-
-    with pytest.raises(AssertionError, match="source version"):
-        validator.validate_spdx_sbom(path, "0.3.0")
+def test_official_spdx_validator_accepts_release_fixture(tmp_path: Path) -> None:
+    result = run_official_validator(write_prepared_document(tmp_path))
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
-def test_spdx_validator_rejects_dependency_supplier_misattribution(tmp_path: Path) -> None:
-    validator = load_validator()
-    path = tmp_path / "resume-builder.spdx.json"
-    path.write_text(json.dumps(spdx_document()), encoding="utf-8")
-    load_preparer().prepare_spdx_sbom(path, "0.2.0")
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda document: document["creationInfo"].update({"created": 42}),
+        lambda document: document["creationInfo"].update({"creators": "Tool: syft"}),
+        lambda document: document["packages"][1].update(
+            {"SPDXID": "SPDXRef-Package-resume-builder"}
+        ),
+        lambda document: document["packages"][1].pop("downloadLocation"),
+    ],
+    ids=[
+        "integer-created",
+        "string-creators",
+        "duplicate-spdxid",
+        "missing-download-location",
+    ],
+)
+def test_official_spdx_validator_rejects_specification_violations(
+    tmp_path: Path, mutate
+) -> None:
+    path = write_prepared_document(tmp_path)
     document = json.loads(path.read_text(encoding="utf-8"))
-    dependency = next(
-        package for package in document["packages"] if package["name"] == "python-docx"
+    mutate(document)
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    assert run_official_validator(path).returncode != 0
+
+
+def test_release_contract_accepts_prepared_sbom(tmp_path: Path) -> None:
+    load_contract_validator().validate_release_sbom_contract(
+        write_prepared_document(tmp_path), "0.2.0"
     )
-    dependency["supplier"] = "Organization: benarculus"
+
+
+def test_release_contract_rejects_wrong_release_version(tmp_path: Path) -> None:
+    with pytest.raises(AssertionError, match="source version"):
+        load_contract_validator().validate_release_sbom_contract(
+            write_prepared_document(tmp_path), "0.3.0"
+        )
+
+
+def test_release_contract_rejects_duplicate_root_package(tmp_path: Path) -> None:
+    path = write_prepared_document(tmp_path)
+    document = json.loads(path.read_text(encoding="utf-8"))
+    duplicate = dict(document["packages"][0])
+    duplicate["SPDXID"] = "SPDXRef-Package-resume-builder-duplicate"
+    duplicate["versionInfo"] = "9.9.9"
+    document["packages"].append(duplicate)
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(AssertionError, match="exactly one resume-builder"):
+        load_contract_validator().validate_release_sbom_contract(path, "0.2.0")
+
+
+@pytest.mark.parametrize("field", ["supplier", "originator"])
+def test_release_contract_rejects_invalid_root_attribution(
+    tmp_path: Path, field: str
+) -> None:
+    path = write_prepared_document(tmp_path)
+    document = json.loads(path.read_text(encoding="utf-8"))
+    document["packages"][0][field] = "NOASSERTION"
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(AssertionError, match="supplier and originator"):
+        load_contract_validator().validate_release_sbom_contract(path, "0.2.0")
+
+
+def test_release_contract_rejects_dependency_supplier_misattribution(
+    tmp_path: Path,
+) -> None:
+    path = write_prepared_document(tmp_path)
+    document = json.loads(path.read_text(encoding="utf-8"))
+    document["packages"][1]["supplier"] = "Organization: benarculus"
     path.write_text(json.dumps(document), encoding="utf-8")
 
     with pytest.raises(AssertionError, match="must not attribute dependencies"):
-        validator.validate_spdx_sbom(path, "0.2.0")
+        load_contract_validator().validate_release_sbom_contract(path, "0.2.0")
 
 
-def test_spdx_validator_rejects_missing_runtime_relationship(tmp_path: Path) -> None:
-    validator = load_validator()
-    document = spdx_document()
+def test_release_contract_rejects_missing_runtime_package(tmp_path: Path) -> None:
+    path = write_prepared_document(tmp_path)
+    document = json.loads(path.read_text(encoding="utf-8"))
+    document["packages"] = [
+        package for package in document["packages"] if package["name"] != "pymupdf"
+    ]
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(AssertionError, match="runtime package versions"):
+        load_contract_validator().validate_release_sbom_contract(path, "0.2.0")
+
+
+def test_release_contract_rejects_missing_runtime_relationship(tmp_path: Path) -> None:
+    path = write_prepared_document(tmp_path)
+    document = json.loads(path.read_text(encoding="utf-8"))
     document["relationships"] = [
         relationship
         for relationship in document["relationships"]
         if relationship.get("relatedSpdxElement") != "SPDXRef-Package-pymupdf"
     ]
-    path = tmp_path / "resume-builder.spdx.json"
     path.write_text(json.dumps(document), encoding="utf-8")
-    load_preparer().prepare_spdx_sbom(path, "0.2.0")
 
     with pytest.raises(AssertionError, match="relate every runtime package"):
-        validator.validate_spdx_sbom(path, "0.2.0")
+        load_contract_validator().validate_release_sbom_contract(path, "0.2.0")
 
 
-def test_spdx_validator_rejects_document_describing_dependency(tmp_path: Path) -> None:
-    validator = load_validator()
-    document = spdx_document()
-    describes = next(
-        relationship
-        for relationship in document["relationships"]
-        if relationship["relationshipType"] == "DESCRIBES"
-    )
-    describes["relatedSpdxElement"] = "SPDXRef-Package-python-docx"
-    path = tmp_path / "resume-builder.spdx.json"
+def test_release_contract_requires_one_document_root_relationship(
+    tmp_path: Path,
+) -> None:
+    path = write_prepared_document(tmp_path)
+    document = json.loads(path.read_text(encoding="utf-8"))
+    document["relationships"].append(dict(document["relationships"][0]))
     path.write_text(json.dumps(document), encoding="utf-8")
-    load_preparer().prepare_spdx_sbom(path, "0.2.0")
 
-    with pytest.raises(AssertionError, match="describe its source package"):
-        validator.validate_spdx_sbom(path, "0.2.0")
+    with pytest.raises(AssertionError, match="describe exactly one"):
+        load_contract_validator().validate_release_sbom_contract(path, "0.2.0")

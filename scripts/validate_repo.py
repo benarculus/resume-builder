@@ -29,11 +29,14 @@ def workflow_paths(root: Path) -> tuple[Path, ...]:
 
 WORKFLOWS = workflow_paths(ROOT)
 REQUIREMENTS = (ROOT / "requirements.txt", ROOT / "requirements-dev.txt")
+SPDX_VALIDATION_REQUIREMENTS = ROOT / "requirements-spdx-validation.txt"
 DEPENDABOT = ROOT / ".github" / "dependabot.yml"
+CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 DEPENDENCY_REVIEW_WORKFLOW = ROOT / ".github" / "workflows" / "dependency-review.yml"
 MALWARE_WORKFLOW = ROOT / ".github" / "workflows" / "advisory-malware.yml"
 RELEASE_PLEASE_WORKFLOW = ROOT / ".github" / "workflows" / "release-please.yml"
 PUBLISH_RELEASE_WORKFLOW = ROOT / ".github" / "workflows" / "publish-release.yml"
+OBSOLETE_SPDX_VALIDATOR = ROOT / "scripts" / "validate_spdx_sbom.py"
 SCORECARD_WORKFLOW = ROOT / ".github" / "workflows" / "scorecard.yml"
 RELEASE_PLEASE_CONFIG = ROOT / "release-please-config.json"
 RELEASE_PLEASE_MANIFEST = ROOT / ".release-please-manifest.json"
@@ -51,6 +54,8 @@ DOWNLOAD_ARTIFACT_SHA = "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c"
 DOWNLOAD_ARTIFACT_VERSION = "v8.0.1"
 SBOM_ACTION_SHA = "3ad7283483fc7af8ff2b4ea19663c2d5ca935e26"
 SBOM_ACTION_VERSION = "v0.24.2"
+SETUP_PYTHON_SHA = "5fda3b95a4ea91299a34e894583c3862153e4b97"
+SETUP_PYTHON_VERSION = "v7.0.0"
 CODEQL_ACTION_SHA = "1c5b675653bb5c22dbe9b12b556ec555138e09fd"
 CODEQL_ACTION_VERSION = "v4.38.1"
 MALWARE_REUSABLE_OWNER_REPO = "benarculus/malware-advisory-check"
@@ -67,6 +72,63 @@ EXPECTED_SKILLS = {
 }
 SHA_PINNED_ACTION = re.compile(r"uses:\s+[\w.-]+/[\w./-]+@[0-9a-f]{40}\s+#\s+v\d+(?:\.\d+)*\b")
 REQUIREMENT_PIN = re.compile(r"^[A-Za-z0-9_.-]+==[^<>=!~\s]+$")
+LOCKED_REQUIREMENT = re.compile(
+    r"^([A-Za-z0-9_.-]+)==([^<>=!~\s]+)\s+--hash=sha256:([0-9a-f]{64})$"
+)
+EXPECTED_SPDX_VALIDATION_LOCK = {
+    "beartype": (
+        "0.22.9",
+        "d16c9bbc61ea14637596c5f6fbff2ee99cbe3573e46a716401734ef50c3060c2",
+    ),
+    "boolean.py": (
+        "5.0",
+        "ef28a70bd43115208441b53a045d1549e2f0ec6e3d08a9d142cbc41c1938e8d9",
+    ),
+    "click": (
+        "8.5.0",
+        "255bc9599cf7748b4b1a446ccc735421bd08a2ae529a8b88597d3de5664ee360",
+    ),
+    "isodate": (
+        "0.7.2",
+        "28009937d8031054830160fce6d409ed342816b543597cece116d966c6d99e15",
+    ),
+    "license-expression": (
+        "30.4.4",
+        "421788fdcadb41f049d2dc934ce666626265aeccefddd25e162a26f23bcbf8a4",
+    ),
+    "ply": (
+        "3.11",
+        "096f9b8350b65ebd2fd1346b12452efe5b9607f7482813ffca50c22722a807ce",
+    ),
+    "pyparsing": (
+        "3.3.3",
+        "ece8c00a69cf01b45d0b1dedabb469c90d8caf996d4fda40f147627a122849a4",
+    ),
+    "pyyaml": (
+        "6.0.3",
+        "ba1cc08a7ccde2d2ec775841541641e4548226580ab850948cbfda66a1befcdc",
+    ),
+    "rdflib": (
+        "7.6.0",
+        "30c0a3ebf4c0e09215f066be7246794b6492e054e782d7ac2a34c9f70a15e0dd",
+    ),
+    "semantic-version": (
+        "2.10.0",
+        "de78a3b8e0feda74cabc54aab2da702113e33ac9d9eb9d2389bcf1f58b7d9177",
+    ),
+    "spdx-tools": (
+        "0.8.5",
+        "7c2d5865941be9d2e898f5b084e8d5422dd298dc5a29320ddb198fec304f59c4",
+    ),
+    "uritools": (
+        "6.1.3",
+        "136f113e76e53f85bf2d9cce0c3d40ceec775d0409e7d6de9b28f046a7d42838",
+    ),
+    "xmltodict": (
+        "1.0.4",
+        "a4a00d300b0e1c59fc2bfccb53d7b2e88c32f200df138a0dd2229f842497026a",
+    ),
+}
 WORKFLOW_TOKEN_REFERENCE = re.compile(
     r"(?:github\s*\.\s*token|github\s*\[\s*['\"]token['\"]\s*\]|secrets(?:\s*\.|\s*\[)|tojson\s*\(\s*(?:secrets|github)\s*\))",
     re.IGNORECASE,
@@ -159,6 +221,49 @@ def validate_requirement_pins() -> None:
                 continue
             if not REQUIREMENT_PIN.match(stripped):
                 raise AssertionError(f"{requirements}: direct dependency must use an exact == pin: {stripped}")
+
+
+def validate_spdx_validation_lock() -> None:
+    physical_lines = SPDX_VALIDATION_REQUIREMENTS.read_text(encoding="utf-8").splitlines()
+    logical_lines = []
+    for index in range(0, len(physical_lines), 2):
+        if index + 1 >= len(physical_lines) or not physical_lines[index].endswith("\\"):
+            raise AssertionError("SPDX validation lock entries must contain one pinned hash")
+        logical_lines.append(
+            f"{physical_lines[index][:-1].strip()} {physical_lines[index + 1].strip()}"
+        )
+    observed = {}
+    for line in logical_lines:
+        match = LOCKED_REQUIREMENT.fullmatch(line)
+        if match is None:
+            raise AssertionError(f"invalid SPDX validation lock entry: {line}")
+        observed[match.group(1).lower()] = (match.group(2), match.group(3))
+    if observed != EXPECTED_SPDX_VALIDATION_LOCK:
+        raise AssertionError("SPDX validation lock must match the reviewed wheel resolution")
+
+    install_command = (
+        "python -m pip install --require-hashes --only-binary=:all: "
+        "-r requirements-spdx-validation.txt"
+    )
+    ci = yaml.safe_load(CI_WORKFLOW.read_text(encoding="utf-8"))
+    ci_job = ci["jobs"]["validate"]
+    setup_steps = [
+        step
+        for step in ci_job.get("steps", [])
+        if isinstance(step, dict)
+        and step.get("uses") == f"actions/setup-python@{SETUP_PYTHON_SHA}"
+    ]
+    if len(setup_steps) != 1 or setup_steps[0].get("with") != {
+        "python-version": "3.12"
+    }:
+        raise AssertionError("hosted CI must run the official SPDX validator on Python 3.12")
+    ci_runs = [
+        " ".join(str(step.get("run", "")).split())
+        for step in ci_job.get("steps", [])
+        if isinstance(step, dict)
+    ]
+    if install_command not in ci_runs:
+        raise AssertionError("hosted CI must install the hash-locked SPDX validator environment")
 
 
 def validate_dependabot_policy() -> None:
@@ -405,10 +510,12 @@ def validate_publish_release_workflow() -> None:
     resolve_steps = resolve.get("steps", [])
     generate_steps = generate.get("steps", [])
     publish_steps = publish.get("steps", [])
-    if len(resolve_steps) != 2 or len(generate_steps) != 5 or len(publish_steps) != 3:
+    if len(resolve_steps) != 2 or len(generate_steps) != 8 or len(publish_steps) != 3:
         raise AssertionError("release publication workflow has an unexpected step contract")
     resolve_checkout, release = resolve_steps
-    checkout, sbom, prepare, validate, upload = generate_steps
+    checkout, setup_python, install, sbom, prepare, official, contract, upload = (
+        generate_steps
+    )
     download, attach, finalize = publish_steps
     expected_resolve_checkout = {
         "ref": "${{ github.sha }}",
@@ -443,6 +550,16 @@ def validate_publish_release_workflow() -> None:
         raise AssertionError("read-only SBOM generation must not query draft releases")
     if sbom.get("uses") != f"anchore/sbom-action@{SBOM_ACTION_SHA}":
         raise AssertionError("SPDX generation must use the approved pinned SBOM action")
+    if setup_python.get("uses") != f"actions/setup-python@{SETUP_PYTHON_SHA}" or (
+        setup_python.get("with") != {"python-version": "3.12"}
+    ):
+        raise AssertionError("SPDX validation must use the approved Python 3.12 action")
+    expected_install = (
+        "python -m pip install --require-hashes --only-binary=:all: "
+        "-r requirements-spdx-validation.txt"
+    )
+    if " ".join(str(install.get("run", "")).split()) != expected_install:
+        raise AssertionError("release generation must install the hash-locked SPDX validator")
     if sbom.get("with") != {
         "path": ".",
         "config": ".syft.yaml",
@@ -456,10 +573,16 @@ def validate_publish_release_workflow() -> None:
         'python3 scripts/prepare_spdx_sbom.py resume-builder.spdx.json "$RELEASE_VERSION"'
     ):
         raise AssertionError("generated SPDX output must receive repository-owned product metadata")
-    if validate.get("run") != (
-        'python3 scripts/validate_spdx_sbom.py resume-builder.spdx.json "$RELEASE_VERSION"'
+    if official.get("run") != (
+        "pyspdxtools -i resume-builder.spdx.json --version SPDX-2.3"
     ):
-        raise AssertionError("generated SPDX output must pass the repository validator")
+        raise AssertionError("generated SPDX output must pass official SPDX 2.3 validation")
+    expected_contract = (
+        'python3 scripts/validate_release_sbom_contract.py '
+        'resume-builder.spdx.json "$RELEASE_VERSION"'
+    )
+    if " ".join(str(contract.get("run", "")).split()) != expected_contract:
+        raise AssertionError("officially valid SPDX output must pass the release contract")
     if upload.get("uses") != f"actions/upload-artifact@{UPLOAD_ARTIFACT_SHA}":
         raise AssertionError("validated SPDX artifact must use the approved pinned uploader")
     if download.get("uses") != f"actions/download-artifact@{DOWNLOAD_ARTIFACT_SHA}":
@@ -480,6 +603,7 @@ def validate_publish_release_workflow() -> None:
 
     raw_text = PUBLISH_RELEASE_WORKFLOW.read_text(encoding="utf-8")
     expected_pins = (
+        (SETUP_PYTHON_SHA, SETUP_PYTHON_VERSION),
         (SBOM_ACTION_SHA, SBOM_ACTION_VERSION),
         (UPLOAD_ARTIFACT_SHA, UPLOAD_ARTIFACT_VERSION),
         (DOWNLOAD_ARTIFACT_SHA, DOWNLOAD_ARTIFACT_VERSION),
@@ -490,6 +614,8 @@ def validate_publish_release_workflow() -> None:
     forbidden = ("pull_request_target", "secrets:", "RELEASE_PLEASE_APP_PRIVATE_KEY")
     if any(value in raw_text for value in forbidden):
         raise AssertionError("release publication must not expose privileged triggers or repository secrets")
+    if OBSOLETE_SPDX_VALIDATOR.exists():
+        raise AssertionError("obsolete mixed SPDX validator must not be restored")
 
 
 def validate_scorecard_workflow() -> None:
@@ -649,6 +775,7 @@ def main() -> int:
     validate_marketplace_manifest(plugin_manifest)
     validate_workflow_pins()
     validate_requirement_pins()
+    validate_spdx_validation_lock()
     validate_dependabot_policy()
     validate_dependency_check_workflows()
     validate_release_please_workflow()
