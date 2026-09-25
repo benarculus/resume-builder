@@ -72,7 +72,7 @@ The release pipeline now installs official `spdx-tools==0.8.5` from a complete P
 * Affected files: [.github/workflows/publish-release.yml](../../../.github/workflows/publish-release.yml), [.syft.yaml](../../../.syft.yaml), [scripts/validate_repo.py](../../../scripts/validate_repo.py), [tests/test_structure.py](../../../tests/test_structure.py), [README.md](../../../README.md)
 * Behavior or functionality changed: the SBOM action now pins `syft-version: v1.52.0`; `.syft.yaml` excludes `requirements-spdx-validation.txt`; repository validation enforces both controls; structural mutations reject Syft version drift and restoration of the validation lock to the product catalog.
 * Validation: Repository validation passed; focused structural suite passed 78 tests; diff hygiene passed.
-* Status: Implemented locally; hosted confirmation remains pending.
+* Status: Complete; hosted Python 3.12/Linux CI passed 125 tests without skips at commit `d7a8222`.
 
 ### Addressing RV-001: Protect validator failure and dependency isolation
 
@@ -110,6 +110,7 @@ The release pipeline now installs official `spdx-tools==0.8.5` from a complete P
 | Local Python 3.12 official-validator attempt | CR-001 | Correctly blocked by platform lock | The reviewed lock is Linux-only; pip rejected the macOS ARM PyYAML wheel hash rather than weakening `--require-hashes`. Hosted Linux remains authoritative. |
 | Hosted round-three confirmation | CR-001 and CR-002 | Passed | GitHub Actions run `36191196003`: hash-locked official validator installation succeeded and pytest reported 123 passed without skips |
 | CCR generator-boundary remediation | Syft pin and validation-lock exclusion | Passed locally | Repository validator; focused structural suite: 78 passed; diff hygiene |
+| Hosted CCR confirmation | Syft pin and validation-lock exclusion | Passed | GitHub Actions run `36193511730`: pytest reported 125 passed without skips |
 
 ## Pre-Review Reconciliation
 

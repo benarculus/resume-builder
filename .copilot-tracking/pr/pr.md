@@ -26,6 +26,7 @@ Includes the full research → plan → critique → implementation → review t
 - [x] Round-three finding remediation — focused local suite passed with 89 tests and 7 expected platform skips; full local suite passed with 108 tests and 15 environment skips; repository validation, Python compilation, and diff hygiene passed
 - [x] Refreshed hosted Python 3.12/Linux CI — 123 passed without skips at remediation commit `4ef51c5`
 - [x] CCR generator-boundary remediation — pinned production Syft to the real-output-tested `v1.52.0`, excluded the validation-only SPDX lock from the product SBOM, and added structural regressions for both controls
+- [x] Refreshed hosted CI after CCR remediation — 125 passed without skips at commit `d7a8222`
 
 ## Anti-fabrication and privacy
 
