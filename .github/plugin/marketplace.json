@@ -2,7 +2,7 @@
   "name": "resume-builder",
   "metadata": {
     "description": "Anti-fabrication GitHub Copilot CLI skills for evidence-based resume building",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "owner": {
     "name": "benarculus",
@@ -13,7 +13,7 @@
       "name": "resume-builder",
       "source": ".",
       "description": "Build a verified career document, plan job requirements, and draft an evidence-grounded Word resume",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "author": {
         "name": "benarculus",
         "url": "https://github.com/benarculus"
