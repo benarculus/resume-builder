@@ -1,0 +1,15 @@
+{
+  "bootstrap-sha": "29d48d546c128c6eb8bb2829e47a89c1886f24f1",
+  "draft": true,
+  "force-tag-creation": true,
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "extra-files": [
+        { "type": "json", "path": "plugin.json", "jsonpath": "$.version" },
+        { "type": "json", "path": ".github/plugin/marketplace.json", "jsonpath": "$.metadata.version" },
+        { "type": "json", "path": ".github/plugin/marketplace.json", "jsonpath": "$.plugins[0].version" }
+      ]
+    }
+  }
+}

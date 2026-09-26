@@ -1,0 +1,25 @@
+{
+  "perspective": "readiness",
+  "summary": "All hosted checks pass at the reviewed SHA and the PR is open, but merge remains correctly blocked for human approval. Operational recovery for a failed pre-publication release is not documented.",
+  "findings": [
+    {
+      "number": 1,
+      "title": "Document recovery for stranded tags and draft releases",
+      "severity": "Medium",
+      "status": "resolved",
+      "category": "Operational readiness",
+      "skill": null,
+      "file": "README.md",
+      "lines": "7-9",
+      "problem": "The release-integrity section documents only the successful path. The workflow can intentionally fail before publication when draft discovery times out, SBOM generation or validation fails, artifact transfer fails, or checksum verification fails. Those failures can leave a version tag and draft release in place, and immutable publication is the point of no return. There is no runbook explaining safe reruns, inspection of an existing draft and asset, cleanup or escalation, or when not to publish manually.",
+      "current_code": "Each published version includes resume-builder.spdx.json ... GitHub then publishes the release immutably...",
+      "suggested_fix": "Add a concise release-recovery runbook covering the two-minute draft lookup timeout, safe workflow reruns, inspection of the tag/draft/SBOM asset, handling validation and checksum failures, prohibited manual publication without a verified SBOM, and the immutable publication boundary.",
+      "resolution": "README now documents safe draft reruns, inspection and escalation steps, prohibited manual publication, and immutable-release recovery limits."
+    }
+  ],
+  "positive_changes": [
+    "All seven hosted check runs reported success at 02e79a76bfe1d33330e5195691382c8f990c870d.",
+    "The pull request is open and its head still matches the reviewed immutable target.",
+    "REVIEW_REQUIRED and BLOCKED are expected repository authorization gates, not failed code-review evidence."
+  ]
+}

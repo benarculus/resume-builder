@@ -1,0 +1,96 @@
+{
+  "reviewTarget": {
+    "kind": "pull_request",
+    "provider": "github",
+    "id": "16",
+    "url": "https://github.com/benarculus/resume-builder/pull/16",
+    "baseRef": "main",
+    "headRef": "benarculus-release-pipeline-research",
+    "headSha": "02e79a76bfe1d33330e5195691382c8f990c870d"
+  },
+  "reviewProfile": "standard",
+  "changeBrief": "PR #16 adds semantic release automation backed by a repository-scoped GitHub App, enforces release workflow policy through repository validation, adds continuous OpenSSF Scorecard analysis, and introduces a two-job SPDX publication path that generates an SBOM under read-only permissions and publishes an immutable draft release only after artifact validation and checksum verification.",
+  "diff": {
+    "base": "origin/main",
+    "mergeBase": "29d48d546c128c6eb8bb2829e47a89c1886f24f1",
+    "changedFiles": 29,
+    "insertions": 2787,
+    "deletions": 13,
+    "serializedDiff": "/Users/benarculus/.copilot/session-state/24817e45-d634-4bfd-ac89-38ff3514f42c/files/pr-16-round-2.diff"
+  },
+  "changeRiskEvidence": {
+    "changeScope": {
+      "state": "observed",
+      "evidence": "29 changed files and 2,787 insertions; executable changes span three workflows, release configuration, two SPDX scripts, the repository validator, and two test modules, with the remaining volume in durable review and RPI records."
+    },
+    "pathCriticality": {
+      "state": "observed",
+      "evidence": "The change crosses long-lived App credential handling, short-lived repository-write tokens, tag creation, draft and immutable release mutation, cross-job artifact transfer, shell/API boundaries, and SBOM parsing."
+    },
+    "history": {
+      "state": "observed",
+      "evidence": "Thirteen commits show repeated CCR and supply-chain redesign around trigger behavior, authentication, governance, release immutability, and SBOM publication."
+    },
+    "testPresence": {
+      "state": "observed",
+      "evidence": "The branch includes exact workflow/config validators, negative mutation tests, SPDX preparation/validation tests, a real checksummed Syft generation run, and green hosted CI."
+    },
+    "coverage": {
+      "state": "unavailable",
+      "evidence": "No end-to-end version tag, draft release, asset upload, checksum verification, or immutable publication has executed on GitHub because the workflow is not yet on main."
+    },
+    "rollback": {
+      "state": "qualitative",
+      "evidence": "Tracked changes are revertible before release, but an immutable published release is intentionally hard to reverse; failed runs can leave a tag and draft release requiring operational recovery."
+    }
+  },
+  "recommendedDepth": "comprehensive",
+  "depthTier": "comprehensive",
+  "depthRationale": "The user selected comprehensive depth because this is a security-sensitive release path with durable external state, cross-job trust boundaries, and no end-to-end production execution.",
+  "hotspots": [
+    ".github/workflows/publish-release.yml",
+    ".github/workflows/release-please.yml",
+    "release-please-config.json",
+    ".syft.yaml",
+    "scripts/prepare_spdx_sbom.py",
+    "scripts/validate_spdx_sbom.py",
+    "scripts/validate_repo.py",
+    "tests/test_spdx_sbom.py",
+    "tests/test_structure.py",
+    "repository ruleset 23698833",
+    "repository immutable-release setting"
+  ],
+  "specialistConcerns": [
+    {
+      "concern": "security",
+      "signals": [
+        "GitHub App private key",
+        "write-capable installation token",
+        "contents-write release publication job",
+        "shell and API input boundaries"
+      ]
+    },
+    {
+      "concern": "supply-chain",
+      "signals": [
+        "third-party GitHub Actions",
+        "SBOM generation",
+        "cross-job artifact transfer",
+        "tag and immutable release publication",
+        "OpenSSF Scorecard"
+      ]
+    }
+  ],
+  "outOfScope": [
+    "accessibility: no user interface or interactive end-user surface changed"
+  ],
+  "task": {
+    "kind": "perspective_batch",
+    "outputs": {
+      "functional": ".copilot-tracking/reviews/code-reviews/2026-09-25-pr-16-round-2/functional-findings.json",
+      "standards": ".copilot-tracking/reviews/code-reviews/2026-09-25-pr-16-round-2/standards-findings.json",
+      "security": ".copilot-tracking/reviews/code-reviews/2026-09-25-pr-16-round-2/security-findings.json",
+      "readiness": ".copilot-tracking/reviews/code-reviews/2026-09-25-pr-16-round-2/readiness-findings.json"
+    }
+  }
+}

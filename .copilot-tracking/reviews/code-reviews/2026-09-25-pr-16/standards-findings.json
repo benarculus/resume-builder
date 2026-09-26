@@ -1,0 +1,32 @@
+{
+  "perspective": "standards",
+  "summary": "The implementation follows the repository's pinning and validation patterns. Both authoritative planning/research inconsistencies were corrected and are resolved.",
+  "findings": [
+    {
+      "id": "CR-F1",
+      "title": "Reconcile NFR-001 with the App-token permissions model",
+      "severity": "Medium",
+      "status": "resolved",
+      "category": "Contract consistency",
+      "file": ".copilot-tracking/plans/2026-09-22/release-pipeline-plan.md",
+      "lines": "445-446",
+      "problem": "NFR-001 still requires the workflow's top-level permissions block to contain contents, pull-requests, and issues write. The final workflow and the task-level binding contract intentionally require permissions: {} and grant those capabilities only to the short-lived App token. The plan therefore contains two mutually exclusive acceptance contracts for the same requirement.",
+      "current_code": "* NFR-001: The new release workflow's declared GitHub Actions `permissions` are the minimum needed (`contents: write`, `pull-requests: write`, `issues: write`) ...",
+      "suggested_fix": "Rewrite NFR-001 and its objective threshold to require top-level permissions: {}, plus an App installation token scoped to the current repository and exactly Contents/Pull requests/Issues write.",
+      "resolution": "NFR-001 now requires empty ambient permissions and the repository-scoped ephemeral App-token contract."
+    },
+    {
+      "id": "CR-F3",
+      "title": "Remove the superseded default-token conclusion from the research record",
+      "severity": "Low",
+      "status": "resolved",
+      "category": "Documentation accuracy",
+      "file": ".copilot-tracking/research/2026-09-22/release-pipeline-research.md",
+      "lines": "75-81, 226",
+      "problem": "The post-CCR correction says an App token is required so the generated Release PR can trigger CI, but the adjacent rationale and W3 evidence note still conclude that no elevated token is needed because there is no publish step. The remaining statements conflate downstream release-event workflows with CI on the generated PR.",
+      "current_code": "and needs no elevated token because there is nothing further to publish ... / default token suffices since this repo has no publish step",
+      "suggested_fix": "Retain the historical source observation, but update the disposition to state that a non-GITHUB_TOKEN identity is required for Release PR CI even though no downstream publish workflow exists.",
+      "resolution": "The rationale and W3 disposition now distinguish generated-PR CI from downstream release workflows and document the App identity requirement."
+    }
+  ]
+}

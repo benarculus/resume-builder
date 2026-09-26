@@ -1,0 +1,61 @@
+{
+  "reviewer": "GitHub Copilot Code Review",
+  "date": "2026-09-25",
+  "repository": "benarculus/resume-builder",
+  "pullRequest": 16,
+  "url": "https://github.com/benarculus/resume-builder/pull/16",
+  "baseRef": "main",
+  "headRef": "benarculus-release-pipeline-research",
+  "reviewedHeadSha": "8b692df05152a4091bfcb0bce27783080015caae",
+  "diffSha256": "717e90dbac84cea5a0bf32572885ee70bdb4430cc75d8a110364adb49001bfe9",
+  "profile": "standard",
+  "depth": "comprehensive",
+  "perspectives": [
+    "functional",
+    "standards",
+    "security",
+    "readiness"
+  ],
+  "verdict": "approve",
+  "severityCounts": {
+    "critical": 0,
+    "high": 0,
+    "medium": 2,
+    "low": 0
+  },
+  "openSeverityCounts": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "validation": [
+    "git diff origin/main...HEAD --check",
+    "serialized diff SHA-256 matched the locked review state",
+    "live PR head matched the reviewed SHA",
+    "all seven refreshed GitHub checks passed",
+    "duplicate runtime-package bypass reproduced locally",
+    "focused remediation suite: 89 passed, 7 expected local official-validator skips",
+    "full local suite: 108 passed, 15 environment skips",
+    "repository validation, Python compilation, and diff hygiene passed",
+    "hosted Python 3.12/Linux suite: 123 passed without skips"
+  ],
+  "remediation": {
+    "status": "completed",
+    "resolvedFindings": 2,
+    "hostedValidation": "passed"
+  },
+  "prState": {
+    "state": "OPEN",
+    "mergeable": "MERGEABLE",
+    "mergeStateStatus": "BLOCKED",
+    "reviewDecision": "REVIEW_REQUIRED",
+    "checks": "all seven passing"
+  },
+  "emission": {
+    "mode": "canonical",
+    "target": "review artifact",
+    "status": "prepared",
+    "summary": "Both findings are resolved and refreshed hosted validation passed; qualified human review remains pending. No PR comments or review events posted."
+  }
+}

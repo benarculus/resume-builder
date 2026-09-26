@@ -1,0 +1,12 @@
+format:
+  spdx-json:
+    pretty: true
+source:
+  name: resume-builder
+exclude:
+  - ./.copilot-tracking/**
+  - ./.github/**
+  - ./.pytest_cache/**
+  - ./tests/**
+  - ./requirements-dev.txt
+  - ./requirements-spdx-validation.txt

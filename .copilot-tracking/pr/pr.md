@@ -1,15 +1,36 @@
 ## Summary
 
-Adds evidence-grounded resume-writing guidance and updates the DOCX renderer so career documents retain complete source-linked evidence while tailored resumes use concise, readable, job-relevant presentation.
+Adds an automated `release-please` pipeline so `resume-builder` tracks version updates semantically instead of by hand. On a push to `main`, release-please opens or updates a standing Release PR that bumps the version from Conventional Commit history and keeps `plugin.json` and `.github/plugin/marketplace.json` in sync.
 
-The change adds STAR/What–How–Why and action-verb rules, verified keyword mapping, education/training requirements, requested top matter with optional clearance, reverse chronology, readability defaults, and regression coverage. Existing phone and URL fields remain supported after the requested identity/location/clearance fields.
+- `release-please-config.json` — `simple` release strategy, with `extra-files` updaters for `plugin.json` (`$.version`) and `.github/plugin/marketplace.json` (`$.metadata.version`, `$.plugins[0].version`)
+- `version.txt` — release-please's own primary version file (separate from the JSON updaters, since `simple` always writes there), seeded at `0.1.0` to continue existing pre-1.0 numbering
+- `.release-please-manifest.json` — tracks the current released version (`0.1.0`)
+- `.github/workflows/release-please.yml` — triggers on pushes to `main`, mints a one-hour installation token from `RELEASE_PLEASE_APP_CLIENT_ID` and `RELEASE_PLEASE_APP_PRIVATE_KEY`, explicitly scopes it to this repository and only Contents/Pull requests/Issues write access, disables the workflow's default `GITHUB_TOKEN` permissions, and SHA-pins both token creation and release-please actions
+- `.github/workflows/publish-release.yml` — reacts to the App-created version tag, resolves release-please's draft in a small write-capable job, fails closed if the release is already public, generates an SPDX 2.3 SBOM with pinned and real-output-tested Syft `v1.52.0` in a separate read-only job, validates specification conformance with hash-locked official `spdx-tools==0.8.5`, applies the narrower repository release contract, transfers only the twice-validated SBOM into the publication job, checksum-verifies the uploaded asset, verifies immutable releases remain enabled, and only then publishes
+- `requirements-spdx-validation.txt` — complete binary-only Python 3.12/Linux hash lock for the official SPDX validator environment
+- `scripts/validate_release_sbom_contract.py` — stdlib-only checks for the exact release product, version, supplier/originator, one unambiguous entry per pinned runtime dependency, and document/root topology; generic SPDX rules remain owned by official tooling
+- `.github/workflows/scorecard.yml` — runs OpenSSF Scorecard on main, branch-rule changes, and a weekly schedule; publishes OIDC-authenticated results, stores short-lived SARIF evidence, and uploads findings to code scanning using SHA-pinned actions
+
+Also enforces linear history on `main`, a prerequisite for release-please's commit-based version bumping to stay reliable: `required_linear_history` was folded into the repository's existing "Protect main" ruleset rather than adding a separate linear-history ruleset. `main` is still governed by two rulesets overall ("Protect main" and "Require advisory malware check"), which this change leaves intact.
+
+The existing "Protect main" ruleset now requires the GitHub Actions `validate` check from `ci.yml`, a fresh approving code-owner review, approval from someone other than the last pusher, resolved review threads, and an up-to-date branch. It has no bypass actors. The GitHub App therefore cannot merge or push around CI or human review; its generated Release PR must pass the same gates as other PRs. Release-please creates a draft release and its version tag; active tag ruleset `24008744` restricts creation, update, and deletion of `v*` tags to the release GitHub App. The tag workflow adds `resume-builder.spdx.json` before publishing. Immutable releases then lock the tag and assets and generate GitHub's cryptographic release attestation.
+
+Includes the full research → plan → critique → implementation → review tracking record for this task under `.copilot-tracking/`.
 
 ## Validation
 
-- [x] `python scripts/validate_repo.py`
-- [x] `pytest -q`
-
-Additional preflight checks: `python3 -m py_compile skills/resume-drafter/scripts/build_docx.py tests/test_build_docx.py`, representative DOCX generation, and `git diff --check`.
+- [x] `python scripts/validate_repo.py` — passed (includes the reviewed validator lock, Python 3.12 boundary, ordered official/repository SPDX gates, hardened GitHub App token, Scorecard, and workflow SHA-pin contracts)
+- [x] Python 3.12/Linux lock download with `--require-hashes --only-binary=:all:` — passed for all 13 reviewed artifacts
+- [x] Real SPDX generation with checksummed Syft `v1.52.0` — passed through preparation, official SPDX 2.3 validation, and the repository release contract
+- [x] Hosted Python 3.12 CI — 118 passed with the hash-locked official validator installed and no skips; the expanded suite covers validator fail-open protection, dependency isolation, release-step removal/weakening/reordering, non-2.3 documents, and invalid creator arrays
+- [x] Round-three finding remediation — focused local suite passed with 89 tests and 7 expected platform skips; full local suite passed with 108 tests and 15 environment skips; repository validation, Python compilation, and diff hygiene passed
+- [x] Refreshed hosted Python 3.12/Linux CI — 123 passed without skips at remediation commit `4ef51c5`
+- [x] CCR generator-boundary remediation — pinned production Syft to the real-output-tested `v1.52.0`, excluded the validation-only SPDX lock from the product SBOM, and added structural regressions for both controls
+- [x] Refreshed hosted CI after CCR remediation — 125 passed without skips at commit `d7a8222`
+- [x] CCR supplier-alias remediation — supplier attribution now exempts only the exact root package object, with underscore, dot/case, and uppercase-hyphen alias regressions
+- [x] Refreshed hosted CI after supplier-alias remediation — 128 passed without skips at commit `55075f0`
+- [x] CCR immutable-release enforcement remediation — publication now verifies and records the live immutable-release setting immediately before making the draft public, with removal and disabled-setting regressions
+- [x] Refreshed hosted CI after immutable-release remediation — 130 passed without skips at commit `c9152de`
 
 ## Anti-fabrication and privacy
 
@@ -21,8 +42,4 @@ Additional preflight checks: `python3 -m py_compile skills/resume-drafter/script
 
 - [x] README or shared contracts updated when behavior changed.
 - [x] Tests added or updated for executable behavior.
-- [ ] Security-sensitive changes are called out in the description.
-
-## Review outcome
-
-The completed implementation was reviewed against the full approved plan. CCR follow-up now validates complete education fields, approved experience ordering, required margins/body font size, and the complete input example. Exact two-line visual wrapping is not independently measured across arbitrary DOCX widths and fonts; this remains a documented validation limitation rather than an observed defect.
+- [x] Security-sensitive changes are called out in the description.

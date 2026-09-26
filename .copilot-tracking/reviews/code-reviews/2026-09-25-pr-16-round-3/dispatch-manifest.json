@@ -1,0 +1,100 @@
+{
+  "reviewTarget": {
+    "kind": "pull_request",
+    "provider": "github",
+    "id": "16",
+    "headSha": "8b692df05152a4091bfcb0bce27783080015caae"
+  },
+  "reviewProfile": "standard",
+  "recommendedPerspectives": [
+    "functional",
+    "standards",
+    "security",
+    "readiness"
+  ],
+  "selectedPerspectives": [
+    "functional",
+    "standards",
+    "security",
+    "readiness"
+  ],
+  "recommendedDepth": "comprehensive",
+  "depthTier": "comprehensive",
+  "phaseGates": {
+    "orientationConfirmed": true,
+    "humanAccepted": true,
+    "walkbackComplete": true,
+    "emissionReady": true
+  },
+  "currentPhase": "complete",
+  "nextActions": [
+    {
+      "id": "human-review",
+      "kind": "approval",
+      "target": "review.md",
+      "reason": "A qualified human must validate the resolved report and explicitly approve any PR emission."
+    }
+  ],
+  "boardItems": [
+    {
+      "id": "CR3-1",
+      "area": "Release trigger and App identity",
+      "status": "complete",
+      "register": "register-2",
+      "summary": "Review App token scope, release-please event behavior, and Release PR governance.",
+      "preliminarySignal": "The Release PR must be created by a narrowly scoped App identity while preserving normal CI and branch governance.",
+      "links": [".github/workflows/release-please.yml", "release-please-config.json"],
+      "selectableSymbols": ["Create repository-scoped GitHub App token", "release-please"]
+    },
+    {
+      "id": "CR3-2",
+      "area": "Tag, draft, and immutable publication lifecycle",
+      "status": "complete",
+      "register": "register-2",
+      "summary": "Review partial state, retries, ancestry, and irreversible publication.",
+      "preliminarySignal": "Multiple jobs coordinate protected tag provenance, draft convergence, reruns, asset mutation, and the irreversible publish point.",
+      "links": [".github/workflows/publish-release.yml", "README.md"],
+      "selectableSymbols": ["resolve", "generate", "publish"]
+    },
+    {
+      "id": "CR3-3",
+      "area": "Official SPDX environment and supply-chain boundary",
+      "status": "complete",
+      "register": "register-2",
+      "summary": "Review the validator lock, action pins, Syft generation, and cross-job artifact trust.",
+      "preliminarySignal": "Release validity depends on a 13-artifact PyPI lock, SHA-pinned actions, Syft output, and a strict read-only-to-write artifact boundary.",
+      "links": ["requirements-spdx-validation.txt", ".github/workflows/ci.yml", ".syft.yaml"],
+      "selectableSymbols": ["validate_spdx_validation_lock", "Install SPDX validation dependencies"]
+    },
+    {
+      "id": "CR3-4",
+      "area": "SBOM preparation and repository contract",
+      "status": "complete",
+      "register": "register-2",
+      "summary": "Review official-versus-repository ownership and exact root/dependency topology.",
+      "preliminarySignal": "Official tooling and repository policy intentionally split ownership; gaps or duplication can produce false acceptance or brittle maintenance.",
+      "links": ["scripts/prepare_spdx_sbom.py", "scripts/validate_release_sbom_contract.py"],
+      "selectableSymbols": ["prepare_spdx_sbom", "validate_release_sbom_contract", "expected_runtime_packages"]
+    },
+    {
+      "id": "CR3-5",
+      "area": "Executable policy and mutation effectiveness",
+      "status": "complete",
+      "register": "register-2",
+      "summary": "Review whether exact structural checks and mutations prove all critical fail-closed paths.",
+      "preliminarySignal": "Exact workflow contracts can miss semantic bypasses or overconstrain safe maintenance if mutations do not fail for the intended reason.",
+      "links": ["scripts/validate_repo.py", "tests/test_structure.py", "tests/test_spdx_sbom.py"],
+      "selectableSymbols": ["validate_publish_release_workflow", "validate_spdx_validation_lock", "test_official_spdx_validator_rejects_specification_violations"]
+    },
+    {
+      "id": "CR3-6",
+      "area": "Deliverable readiness and evidence accuracy",
+      "status": "complete",
+      "register": "register-2",
+      "summary": "Review current docs, PR claims, live checks, and first-release acceptance boundaries.",
+      "preliminarySignal": "The PR includes extensive tracking and prior review artifacts alongside current docs and a green live check set.",
+      "links": ["README.md", ".copilot-tracking/pr/pr.md"],
+      "selectableSymbols": []
+    }
+  ]
+}

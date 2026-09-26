@@ -1,0 +1,28 @@
+{
+  "perspective": "standards",
+  "summary": "The implementation follows the repository's pinning, least-privilege, and executable-policy conventions. The contributor-facing validation documentation has drifted from the workflows and validator scope.",
+  "findings": [
+    {
+      "number": 1,
+      "title": "Refresh the documented validation and malware workflow contract",
+      "severity": "Medium",
+      "status": "resolved",
+      "category": "Documentation accuracy",
+      "skill": null,
+      "file": "README.md",
+      "lines": "97-109",
+      "problem": "The validation description omits the release-token, draft publication, SPDX, and Scorecard policies now enforced by validate_repo.py. It also identifies the advisory malware workflow as v1.0.1 at 7a825d..., while the checked-in workflow uses the newer v1.0.2 pin at 733acb.... Contributors following this section cannot reliably reconcile local checks with the current CI contract.",
+      "current_code": "The validation script checks skill frontmatter ... dependency-gate workflow structure ... v1.0.1 / 7a825d...",
+      "suggested_fix": "Describe the current release, SPDX, Scorecard, dependency, and action-pin validations, and update the reusable malware workflow version and full SHA to match the checked-in workflow.",
+      "resolution": "README now documents the current validation scope and the v1.0.2 reusable malware workflow SHA."
+    }
+  ],
+  "positive_changes": [
+    "Third-party actions are pinned to full commit SHAs with version comments.",
+    "Repository validation converts permission boundaries, action pins, and workflow separation into executable policy.",
+    "The exact workflow-shape assertions fail closed when security-sensitive release steps are changed."
+  ],
+  "notes": [
+    "The validator's strict step counts and mapping equality create maintenance friction, but they are an intentional fail-closed policy in this security-sensitive path rather than a correctness defect."
+  ]
+}

@@ -1,6 +1,23 @@
 # resume-builder
 
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/benarculus/resume-builder/badge)](https://scorecard.dev/viewer/?uri=github.com/benarculus/resume-builder)
+
 GitHub Copilot CLI skills for building accurate, job-tailored resumes from a verified career document. The workflow is intentionally anti-fabrication: it asks for missing evidence instead of inventing experience, numbers, titles, or accomplishments.
+
+## Release integrity
+
+Each published version includes `resume-builder.spdx.json`, an SPDX 2.3 software bill of materials generated from the tag event's immutable commit and its pinned runtime dependencies. A small write-capable resolver locates the draft release, then a separate read-only job generates and validates the SBOM from that same commit using pinned Syft `v1.52.0`. Development requirements and the validation-only SPDX tool lock are excluded from the product catalog. Official `spdx-tools==0.8.5`, installed from the binary-only hash lock in `requirements-spdx-validation.txt` on Python 3.12, owns specification conformance. The stdlib-only `scripts/validate_release_sbom_contract.py` then enforces the repository's exact product, version, supplier, dependency, and relationship requirements. The release remains a draft until the SBOM passes both gates, is uploaded, and its downloaded SHA-256 digest matches the generated file. Immediately before publication, the workflow verifies through the repository API that immutable releases are still enabled and prints the retained setting response. An active release-tag ruleset restricts creation, update, and deletion of `v*` tags to the release GitHub App. GitHub then publishes the release immutably, locking the tag and assets and generating a cryptographic release attestation.
+
+### Release recovery
+
+The publication workflow can be rerun safely while the matching release remains a draft. A run may fail before publication if the draft does not appear within the two-minute lookup window, SBOM generation or validation fails, the workflow artifact cannot be transferred, or the uploaded asset fails checksum verification. Once the release is public, reruns fail closed rather than treating the presence of a same-name asset as proof that the validated workflow completed.
+
+1. Confirm the tag commit is in `main` history and inspect the matching draft release and its `resume-builder.spdx.json` asset.
+2. Fix a repository validation or workflow defect through the normal pull-request process. Do not edit the generated SBOM or publish the draft manually.
+3. Rerun the failed `Publish release with SPDX SBOM` workflow. Its resolver reuses the existing draft; asset upload is idempotent and the downloaded asset is checksum-verified again before publication.
+4. If the tag or draft points to the wrong commit or version, stop and investigate before deleting either object. Deletion is a recovery action, not part of a normal retry.
+
+Do not publish a draft without the verified SBOM. After publication, release immutability locks the tag and assets; corrections require a new release rather than replacing the published artifact.
 
 ## Install
 
@@ -98,9 +115,17 @@ python scripts/validate_repo.py
 pytest -q
 ```
 
-The validation script checks skill frontmatter, `plugin.json`, marketplace metadata, workflow SHA pins, exact direct dependency pins, dependency-gate workflow structure, and the job-requirements producer/consumer contract. The test suite opens a generated `.docx` and checks its sections.
+Hosted CI additionally installs the official SPDX validator on Python 3.12:
 
-Pull requests also run a centralized advisory malware gate through the pinned reusable workflow `benarculus/malware-advisory-check/.github/workflows/reusable-malware-advisory-check.yml@7a825d2fdb99f459bb4595cf999a5faaa883d87f` (`v1.0.1`). This repository maps the pull-request base and head SHAs into that workflow explicitly and keeps the local validation commands above for repository structure and regression coverage.
+```bash
+python -m pip install --require-hashes --only-binary=:all: -r requirements-spdx-validation.txt
+```
+
+That lock targets the hosted Linux/Python 3.12 release environment. On the repository owner's local Python 3.9 environment, official-validator integration cases skip explicitly; the repository contract and structural mutations still run, while hosted CI is authoritative for official conformance.
+
+The validation script checks skill frontmatter, `plugin.json`, marketplace metadata, exact runtime dependency pins, the reviewed SPDX validator lock, the job-requirements producer/consumer contract, and the security-sensitive workflow contracts. Those workflow checks include full-SHA action pins, the least-privilege GitHub App release token, the ordered official-conformance and release-contract SBOM gates, OpenSSF Scorecard permissions, and dependency-gate structure. The test suite covers those policies, exercises official SPDX rejection cases, validates the repository-owned release contract, and opens a generated `.docx` to check its sections.
+
+Pull requests also run a centralized advisory malware gate through the pinned reusable workflow `benarculus/malware-advisory-check/.github/workflows/reusable-malware-advisory-check.yml@733acbdf20304f70ac0c9a763921cac4c23882ef` (`v1.0.2`). This repository maps the pull-request base and head SHAs into that workflow explicitly and keeps the local validation commands above for repository structure and regression coverage.
 
 ## License
 

@@ -1,0 +1,122 @@
+{
+  "reviewTarget": {
+    "kind": "pull_request",
+    "provider": "github",
+    "id": "16",
+    "headSha": "575e3b9ce82021d051062eba92eee2c57511e3a9"
+  },
+  "reviewProfile": "standard",
+  "recommendedPerspectives": [
+    "functional",
+    "standards",
+    "security",
+    "readiness"
+  ],
+  "selectedPerspectives": [
+    "functional",
+    "standards",
+    "security",
+    "readiness"
+  ],
+  "recommendedDepth": "comprehensive",
+  "depthTier": "comprehensive",
+  "phaseGates": {
+    "orientationConfirmed": true,
+    "humanAccepted": true,
+    "walkbackComplete": true,
+    "emissionReady": true
+  },
+  "currentPhase": "complete",
+  "nextActions": [],
+  "completedSpecialistActions": [
+    {
+      "id": "specialist-sssc",
+      "kind": "specialist-review",
+      "target": "release supply chain",
+      "status": "complete",
+      "artifact": "supply-chain-findings.json"
+    }
+  ],
+  "boardItems": [
+    {
+      "id": "CR-1",
+      "area": "GitHub App token boundary",
+      "status": "complete",
+      "register": "register-2",
+      "summary": "Review credential handling and App token scoping.",
+      "preliminarySignal": "The workflow handles a private key and requests write access to release-related repository resources.",
+      "links": [
+        ".github/workflows/release-please.yml:7",
+        "scripts/validate_repo.py:237"
+      ],
+      "selectableSymbols": [
+        "release-please job",
+        "validate_release_please_workflow"
+      ]
+    },
+    {
+      "id": "CR-2",
+      "area": "Release lifecycle and version synchronization",
+      "status": "complete",
+      "register": "register-2",
+      "summary": "Review first-release and subsequent-release state transitions.",
+      "preliminarySignal": "The simple strategy, bootstrap SHA, manifest, primary version file, and three JSON paths must remain coherent.",
+      "links": [
+        "release-please-config.json:1",
+        ".release-please-manifest.json:1",
+        "version.txt:1"
+      ],
+      "selectableSymbols": [
+        "packages[.]",
+        "extra-files"
+      ]
+    },
+    {
+      "id": "CR-3",
+      "area": "Validator and regression tests",
+      "status": "complete",
+      "register": "register-2",
+      "summary": "Review contract enforcement and negative-test quality.",
+      "preliminarySignal": "The validator compares the workflow to an exact shape and is itself the primary executable protection against security drift.",
+      "links": [
+        "scripts/validate_repo.py:237",
+        "tests/test_structure.py:26"
+      ],
+      "selectableSymbols": [
+        "validate_release_please_workflow",
+        "test_release_please_workflow_rejects_long_lived_token",
+        "test_release_please_workflow_rejects_broad_app_scope"
+      ]
+    },
+    {
+      "id": "CR-4",
+      "area": "Repository governance and merge gate",
+      "status": "complete",
+      "register": "register-2",
+      "summary": "Review the live required-check and bypass configuration.",
+      "preliminarySignal": "The claimed security outcome depends on a live ruleset not represented by a versioned repository file.",
+      "links": [
+        ".copilot-tracking/pr/pr.md:12",
+        ".copilot-tracking/changes/2026-09-22/release-pipeline-changes.md:53"
+      ],
+      "selectableSymbols": [
+        "Protect main ruleset",
+        "validate check context"
+      ]
+    },
+    {
+      "id": "CR-5",
+      "area": "Deliverable and documentation consistency",
+      "status": "complete",
+      "register": "register-2",
+      "summary": "Review current architecture claims and operational prerequisites.",
+      "preliminarySignal": "The branch retains a long historical record of superseded trigger and token designs that may contain stale current-state claims.",
+      "links": [
+        ".copilot-tracking/pr/pr.md:1",
+        ".copilot-tracking/plans/2026-09-22/release-pipeline-plan.md:263",
+        ".copilot-tracking/reviews/logs/2026-09-22/release-pipeline-review.md:1"
+      ],
+      "selectableSymbols": []
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "perspective": "security",
+  "summary": "Token scope and job-level permission boundaries are strong. The release path does not, however, machine-enforce the documented assumption that version tags originate from the release GitHub App.",
+  "findings": [
+    {
+      "number": 1,
+      "title": "Protect release-tag creation with an App-only ruleset",
+      "severity": "Medium",
+      "status": "resolved",
+      "category": "Release provenance",
+      "skill": "supply-chain-security",
+      "file": ".github/workflows/publish-release.yml",
+      "lines": "3-10",
+      "problem": "Any created v* tag can start the publication workflow, and the repository currently has only branch rulesets. The workflow verifies that the tagged commit is reachable from main and that a matching draft exists, but it cannot prove that release-please and the designated GitHub App created the tag. This does not add privileges for the current sole administrator, who can already manage releases, but it leaves the claimed App-authored release provenance unenforced if repository write access expands or another integration can create tags and drafts.",
+      "current_code": "on: create; if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')",
+      "suggested_fix": "Add an active tag ruleset for refs matching v* that restricts creation, update, and deletion, with the release GitHub App as the only normal bypass actor. Record the live ruleset identifier and verification evidence with the release architecture.",
+      "resolution": "Created active tag ruleset 24008744 for refs/tags/v* with creation, update, and deletion restrictions and release GitHub App ID 5074470 as the sole bypass actor."
+    }
+  ],
+  "positive_changes": [
+    "The ambient GITHUB_TOKEN is disabled and App credentials are confined to the token-minting workflow.",
+    "SBOM generation has contents: read while only the publication job has contents: write.",
+    "The live main ruleset has no bypass actors and requires strict CI plus fresh code-owner approval."
+  ],
+  "limitations": [
+    "The current direct collaborator list contains only the repository owner with administrator permission, so the provenance gap is defense in depth rather than a demonstrated privilege escalation.",
+    "The GitHub App installation's selected-repository scope and granted permissions are not readable with the reviewer token."
+  ]
+}
