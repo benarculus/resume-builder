@@ -90,7 +90,7 @@ The release pipeline now installs official `spdx-tools==0.8.5` from a complete P
 * Affected files: [.github/workflows/publish-release.yml](../../../.github/workflows/publish-release.yml), [scripts/validate_repo.py](../../../scripts/validate_repo.py), [tests/test_structure.py](../../../tests/test_structure.py), [README.md](../../../README.md)
 * Behavior or functionality changed: immediately before the release PATCH, the workflow reads `repos/${REPOSITORY}/immutable-releases`, requires `.enabled == true`, and prints the retained `enabled` and `enforced_by_owner` response. Structural validation enforces presence, truth condition, output, and ordering; mutations cover removal and an inverted disabled-setting check.
 * Validation: Focused structural suite passed 80 tests; repository validation and diff hygiene passed.
-* Status: Implemented locally; hosted confirmation remains pending.
+* Status: Complete; hosted Python 3.12/Linux CI passed 130 tests without skips at commit `c9152de`.
 
 ### Addressing RV-001: Protect validator failure and dependency isolation
 
@@ -130,6 +130,7 @@ The release pipeline now installs official `spdx-tools==0.8.5` from a complete P
 | CCR generator-boundary remediation | Syft pin and validation-lock exclusion | Passed locally | Repository validator; focused structural suite: 78 passed; diff hygiene |
 | Hosted CCR confirmation | Syft pin and validation-lock exclusion | Passed | GitHub Actions run `36193511730`: pytest reported 125 passed without skips |
 | Hosted supplier-alias confirmation | Exact root-object supplier exemption | Passed | GitHub Actions run `36195325498`: pytest reported 128 passed without skips |
+| Hosted immutable-release confirmation | Live setting gate before publication | Passed | GitHub Actions run `36205667234`: pytest reported 130 passed without skips |
 
 ## Pre-Review Reconciliation
 

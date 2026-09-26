@@ -30,6 +30,7 @@ Includes the full research → plan → critique → implementation → review t
 - [x] CCR supplier-alias remediation — supplier attribution now exempts only the exact root package object, with underscore, dot/case, and uppercase-hyphen alias regressions
 - [x] Refreshed hosted CI after supplier-alias remediation — 128 passed without skips at commit `55075f0`
 - [x] CCR immutable-release enforcement remediation — publication now verifies and records the live immutable-release setting immediately before making the draft public, with removal and disabled-setting regressions
+- [x] Refreshed hosted CI after immutable-release remediation — 130 passed without skips at commit `c9152de`
 
 ## Anti-fabrication and privacy
 
