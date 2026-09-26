@@ -83,6 +83,15 @@ The release pipeline now installs official `spdx-tools==0.8.5` from a complete P
 * Validation: Focused SBOM contract suite passed 16 tests with 7 expected local official-validator skips; repository validation and diff hygiene passed.
 * Status: Complete; hosted Python 3.12/Linux CI passed 128 tests without skips at commit `55075f0`.
 
+### Addressing CCR immutable-release enforcement finding
+
+* Related scope: P03-T03
+* Planned behavior: the publication job will fail before making a draft public unless the live repository setting reports immutable releases enabled.
+* Affected files: [.github/workflows/publish-release.yml](../../../.github/workflows/publish-release.yml), [scripts/validate_repo.py](../../../scripts/validate_repo.py), [tests/test_structure.py](../../../tests/test_structure.py), [README.md](../../../README.md)
+* Behavior or functionality changed: immediately before the release PATCH, the workflow reads `repos/${REPOSITORY}/immutable-releases`, requires `.enabled == true`, and prints the retained `enabled` and `enforced_by_owner` response. Structural validation enforces presence, truth condition, output, and ordering; mutations cover removal and an inverted disabled-setting check.
+* Validation: Focused structural suite passed 80 tests; repository validation and diff hygiene passed.
+* Status: Implemented locally; hosted confirmation remains pending.
+
 ### Addressing RV-001: Protect validator failure and dependency isolation
 
 * Related scope: P01-T02, P03-T02

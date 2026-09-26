@@ -611,8 +611,19 @@ def validate_publish_release_workflow() -> None:
     if "gh release upload" not in attach_script or "shasum -a 256" not in attach_script:
         raise AssertionError("release publication must upload and checksum-verify the SPDX asset")
     finalize_script = str(finalize.get("run", ""))
-    if "--method PATCH" not in finalize_script or "-F draft=false" not in finalize_script:
-        raise AssertionError("release publication must publish only after the SPDX asset is verified")
+    immutable_check = 'gh api "repos/${REPOSITORY}/immutable-releases"'
+    publication = 'gh api --method PATCH "repos/${REPOSITORY}/releases/${RELEASE_ID}"'
+    if (
+        immutable_check not in finalize_script
+        or 'test "$(jq -r \'.enabled\' <<<"$immutable_settings")" = "true"' not in finalize_script
+        or "jq '{enabled,enforced_by_owner}'" not in finalize_script
+        or publication not in finalize_script
+        or "-F draft=false" not in finalize_script
+        or finalize_script.index(immutable_check) > finalize_script.index(publication)
+    ):
+        raise AssertionError(
+            "release publication must verify immutable-release enforcement before publishing"
+        )
 
     syft = yaml.safe_load(SYFT_CONFIG.read_text(encoding="utf-8"))
     if syft.get("source") != {"name": "resume-builder"}:

@@ -162,5 +162,10 @@ jobs:
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
+          immutable_settings="$(
+            gh api "repos/${REPOSITORY}/immutable-releases"
+          )"
+          test "$(jq -r '.enabled' <<<"$immutable_settings")" = "true"
+          jq '{enabled,enforced_by_owner}' <<<"$immutable_settings"
           gh api --method PATCH "repos/${REPOSITORY}/releases/${RELEASE_ID}" -F draft=false \
             --jq '{draft,immutable,tag_name,assets:[.assets[].name]}'

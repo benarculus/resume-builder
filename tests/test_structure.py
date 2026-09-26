@@ -588,6 +588,40 @@ def test_publish_release_workflow_rejects_validation_lock_in_product_sbom(
 
 
 @pytest.mark.parametrize(
+    ("old", "new"),
+    [
+        (
+            '          immutable_settings="$(\n'
+            '            gh api "repos/${REPOSITORY}/immutable-releases"\n'
+            '          )"\n'
+            '          test "$(jq -r \'.enabled\' <<<"$immutable_settings")" = "true"\n'
+            '          jq \'{enabled,enforced_by_owner}\' <<<"$immutable_settings"\n',
+            "",
+        ),
+        (
+            'test "$(jq -r \'.enabled\' <<<"$immutable_settings")" = "true"',
+            'test "$(jq -r \'.enabled\' <<<"$immutable_settings")" = "false"',
+        ),
+    ],
+)
+def test_publish_release_workflow_requires_immutable_release_enforcement(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, old: str, new: str
+) -> None:
+    validator = load_validator()
+    weakened = tmp_path / "publish-release.yml"
+    weakened.write_text(
+        (ROOT / ".github/workflows/publish-release.yml")
+        .read_text(encoding="utf-8")
+        .replace(old, new),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "PUBLISH_RELEASE_WORKFLOW", weakened)
+
+    with pytest.raises(AssertionError, match="immutable-release enforcement"):
+        validator.validate_publish_release_workflow()
+
+
+@pytest.mark.parametrize(
     "gate_name",
     ["Validate SPDX 2.3 conformance", "Validate release SBOM contract"],
 )

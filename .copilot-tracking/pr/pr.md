@@ -6,7 +6,7 @@ Adds an automated `release-please` pipeline so `resume-builder` tracks version u
 - `version.txt` — release-please's own primary version file (separate from the JSON updaters, since `simple` always writes there), seeded at `0.1.0` to continue existing pre-1.0 numbering
 - `.release-please-manifest.json` — tracks the current released version (`0.1.0`)
 - `.github/workflows/release-please.yml` — triggers on pushes to `main`, mints a one-hour installation token from `RELEASE_PLEASE_APP_CLIENT_ID` and `RELEASE_PLEASE_APP_PRIVATE_KEY`, explicitly scopes it to this repository and only Contents/Pull requests/Issues write access, disables the workflow's default `GITHUB_TOKEN` permissions, and SHA-pins both token creation and release-please actions
-- `.github/workflows/publish-release.yml` — reacts to the App-created version tag, resolves release-please's draft in a small write-capable job, fails closed if the release is already public, generates an SPDX 2.3 SBOM with pinned and real-output-tested Syft `v1.52.0` in a separate read-only job, validates specification conformance with hash-locked official `spdx-tools==0.8.5`, applies the narrower repository release contract, transfers only the twice-validated SBOM into the publication job, checksum-verifies the uploaded asset, and publishes the immutable release
+- `.github/workflows/publish-release.yml` — reacts to the App-created version tag, resolves release-please's draft in a small write-capable job, fails closed if the release is already public, generates an SPDX 2.3 SBOM with pinned and real-output-tested Syft `v1.52.0` in a separate read-only job, validates specification conformance with hash-locked official `spdx-tools==0.8.5`, applies the narrower repository release contract, transfers only the twice-validated SBOM into the publication job, checksum-verifies the uploaded asset, verifies immutable releases remain enabled, and only then publishes
 - `requirements-spdx-validation.txt` — complete binary-only Python 3.12/Linux hash lock for the official SPDX validator environment
 - `scripts/validate_release_sbom_contract.py` — stdlib-only checks for the exact release product, version, supplier/originator, one unambiguous entry per pinned runtime dependency, and document/root topology; generic SPDX rules remain owned by official tooling
 - `.github/workflows/scorecard.yml` — runs OpenSSF Scorecard on main, branch-rule changes, and a weekly schedule; publishes OIDC-authenticated results, stores short-lived SARIF evidence, and uploads findings to code scanning using SHA-pinned actions
@@ -29,6 +29,7 @@ Includes the full research → plan → critique → implementation → review t
 - [x] Refreshed hosted CI after CCR remediation — 125 passed without skips at commit `d7a8222`
 - [x] CCR supplier-alias remediation — supplier attribution now exempts only the exact root package object, with underscore, dot/case, and uppercase-hyphen alias regressions
 - [x] Refreshed hosted CI after supplier-alias remediation — 128 passed without skips at commit `55075f0`
+- [x] CCR immutable-release enforcement remediation — publication now verifies and records the live immutable-release setting immediately before making the draft public, with removal and disabled-setting regressions
 
 ## Anti-fabrication and privacy
 
