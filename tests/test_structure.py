@@ -308,6 +308,22 @@ def test_ci_execution_contract_rejects_job_bypasses_and_writable_permissions(
             checked_replace(original, "  validate:\n", "  validate:\n    if: false\n", count=1),
         ),
         (
+            "skipped prerequisite job",
+            checked_replace(
+                original,
+                "jobs:\n  validate:\n",
+                "jobs:\n"
+                "  setup:\n"
+                "    if: false\n"
+                "    runs-on: ubuntu-latest\n"
+                "    steps:\n"
+                "      - run: echo setup\n"
+                "  validate:\n"
+                "    needs: setup\n",
+                count=1,
+            ),
+        ),
+        (
             "job continue-on-error",
             checked_replace(
                 original,
@@ -378,7 +394,7 @@ def test_ci_execution_contract_rejects_job_bypasses_and_writable_permissions(
         monkeypatch.setattr(validator, "CI_WORKFLOW", weakened)
         with pytest.raises(
             AssertionError,
-            match="conditional|continue on error|permissions|pytest|hosted tool gates|shell",
+            match="conditional|prerequisite|continue on error|permissions|pytest|hosted tool gates|shell",
         ):
             validator.validate_ci_execution_contract()
 

@@ -287,6 +287,8 @@ def validate_ci_execution_contract() -> None:
     job = jobs.get("validate")
     if not isinstance(job, dict):
         raise AssertionError("hosted CI must define the validation job")
+    if "needs" in job:
+        raise AssertionError("hosted CI validation job must not depend on prerequisite jobs")
     if "if" in job:
         raise AssertionError("hosted CI validation job must not be conditional")
     if "continue-on-error" in job and job["continue-on-error"] is not False:

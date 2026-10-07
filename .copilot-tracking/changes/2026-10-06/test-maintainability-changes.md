@@ -189,5 +189,12 @@ All 130 original cases remain represented, with 68 additions below the 74-case c
 ### CCR findings on workflow shell overrides and evidence freshness
 
 * Workflow/job `defaults.run.shell` overrides and step-level custom shells are now rejected for the required native-tool installation and pytest steps. Regression mutations use `bash {0} || true` at workflow, job, native-step, and pytest-step scope to prove these failure-masking forms are rejected.
+* The required validation job now rejects a `needs` dependency, and a workflow mutation adds a prerequisite job with `if: false` to verify that dependency cannot cause the validation gate to be skipped.
 * The implementation record now distinguishes historical milestone results from the latest suite inventory and documents that `.github/workflows/ci.yml` changed to sanitize the test invocation. The current count remains 198 because the shell-bypass mutations extend existing collected tests rather than adding test cases.
 * Validation after these fixes: `tests/test_structure.py` passed 97 cases; `scripts/validate_repo.py` passed; the full suite passed with 183 passed and 15 local integration skips (198 total); and `git diff --check` passed. Hosted CI for the updated PR head remains the final remote validation.
+
+### CCR finding on validation job dependencies
+
+* The validator rejects `needs` on the required `validate` job so that a failed or skipped prerequisite cannot implicitly skip CI.
+* Regression coverage injects a skipped `setup` prerequisite and a `needs: setup` dependency on `validate`; the contract rejects it.
+* Validation: structural tests passed (97), repository validation passed, full tests passed (183 passed, 15 skipped), and `git diff --check` passed. The hosted run for the updated PR head remains pending.
