@@ -1,0 +1,82 @@
+{
+  "summary": "No actionable findings were identified in the confirmed local-change scope.",
+  "verdict": "approve",
+  "severity_counts": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "changed_files": [
+    {
+      "file": ".github/workflows/ci.yml",
+      "lines_changed": "Sanitized full-suite pytest command",
+      "risk": "Medium",
+      "issue_count": 0
+    },
+    {
+      "file": "README.md",
+      "lines_changed": "Local and hosted integration validation guidance",
+      "risk": "Low",
+      "issue_count": 0
+    },
+    {
+      "file": "scripts/validate_repo.py",
+      "lines_changed": "Hosted CI execution contract validator",
+      "risk": "Medium",
+      "issue_count": 0
+    },
+    {
+      "file": "tests/conftest.py",
+      "lines_changed": "Shared native-tool test gates",
+      "risk": "Low",
+      "issue_count": 0
+    },
+    {
+      "file": "tests/test_build_docx.py",
+      "lines_changed": "Resume parser and DOCX behavior cases",
+      "risk": "Low",
+      "issue_count": 0
+    },
+    {
+      "file": "tests/test_ocr_extract.py",
+      "lines_changed": "OCR decision, page-boundary, and tool-gate cases",
+      "risk": "Low",
+      "issue_count": 0
+    },
+    {
+      "file": "tests/test_spdx_sbom.py",
+      "lines_changed": "Runtime package, SBOM preparer, and CLI cases",
+      "risk": "Low",
+      "issue_count": 0
+    },
+    {
+      "file": "tests/test_structure.py",
+      "lines_changed": "CI/release contract and mutation coverage",
+      "risk": "Low",
+      "issue_count": 0
+    },
+    {
+      "file": "tests/test_validate_resume_length.py",
+      "lines_changed": "Word/page boundaries, conversion errors, and renderer parity",
+      "risk": "Low",
+      "issue_count": 0
+    }
+  ],
+  "findings": [],
+  "positive_changes": [
+    "The CI command explicitly removes inherited PYTEST_ADDOPTS and sets GITHUB_ACTIONS=true before starting pytest.",
+    "The CI structural contract parses YAML and checks full-suite invocation, required native tool setup, ordering, permissions, working directory, and failure behavior.",
+    "The test suite separates deterministic behavior checks from environment-dependent OCR, LibreOffice, and official SPDX integrations.",
+    "Release drift cases reuse helpers with explicit validator and temporary-directory arguments rather than invoking pytest test functions."
+  ],
+  "testing_recommendations": [
+    "Confirm hosted CI runs the Tesseract, LibreOffice, and official SPDX integrations without skips."
+  ],
+  "recommended_actions": [
+    "No code changes are requested by this review.",
+    "Retain hosted integration results as the final evidence for native-tool and official SPDX coverage."
+  ],
+  "out_of_scope_observations": [],
+  "risk_assessment": "Moderate validation-surface risk because workflow policy and its validator are changed; the full local suite and repository contract validation pass, while hosted-only native/official integrations remain unverified locally."
+}

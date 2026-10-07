@@ -5,6 +5,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -12,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR = ROOT / "scripts/validate_repo.py"
 
 
-def load_validator():
+def load_validator() -> ModuleType:
     spec = importlib.util.spec_from_file_location("validate_repo", VALIDATOR)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
@@ -20,8 +21,331 @@ def load_validator():
     return module
 
 
+def drift_version(validator: ModuleType) -> str:
+    version = validator.VERSION_FILE.read_text(encoding="utf-8").strip()
+    major = int(version.split(".", 1)[0])
+    different = f"{major + 1}.0.0"
+    assert different != version
+    return different
+
+
+def checked_replace(text: str, old: str, new: str, *, count: int | None) -> str:
+    occurrences = text.count(old)
+    assert old and occurrences, f"fixture mutation target not found: {old!r}"
+    assert old != new, "fixture mutation must change its target"
+    if count is not None:
+        assert count > 0 and occurrences >= count, (
+            f"fixture mutation needs {count} matches, found {occurrences}: {old!r}"
+        )
+    changed = text.replace(old, new, -1 if count is None else count)
+    assert changed != text, "fixture mutation did not change the input"
+    return changed
+
+
+def mutate_release_config(config: dict, mutation: str) -> None:
+    package = config["packages"]["."]
+    if mutation == "release-type":
+        assert package["release-type"] == "simple"
+        package["release-type"] = "node"
+    elif mutation == "remove-plugin":
+        matches = [
+            updater for updater in package["extra-files"]
+            if updater["path"] == "plugin.json"
+        ]
+        assert len(matches) == 1
+        package["extra-files"].remove(matches[0])
+    elif mutation == "marketplace-path":
+        matches = [
+            updater for updater in package["extra-files"]
+            if updater["jsonpath"] == "$.plugins[0].version"
+        ]
+        assert len(matches) == 1
+        matches[0]["jsonpath"] = "$.plugins[1].version"
+    else:
+        raise AssertionError(f"unknown release-config mutation: {mutation}")
+
+
+@pytest.mark.parametrize(
+    ("text", "old", "new", "count"),
+    [("fixture", "missing", "", None), ("one", "one", "two", 2)],
+)
+def test_checked_replace_rejects_invalid_preconditions(
+    text: str, old: str, new: str, count: int | None
+) -> None:
+    with pytest.raises(AssertionError, match="fixture mutation"):
+        checked_replace(text, old, new, count=count)
+
+
 def test_repository_validation_script() -> None:
     subprocess.run([sys.executable, str(VALIDATOR)], check=True)
+
+
+def test_ci_execution_contract_accepts_required_hosted_setup(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    validator.validate_ci_execution_contract()
+    original = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    folded = checked_replace(
+        original,
+        "        run: sudo apt-get update && sudo apt-get install -y "
+        "--no-install-recommends tesseract-ocr libreoffice\n",
+        "        run: >-\n"
+        "          sudo apt-get update &&\n"
+        "          sudo apt-get install -y --no-install-recommends\n"
+        "          tesseract-ocr libreoffice\n",
+        count=1,
+    )
+    folded = checked_replace(
+        folded,
+        "        run: env -u PYTEST_ADDOPTS GITHUB_ACTIONS=true pytest -q\n",
+        "        run: >-\n"
+        "          env -u PYTEST_ADDOPTS GITHUB_ACTIONS=true\n"
+        "          pytest -q\n",
+        count=1,
+    )
+    folded_workflow = tmp_path / "ci-folded.yml"
+    folded_workflow.write_text(folded, encoding="utf-8")
+    monkeypatch.setattr(validator, "CI_WORKFLOW", folded_workflow)
+    validator.validate_ci_execution_contract()
+
+
+def test_ci_execution_contract_clears_persisted_test_options(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    original = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    poisoned = checked_replace(
+        original,
+        "      - name: Run pytest\n",
+        "      - name: Set persisted pytest options\n"
+        "        run: echo 'PYTEST_ADDOPTS=--ignore=tests/test_structure.py' "
+        ">> \"$GITHUB_ENV\"\n"
+        "      - name: Set persisted hosted marker\n"
+        "        run: echo 'GITHUB_ACTIONS=false' >> \"$GITHUB_ENV\"\n"
+        "      - name: Run pytest\n",
+        count=1,
+    )
+    poisoned_path = tmp_path / "ci-persisted-env.yml"
+    poisoned_path.write_text(poisoned, encoding="utf-8")
+    monkeypatch.setattr(validator, "CI_WORKFLOW", poisoned_path)
+    validator.validate_ci_execution_contract()
+
+    unsanitized = checked_replace(
+        poisoned,
+        "env -u PYTEST_ADDOPTS GITHUB_ACTIONS=true pytest -q",
+        "pytest -q",
+        count=1,
+    )
+    unsanitized_path = tmp_path / "ci-persisted-env-unsanitized.yml"
+    unsanitized_path.write_text(unsanitized, encoding="utf-8")
+    monkeypatch.setattr(validator, "CI_WORKFLOW", unsanitized_path)
+    with pytest.raises(AssertionError, match="complete pytest suite command"):
+        validator.validate_ci_execution_contract()
+
+
+def test_ci_execution_contract_rejects_reduced_or_failable_pytest(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    original = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    pytest_step = (
+        "      - name: Run pytest\n"
+        "        run: env -u PYTEST_ADDOPTS GITHUB_ACTIONS=true pytest -q\n"
+    )
+    mutations = (
+        ("removed", ""),
+        (
+            "partial selection",
+            "      - name: Run pytest\n"
+            "        run: env -u PYTEST_ADDOPTS GITHUB_ACTIONS=true "
+            "pytest -q tests/test_structure.py\n",
+        ),
+        (
+            "success fallback",
+            "      - name: Run pytest\n"
+            "        run: env -u PYTEST_ADDOPTS GITHUB_ACTIONS=true pytest -q || true\n",
+        ),
+        (
+            "conditional",
+            "      - name: Run pytest\n"
+            "        if: always()\n"
+            "        run: env -u PYTEST_ADDOPTS GITHUB_ACTIONS=true pytest -q\n",
+        ),
+        (
+            "continue-on-error",
+            "      - name: Run pytest\n"
+            "        continue-on-error: true\n"
+            "        run: env -u PYTEST_ADDOPTS GITHUB_ACTIONS=true pytest -q\n",
+        ),
+        (
+            "conditional and continue-on-error",
+            "      - name: Run pytest\n"
+            "        if: always()\n"
+            "        continue-on-error: true\n"
+            "        run: env -u PYTEST_ADDOPTS GITHUB_ACTIONS=true pytest -q\n",
+        ),
+        (
+            "environment selection",
+            "      - name: Run pytest\n"
+            "        env:\n          PYTEST_ADDOPTS: '-k nothing'\n"
+            "        run: env -u PYTEST_ADDOPTS GITHUB_ACTIONS=true pytest -q\n",
+        ),
+        (
+            "hosted gating override",
+            "      - name: Run pytest\n"
+            "        env:\n          GITHUB_ACTIONS: 'false'\n"
+            "        run: env -u PYTEST_ADDOPTS GITHUB_ACTIONS=true pytest -q\n",
+        ),
+        (
+            "alternate directory",
+            "      - name: Run pytest\n"
+            "        working-directory: tests\n"
+            "        run: env -u PYTEST_ADDOPTS GITHUB_ACTIONS=true pytest -q\n",
+        ),
+        (
+            "literal newlines",
+            "      - name: Run pytest\n"
+            "        run: |-\n"
+            "          env -u PYTEST_ADDOPTS GITHUB_ACTIONS=true\n"
+            "          pytest -q\n",
+        ),
+    )
+    for name, replacement in mutations:
+        weakened = tmp_path / f"ci-pytest-{name.replace(' ', '-')}.yml"
+        weakened.write_text(
+            checked_replace(original, pytest_step, replacement, count=1),
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(validator, "CI_WORKFLOW", weakened)
+        with pytest.raises(AssertionError, match="pytest|complete pytest"):
+            validator.validate_ci_execution_contract()
+
+
+def test_ci_execution_contract_rejects_missing_or_late_native_provisioning(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    original = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    native_step = (
+        "      - name: Install system OCR and document-conversion dependencies\n"
+        "        run: sudo apt-get update && sudo apt-get install -y "
+        "--no-install-recommends tesseract-ocr libreoffice\n"
+    )
+    pytest_step = (
+        "      - name: Run pytest\n"
+        "        run: env -u PYTEST_ADDOPTS GITHUB_ACTIONS=true pytest -q\n"
+    )
+
+    mutations = [
+        checked_replace(original, native_step, "", count=1),
+        checked_replace(
+            original,
+            native_step,
+            checked_replace(native_step, "libreoffice", "libreoffice || true", count=1),
+            count=1,
+        ),
+        checked_replace(
+            original,
+            native_step,
+            checked_replace(
+                native_step,
+                "        run:",
+                "        if: runner.os == 'Linux'\n        run:",
+                count=1,
+            ),
+            count=1,
+        ),
+        checked_replace(
+            original,
+            native_step,
+            checked_replace(
+                native_step,
+                "        run:",
+                "        continue-on-error: true\n        run:",
+                count=1,
+            ),
+            count=1,
+        ),
+    ]
+    reordered = checked_replace(original, native_step, "      - NATIVE_STEP\n", count=1)
+    reordered = checked_replace(reordered, pytest_step, native_step, count=1)
+    mutations.append(checked_replace(reordered, "      - NATIVE_STEP\n", pytest_step, count=1))
+
+    for index, contents in enumerate(mutations):
+        weakened = tmp_path / f"ci-native-{index}.yml"
+        weakened.write_text(contents, encoding="utf-8")
+        monkeypatch.setattr(validator, "CI_WORKFLOW", weakened)
+        with pytest.raises(AssertionError, match="native|provision"):
+            validator.validate_ci_execution_contract()
+
+
+def test_ci_execution_contract_rejects_job_bypasses_and_writable_permissions(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    original = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    mutations = (
+        (
+            "job condition",
+            checked_replace(original, "  validate:\n", "  validate:\n    if: false\n", count=1),
+        ),
+        (
+            "job continue-on-error",
+            checked_replace(
+                original,
+                "  validate:\n    runs-on:",
+                "  validate:\n    continue-on-error: true\n    runs-on:",
+                count=1,
+            ),
+        ),
+        (
+            "job permissions",
+            checked_replace(
+                original,
+                "  validate:\n    runs-on:",
+                "  validate:\n    permissions:\n      contents: write\n    runs-on:",
+                count=1,
+            ),
+        ),
+        (
+            "workflow permissions",
+            checked_replace(original, "  contents: read\n", "  contents: write\n", count=1),
+        ),
+        (
+            "job pytest options",
+            checked_replace(
+                original, "  validate:\n",
+                "  validate:\n    env:\n      PYTEST_ADDOPTS: '-k nothing'\n",
+                count=1,
+            ),
+        ),
+        (
+            "workflow hosted gating override",
+            checked_replace(
+                original, "jobs:\n",
+                "env:\n  GITHUB_ACTIONS: 'false'\n\njobs:\n",
+                count=1,
+            ),
+        ),
+        (
+            "job working directory",
+            checked_replace(
+                original, "  validate:\n",
+                "  validate:\n    defaults:\n      run:\n        working-directory: tests\n",
+                count=1,
+            ),
+        ),
+    )
+    for name, contents in mutations:
+        weakened = tmp_path / f"ci-bypass-{name.replace(' ', '-')}.yml"
+        weakened.write_text(contents, encoding="utf-8")
+        monkeypatch.setattr(validator, "CI_WORKFLOW", weakened)
+        with pytest.raises(
+            AssertionError,
+            match="conditional|continue on error|permissions|pytest|hosted tool gates",
+        ):
+            validator.validate_ci_execution_contract()
 
 
 def test_release_please_workflow_uses_hardened_app_token() -> None:
@@ -35,11 +359,11 @@ def test_release_please_workflow_rejects_long_lived_token(
     validator = load_validator()
     weakened = tmp_path / "release-please.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/release-please.yml")
-        .read_text(encoding="utf-8")
-        .replace(
+        checked_replace(
+            (ROOT / ".github/workflows/release-please.yml").read_text(encoding="utf-8"),
             "token: ${{ steps.app-token.outputs.token }}",
             "token: ${{ secrets.RELEASE_PLEASE_TOKEN }}",
+            count=None,
         ),
         encoding="utf-8",
     )
@@ -55,9 +379,12 @@ def test_release_please_workflow_rejects_broad_app_scope(
     validator = load_validator()
     weakened = tmp_path / "release-please.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/release-please.yml")
-        .read_text(encoding="utf-8")
-        .replace("          repositories: ${{ github.event.repository.name }}\n", ""),
+        checked_replace(
+            (ROOT / ".github/workflows/release-please.yml").read_text(encoding="utf-8"),
+            "          repositories: ${{ github.event.repository.name }}\n",
+            "",
+            count=None,
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "RELEASE_PLEASE_WORKFLOW", weakened)
@@ -76,12 +403,10 @@ def test_release_please_config_rejects_immediate_publication(
 ) -> None:
     validator = load_validator()
     weakened = tmp_path / "release-please-config.json"
-    weakened.write_text(
-        (ROOT / "release-please-config.json")
-        .read_text(encoding="utf-8")
-        .replace('"draft": true', '"draft": false'),
-        encoding="utf-8",
-    )
+    config = json.loads(validator.RELEASE_PLEASE_CONFIG.read_text(encoding="utf-8"))
+    assert config["draft"] is True
+    config["draft"] = False
+    weakened.write_text(json.dumps(config), encoding="utf-8")
     monkeypatch.setattr(validator, "RELEASE_PLEASE_CONFIG", weakened)
 
     with pytest.raises(AssertionError, match="draft releases"):
@@ -89,41 +414,97 @@ def test_release_please_config_rejects_immediate_publication(
 
 
 @pytest.mark.parametrize(
-    ("old", "new", "message"),
+    ("mutation", "message"),
     [
-        ('"release-type": "simple"', '"release-type": "node"', "simple release type"),
-        ('{ "type": "json", "path": "plugin.json", "jsonpath": "$.version" },\n', "", "updater"),
-        ('"jsonpath": "$.plugins[0].version"', '"jsonpath": "$.plugins[1].version"', "updater"),
+        ("release-type", "simple release type"),
+        ("remove-plugin", "updater"),
+        ("marketplace-path", "updater"),
     ],
 )
 def test_release_please_config_rejects_version_contract_drift(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    old: str,
-    new: str,
+    mutation: str,
     message: str,
 ) -> None:
     validator = load_validator()
     weakened = tmp_path / "release-please-config.json"
-    weakened.write_text(
-        (ROOT / "release-please-config.json").read_text(encoding="utf-8").replace(old, new),
-        encoding="utf-8",
-    )
+    config = json.loads(validator.RELEASE_PLEASE_CONFIG.read_text(encoding="utf-8"))
+    original = json.dumps(config, sort_keys=True)
+    mutate_release_config(config, mutation)
+    assert json.dumps(config, sort_keys=True) != original
+    weakened.write_text(json.dumps(config), encoding="utf-8")
     monkeypatch.setattr(validator, "RELEASE_PLEASE_CONFIG", weakened)
 
     with pytest.raises(AssertionError, match=message):
         validator.validate_release_please_config()
 
 
-def test_release_please_config_rejects_version_seed_drift(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+@pytest.mark.parametrize("indent", [None, 2], ids=["compact", "expanded"])
+def test_release_config_mutations_are_format_independent(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, indent: int | None
 ) -> None:
     validator = load_validator()
+    config = json.loads(validator.RELEASE_PLEASE_CONFIG.read_text(encoding="utf-8"))
+    formatted = json.dumps(config, indent=indent)
+    path = tmp_path / "formatted-config.json"
+    monkeypatch.setattr(validator, "RELEASE_PLEASE_CONFIG", path)
+    path.write_text(formatted, encoding="utf-8")
+    validator.validate_release_please_config()
+    for mutation, message in (
+        ("release-type", "simple release type"),
+        ("remove-plugin", "updater"),
+        ("marketplace-path", "updater"),
+    ):
+        document = json.loads(formatted)
+        mutate_release_config(document, mutation)
+        assert document != config
+        path.write_text(json.dumps(document, indent=indent), encoding="utf-8")
+        with pytest.raises(AssertionError, match=message):
+            validator.validate_release_please_config()
+
+
+def assert_version_seed_drift_rejected(
+    validator: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
     drifted_version = tmp_path / "version.txt"
-    drifted_version.write_text("0.2.0\n", encoding="utf-8")
+    drifted_version.write_text(f"{drift_version(validator)}\n", encoding="utf-8")
     monkeypatch.setattr(validator, "VERSION_FILE", drifted_version)
 
     with pytest.raises(AssertionError, match="manifest and version.txt"):
+        validator.validate_release_please_config()
+
+
+def test_release_please_config_rejects_version_seed_drift(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    assert_version_seed_drift_rejected(load_validator(), monkeypatch, tmp_path)
+
+
+def assert_consumer_version_drift_rejected(
+    validator: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    target: str,
+    path: str,
+    field: str,
+) -> None:
+    source = getattr(validator, target)
+    drifted = tmp_path / path
+    document = json.loads(source.read_text(encoding="utf-8"))
+    different = drift_version(validator)
+    if field == "plugin":
+        document["version"] = different
+    elif field == "metadata":
+        document["metadata"]["version"] = different
+    else:
+        document["plugins"][0]["version"] = different
+    drifted.write_text(json.dumps(document), encoding="utf-8")
+    monkeypatch.setattr(validator, target, drifted)
+
+    with pytest.raises(AssertionError, match="consumer versions"):
         validator.validate_release_please_config()
 
 
@@ -142,21 +523,48 @@ def test_release_please_config_rejects_consumer_version_drift(
     path: str,
     field: str,
 ) -> None:
-    validator = load_validator()
-    source = getattr(validator, target)
-    drifted = tmp_path / path
-    document = json.loads(source.read_text(encoding="utf-8"))
-    if field == "plugin":
-        document["version"] = "0.2.0"
-    elif field == "metadata":
-        document["metadata"]["version"] = "0.2.0"
-    else:
-        document["plugins"][0]["version"] = "0.2.0"
-    drifted.write_text(json.dumps(document), encoding="utf-8")
-    monkeypatch.setattr(validator, target, drifted)
+    assert_consumer_version_drift_rejected(
+        load_validator(), monkeypatch, tmp_path, target, path, field
+    )
 
-    with pytest.raises(AssertionError, match="consumer versions"):
-        validator.validate_release_please_config()
+
+@pytest.mark.parametrize("version", ["0.1.0", "0.2.0", "0.3.0", "1.0.0"])
+@pytest.mark.parametrize("drifted", [False, True], ids=["synchronized", "drifted"])
+def test_release_please_versions_are_release_independent(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, version: str, drifted: bool
+) -> None:
+    validator = load_validator()
+    files = {
+        "VERSION_FILE": version,
+        "RELEASE_PLEASE_MANIFEST": {".": version},
+        "PLUGIN": {"version": version},
+        "MANIFEST": {"metadata": {"version": version}, "plugins": [{"version": version}]},
+    }
+    for target, content in files.items():
+        path = tmp_path / target
+        path.write_text(
+            content if isinstance(content, str) else json.dumps(content),
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(validator, target, path)
+
+    validator.validate_release_please_config()
+    if not drifted:
+        return
+
+    cases = tmp_path / "drift-cases"
+    cases.mkdir()
+    with pytest.MonkeyPatch.context() as patch:
+        assert_version_seed_drift_rejected(validator, patch, cases)
+    for target, filename, field in (
+        ("PLUGIN", "plugin.json", "plugin"),
+        ("MANIFEST", "metadata.json", "metadata"),
+        ("MANIFEST", "marketplace.json", "marketplace-plugin"),
+    ):
+        with pytest.MonkeyPatch.context() as patch:
+            assert_consumer_version_drift_rejected(
+                validator, patch, cases, target, filename, field
+            )
 
 
 def test_publish_release_workflow_uses_validated_spdx_boundary() -> None:
@@ -170,9 +578,12 @@ def test_publish_release_workflow_rejects_write_access_during_generation(
     validator = load_validator()
     weakened = tmp_path / "publish-release.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/publish-release.yml")
-        .read_text(encoding="utf-8")
-        .replace("      contents: read", "      contents: write"),
+        checked_replace(
+            (ROOT / ".github/workflows/publish-release.yml").read_text(encoding="utf-8"),
+            "      contents: read",
+            "      contents: write",
+            count=None,
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "PUBLISH_RELEASE_WORKFLOW", weakened)
@@ -187,9 +598,12 @@ def test_publish_release_workflow_rejects_read_only_draft_resolution(
     validator = load_validator()
     weakened = tmp_path / "publish-release.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/publish-release.yml")
-        .read_text(encoding="utf-8")
-        .replace("      contents: write", "      contents: read", 1),
+        checked_replace(
+            (ROOT / ".github/workflows/publish-release.yml").read_text(encoding="utf-8"),
+            "      contents: write",
+            "      contents: read",
+            count=1,
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "PUBLISH_RELEASE_WORKFLOW", weakened)
@@ -204,12 +618,16 @@ def test_publish_release_workflow_requires_complete_main_history(
     validator = load_validator()
     weakened = tmp_path / "publish-release.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/publish-release.yml")
-        .read_text(encoding="utf-8")
-        .replace("          fetch-depth: 0\n", "")
-        .replace(
+        checked_replace(
+            checked_replace(
+                (ROOT / ".github/workflows/publish-release.yml").read_text(encoding="utf-8"),
+                "          fetch-depth: 0\n",
+                "",
+                count=None,
+            ),
             'git fetch --no-tags origin \\\n            "+refs/heads/main:refs/remotes/origin/main"',
             "git fetch --no-tags origin main",
+            count=None,
         ),
         encoding="utf-8",
     )
@@ -225,9 +643,12 @@ def test_publish_release_workflow_rejects_ambiguous_tag_checkout(
     validator = load_validator()
     weakened = tmp_path / "publish-release.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/publish-release.yml")
-        .read_text(encoding="utf-8")
-        .replace("          ref: ${{ github.sha }}", "          ref: ${{ github.ref_name }}"),
+        checked_replace(
+            (ROOT / ".github/workflows/publish-release.yml").read_text(encoding="utf-8"),
+            "          ref: ${{ github.sha }}",
+            "          ref: ${{ github.ref_name }}",
+            count=None,
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "PUBLISH_RELEASE_WORKFLOW", weakened)
@@ -263,9 +684,16 @@ def test_publish_release_workflow_rejects_published_asset_name_bypass(
     )
     weakened = tmp_path / "publish-release.yml"
     weakened.write_text(
-        original.replace(fail_closed, filename_bypass).replace(
+        checked_replace(
+            checked_replace(
+                original,
+                fail_closed,
+                filename_bypass,
+                count=None,
+            ),
             'if [ "$state" = "draft" ]; then',
             'if [ "$state" = "draft" ] || [ "$state" = "published" ]; then',
+            count=None,
         ),
         encoding="utf-8",
     )
@@ -302,9 +730,12 @@ def test_scorecard_workflow_rejects_credential_persistence(
     validator = load_validator()
     weakened = tmp_path / "scorecard.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/scorecard.yml")
-        .read_text(encoding="utf-8")
-        .replace("persist-credentials: false", "persist-credentials: true"),
+        checked_replace(
+            (ROOT / ".github/workflows/scorecard.yml").read_text(encoding="utf-8"),
+            "persist-credentials: false",
+            "persist-credentials: true",
+            count=None,
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "SCORECARD_WORKFLOW", weakened)
@@ -359,9 +790,12 @@ def test_spdx_validation_lock_rejects_dependency_or_hash_drift(
     validator = load_validator()
     weakened = tmp_path / "requirements-spdx-validation.txt"
     weakened.write_text(
-        (ROOT / "requirements-spdx-validation.txt")
-        .read_text(encoding="utf-8")
-        .replace(old, new),
+        checked_replace(
+            (ROOT / "requirements-spdx-validation.txt").read_text(encoding="utf-8"),
+            old,
+            new,
+            count=None,
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "SPDX_VALIDATION_REQUIREMENTS", weakened)
@@ -376,9 +810,12 @@ def test_ci_requires_hash_locked_spdx_validator_install(
     validator = load_validator()
     weakened = tmp_path / "ci.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/ci.yml")
-        .read_text(encoding="utf-8")
-        .replace("--require-hashes ", ""),
+        checked_replace(
+            (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"),
+            "--require-hashes ",
+            "",
+            count=None,
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "CI_WORKFLOW", weakened)
@@ -422,9 +859,12 @@ def test_ci_rejects_spdx_runtime_or_install_weakening(
     validator = load_validator()
     weakened = tmp_path / "ci.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/ci.yml")
-        .read_text(encoding="utf-8")
-        .replace(old, new),
+        checked_replace(
+            (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"),
+            old,
+            new,
+            count=None,
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "CI_WORKFLOW", weakened)
@@ -454,7 +894,12 @@ def test_publish_release_workflow_requires_official_gate_before_contract(
     )
     weakened = tmp_path / "publish-release.yml"
     weakened.write_text(
-        original.replace(f"{official}{contract}", f"{contract}{official}"),
+        checked_replace(
+            original,
+            f"{official}{contract}",
+            f"{contract}{official}",
+            count=None,
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "PUBLISH_RELEASE_WORKFLOW", weakened)
@@ -507,9 +952,11 @@ def test_publish_release_workflow_rejects_validator_continue_on_error(
     )
     weakened = tmp_path / "publish-release.yml"
     weakened.write_text(
-        original.replace(
+        checked_replace(
+            original,
             f"      - name: {step_name}\n",
             f"      - name: {step_name}\n        continue-on-error: true\n",
+            count=None,
         ),
         encoding="utf-8",
     )
@@ -559,9 +1006,12 @@ def test_publish_release_workflow_rejects_validation_boundary_weakening(
     validator = load_validator()
     weakened = tmp_path / "publish-release.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/publish-release.yml")
-        .read_text(encoding="utf-8")
-        .replace(old, new),
+        checked_replace(
+            (ROOT / ".github/workflows/publish-release.yml").read_text(encoding="utf-8"),
+            old,
+            new,
+            count=None,
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "PUBLISH_RELEASE_WORKFLOW", weakened)
@@ -576,9 +1026,12 @@ def test_publish_release_workflow_rejects_validation_lock_in_product_sbom(
     validator = load_validator()
     weakened = tmp_path / ".syft.yaml"
     weakened.write_text(
-        (ROOT / ".syft.yaml")
-        .read_text(encoding="utf-8")
-        .replace("  - ./requirements-spdx-validation.txt\n", ""),
+        checked_replace(
+            (ROOT / ".syft.yaml").read_text(encoding="utf-8"),
+            "  - ./requirements-spdx-validation.txt\n",
+            "",
+            count=None,
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "SYFT_CONFIG", weakened)
@@ -610,9 +1063,12 @@ def test_publish_release_workflow_requires_immutable_release_enforcement(
     validator = load_validator()
     weakened = tmp_path / "publish-release.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/publish-release.yml")
-        .read_text(encoding="utf-8")
-        .replace(old, new),
+        checked_replace(
+            (ROOT / ".github/workflows/publish-release.yml").read_text(encoding="utf-8"),
+            old,
+            new,
+            count=None,
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "PUBLISH_RELEASE_WORKFLOW", weakened)
@@ -671,9 +1127,12 @@ def test_dependabot_policy_rejects_weakened_cooldown(
     validator = load_validator()
     weakened = tmp_path / "dependabot.yml"
     weakened.write_text(
-        (ROOT / ".github/dependabot.yml")
-        .read_text(encoding="utf-8")
-        .replace("default-days: 14", "default-days: 1"),
+        checked_replace(
+            (ROOT / ".github/dependabot.yml").read_text(encoding="utf-8"),
+            "default-days: 14",
+            "default-days: 1",
+            count=None,
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "DEPENDABOT", weakened)
@@ -688,11 +1147,11 @@ def test_dependabot_policy_requires_weekly_actions_updates(
     validator = load_validator()
     weakened = tmp_path / "dependabot.yml"
     weakened.write_text(
-        (ROOT / ".github/dependabot.yml")
-        .read_text(encoding="utf-8")
-        .replace(
+        checked_replace(
+            (ROOT / ".github/dependabot.yml").read_text(encoding="utf-8"),
             "  - package-ecosystem: github-actions\n    directory: /\n    schedule:\n      interval: weekly",
             "  - package-ecosystem: github-actions\n    directory: /\n    schedule:\n      interval: monthly",
+            count=None,
         ),
         encoding="utf-8",
     )
@@ -708,9 +1167,12 @@ def test_dependabot_policy_requires_schema_version_two(
     validator = load_validator()
     weakened = tmp_path / "dependabot.yml"
     weakened.write_text(
-        (ROOT / ".github/dependabot.yml")
-        .read_text(encoding="utf-8")
-        .replace("version: 2", "version: 1"),
+        checked_replace(
+            (ROOT / ".github/dependabot.yml").read_text(encoding="utf-8"),
+            "version: 2",
+            "version: 1",
+            count=None,
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "DEPENDABOT", weakened)
@@ -743,12 +1205,11 @@ def test_dependabot_policy_rejects_unapproved_group(
     validator = load_validator()
     weakened = tmp_path / "dependabot.yml"
     weakened.write_text(
-        (ROOT / ".github/dependabot.yml")
-        .read_text(encoding="utf-8")
-        .replace(
+        checked_replace(
+            (ROOT / ".github/dependabot.yml").read_text(encoding="utf-8"),
             "    groups:\n",
             "    groups:\n      pip-exception:\n        applies-to: version-updates\n        patterns: [python-docx]\n",
-            1,
+            count=1,
         ),
         encoding="utf-8",
     )
@@ -764,15 +1225,15 @@ def test_dependabot_policy_rejects_extra_dependency_group(
     validator = load_validator()
     weakened = tmp_path / "dependabot.yml"
     weakened.write_text(
-        (ROOT / ".github/dependabot.yml")
-        .read_text(encoding="utf-8")
-        .replace(
+        checked_replace(
+            (ROOT / ".github/dependabot.yml").read_text(encoding="utf-8"),
             "    groups:\n      pip-version-updates:",
             "    groups:\n      pip-single-package:\n"
             "        applies-to: version-updates\n"
             "        patterns:\n"
             "          - some-package\n"
             "      pip-version-updates:",
+            count=None,
         ),
         encoding="utf-8",
     )
@@ -793,9 +1254,12 @@ def test_dependency_workflows_reject_weakened_severity(
     validator = load_validator()
     weakened = tmp_path / "dependency-review.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/dependency-review.yml")
-        .read_text(encoding="utf-8")
-        .replace("fail-on-severity: low", "fail-on-severity: high"),
+        checked_replace(
+            (ROOT / ".github/workflows/dependency-review.yml").read_text(encoding="utf-8"),
+            "fail-on-severity: low",
+            "fail-on-severity: high",
+            count=None,
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "DEPENDENCY_REVIEW_WORKFLOW", weakened)
@@ -823,11 +1287,11 @@ def test_dependency_workflows_reject_job_permission_override(
     validator = load_validator()
     weakened = tmp_path / "dependency-review.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/dependency-review.yml")
-        .read_text(encoding="utf-8")
-        .replace(
+        checked_replace(
+            (ROOT / ".github/workflows/dependency-review.yml").read_text(encoding="utf-8"),
             "  dependency-review:\n",
             "  dependency-review:\n    permissions: write-all\n",
+            count=None,
         ),
         encoding="utf-8",
     )
@@ -843,9 +1307,12 @@ def test_malware_workflow_rejects_broadened_permissions(
     validator = load_validator()
     weakened = tmp_path / "advisory-malware.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/advisory-malware.yml")
-        .read_text(encoding="utf-8")
-        .replace("  contents: read", "  contents: write"),
+        checked_replace(
+            (ROOT / ".github/workflows/advisory-malware.yml").read_text(encoding="utf-8"),
+            "  contents: read",
+            "  contents: write",
+            count=None,
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
@@ -860,9 +1327,12 @@ def test_dependency_workflows_reject_pull_request_target(
     validator = load_validator()
     weakened = tmp_path / "dependency-review.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/dependency-review.yml")
-        .read_text(encoding="utf-8")
-        .replace("  pull_request:\n", "  pull_request:\n  pull_request_target:\n"),
+        checked_replace(
+            (ROOT / ".github/workflows/dependency-review.yml").read_text(encoding="utf-8"),
+            "  pull_request:\n",
+            "  pull_request:\n  pull_request_target:\n",
+            count=None,
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "DEPENDENCY_REVIEW_WORKFLOW", weakened)
@@ -877,11 +1347,11 @@ def test_dependency_workflows_reject_continue_on_error(
     validator = load_validator()
     weakened = tmp_path / "dependency-review.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/dependency-review.yml")
-        .read_text(encoding="utf-8")
-        .replace(
+        checked_replace(
+            (ROOT / ".github/workflows/dependency-review.yml").read_text(encoding="utf-8"),
             "  dependency-review:\n",
             "  dependency-review:\n    continue-on-error: true\n",
+            count=None,
         ),
         encoding="utf-8",
     )
@@ -898,9 +1368,12 @@ def test_malware_workflow_rejects_mutable_reusable_ref(
     weakened = tmp_path / "advisory-malware.yml"
     approved = validator.MALWARE_REUSABLE_USES
     weakened.write_text(
-        (ROOT / ".github/workflows/advisory-malware.yml")
-        .read_text(encoding="utf-8")
-        .replace(approved, f"{validator.MALWARE_REUSABLE_WORKFLOW}@main"),
+        checked_replace(
+            (ROOT / ".github/workflows/advisory-malware.yml").read_text(encoding="utf-8"),
+            approved,
+            f"{validator.MALWARE_REUSABLE_WORKFLOW}@main",
+            count=None,
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
@@ -916,9 +1389,12 @@ def test_malware_workflow_rejects_short_reusable_ref(
     weakened = tmp_path / "advisory-malware.yml"
     approved = validator.MALWARE_REUSABLE_USES
     weakened.write_text(
-        (ROOT / ".github/workflows/advisory-malware.yml")
-        .read_text(encoding="utf-8")
-        .replace(approved, f"{validator.MALWARE_REUSABLE_WORKFLOW}@{validator.MALWARE_REUSABLE_SHA[:12]}"),
+        checked_replace(
+            (ROOT / ".github/workflows/advisory-malware.yml").read_text(encoding="utf-8"),
+            approved,
+            f"{validator.MALWARE_REUSABLE_WORKFLOW}@{validator.MALWARE_REUSABLE_SHA[:12]}",
+            count=None,
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
@@ -933,9 +1409,12 @@ def test_malware_workflow_rejects_missing_release_comment(
     validator = load_validator()
     weakened = tmp_path / "advisory-malware.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/advisory-malware.yml")
-        .read_text(encoding="utf-8")
-        .replace(" # v1.0.2", ""),
+        checked_replace(
+            (ROOT / ".github/workflows/advisory-malware.yml").read_text(encoding="utf-8"),
+            " # v1.0.2",
+            "",
+            count=None,
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
@@ -950,9 +1429,12 @@ def test_malware_workflow_rejects_wrong_reusable_owner(
     validator = load_validator()
     weakened = tmp_path / "advisory-malware.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/advisory-malware.yml")
-        .read_text(encoding="utf-8")
-        .replace("benarculus/malware-advisory-check", "someone/malware-advisory-check"),
+        checked_replace(
+            (ROOT / ".github/workflows/advisory-malware.yml").read_text(encoding="utf-8"),
+            "benarculus/malware-advisory-check",
+            "someone/malware-advisory-check",
+            count=None,
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
@@ -967,11 +1449,11 @@ def test_malware_workflow_rejects_secret_inheritance(
     validator = load_validator()
     weakened = tmp_path / "advisory-malware.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/advisory-malware.yml")
-        .read_text(encoding="utf-8")
-        .replace(
+        checked_replace(
+            (ROOT / ".github/workflows/advisory-malware.yml").read_text(encoding="utf-8"),
             "    secrets:\n      github-token: ${{ secrets.GITHUB_TOKEN }}",
             "    secrets: inherit",
+            count=None,
         ),
         encoding="utf-8",
     )
@@ -987,9 +1469,12 @@ def test_malware_workflow_rejects_token_leakage_outside_named_mapping(
     validator = load_validator()
     weakened = tmp_path / "advisory-malware.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/advisory-malware.yml")
-        .read_text(encoding="utf-8")
-        .replace("name: Advisory Malware Check", "name: ${{ github.token }}"),
+        checked_replace(
+            (ROOT / ".github/workflows/advisory-malware.yml").read_text(encoding="utf-8"),
+            "name: Advisory Malware Check",
+            "name: ${{ github.token }}",
+            count=None,
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
@@ -1004,9 +1489,12 @@ def test_malware_workflow_rejects_wrong_token_secret_name(
     validator = load_validator()
     weakened = tmp_path / "advisory-malware.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/advisory-malware.yml")
-        .read_text(encoding="utf-8")
-        .replace("github-token: ${{ secrets.GITHUB_TOKEN }}", "token: ${{ secrets.GITHUB_TOKEN }}"),
+        checked_replace(
+            (ROOT / ".github/workflows/advisory-malware.yml").read_text(encoding="utf-8"),
+            "github-token: ${{ secrets.GITHUB_TOKEN }}",
+            "token: ${{ secrets.GITHUB_TOKEN }}",
+            count=None,
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "MALWARE_WORKFLOW", weakened)
@@ -1021,11 +1509,11 @@ def test_malware_workflow_rejects_wrong_base_head_mapping(
     validator = load_validator()
     weakened = tmp_path / "advisory-malware.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/advisory-malware.yml")
-        .read_text(encoding="utf-8")
-        .replace(
+        checked_replace(
+            (ROOT / ".github/workflows/advisory-malware.yml").read_text(encoding="utf-8"),
             "base-ref: ${{ github.event.pull_request.base.sha }}",
             "base-ref: ${{ github.base_ref }}",
+            count=None,
         ),
         encoding="utf-8",
     )
@@ -1041,9 +1529,12 @@ def test_dependency_workflows_reject_filtered_pull_request(
     validator = load_validator()
     weakened = tmp_path / "dependency-review.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/dependency-review.yml")
-        .read_text(encoding="utf-8")
-        .replace("  pull_request:\n", "  pull_request:\n    types: [closed]\n"),
+        checked_replace(
+            (ROOT / ".github/workflows/dependency-review.yml").read_text(encoding="utf-8"),
+            "  pull_request:\n",
+            "  pull_request:\n    types: [closed]\n",
+            count=None,
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "DEPENDENCY_REVIEW_WORKFLOW", weakened)
@@ -1058,12 +1549,12 @@ def test_malware_workflow_rejects_local_checker_execution(
     validator = load_validator()
     weakened = tmp_path / "advisory-malware.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/advisory-malware.yml")
-        .read_text(encoding="utf-8")
-        .replace(
+        checked_replace(
+            (ROOT / ".github/workflows/advisory-malware.yml").read_text(encoding="utf-8"),
             "    with:\n",
             "    runs-on: ubuntu-latest\n    steps:\n"
             "      - run: python scripts/check_malware_advisories.py\n    with:\n",
+            count=None,
         ),
         encoding="utf-8",
     )
@@ -1079,11 +1570,11 @@ def test_malware_workflow_rejects_credential_persistence(
     validator = load_validator()
     weakened = tmp_path / "advisory-malware.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/advisory-malware.yml")
-        .read_text(encoding="utf-8")
-        .replace(
+        checked_replace(
+            (ROOT / ".github/workflows/advisory-malware.yml").read_text(encoding="utf-8"),
             "    name: Advisory Malware Check\n",
             "    name: Advisory Malware Check\n    persist-credentials: true\n",
+            count=None,
         ),
         encoding="utf-8",
     )
@@ -1099,11 +1590,11 @@ def test_malware_workflow_rejects_conditional_job(
     validator = load_validator()
     weakened = tmp_path / "advisory-malware.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/advisory-malware.yml")
-        .read_text(encoding="utf-8")
-        .replace(
+        checked_replace(
+            (ROOT / ".github/workflows/advisory-malware.yml").read_text(encoding="utf-8"),
             "    name: Advisory Malware Check\n",
             "    name: Advisory Malware Check\n    if: ${{ false }}\n",
+            count=None,
         ),
         encoding="utf-8",
     )
@@ -1119,11 +1610,11 @@ def test_malware_workflow_rejects_continue_on_error(
     validator = load_validator()
     weakened = tmp_path / "advisory-malware.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/advisory-malware.yml")
-        .read_text(encoding="utf-8")
-        .replace(
+        checked_replace(
+            (ROOT / ".github/workflows/advisory-malware.yml").read_text(encoding="utf-8"),
             "    name: Advisory Malware Check\n",
             "    name: Advisory Malware Check\n    continue-on-error: true\n",
+            count=None,
         ),
         encoding="utf-8",
     )
@@ -1139,11 +1630,11 @@ def test_dependency_workflows_reject_conditional_job(
     validator = load_validator()
     weakened = tmp_path / "dependency-review.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/dependency-review.yml")
-        .read_text(encoding="utf-8")
-        .replace(
+        checked_replace(
+            (ROOT / ".github/workflows/dependency-review.yml").read_text(encoding="utf-8"),
             "  dependency-review:\n",
             "  dependency-review:\n    if: ${{ false }}\n",
+            count=None,
         ),
         encoding="utf-8",
     )
@@ -1159,11 +1650,11 @@ def test_dependency_workflows_reject_expression_continue_on_error(
     validator = load_validator()
     weakened = tmp_path / "dependency-review.yml"
     weakened.write_text(
-        (ROOT / ".github/workflows/dependency-review.yml")
-        .read_text(encoding="utf-8")
-        .replace(
+        checked_replace(
+            (ROOT / ".github/workflows/dependency-review.yml").read_text(encoding="utf-8"),
             "  dependency-review:\n",
             "  dependency-review:\n    continue-on-error: ${{ true }}\n",
+            count=None,
         ),
         encoding="utf-8",
     )

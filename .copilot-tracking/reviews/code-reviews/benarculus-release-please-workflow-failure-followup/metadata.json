@@ -1,0 +1,44 @@
+{
+  "reviewer": "Copilot Code Review",
+  "repository": "benarculus/resume-builder",
+  "branch": "benarculus-release-please-workflow-failure",
+  "reviewed_head": "23dfd6a168fb5b74850539c3d953ea84fca29e04",
+  "review_target": "local_changes",
+  "review_profile": "standard",
+  "selected_depth": "standard",
+  "selected_perspectives": [
+    "functional",
+    "standards",
+    "readiness",
+    "security"
+  ],
+  "scope_confirmation": "The user approved the proposed scope, perspectives, and standard depth.",
+  "review_date": "2026-10-07",
+  "verdict": "approve",
+  "severity_counts": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "changed_files": 9,
+  "excluded_generated_artifacts": true,
+  "validation": {
+    "repository_validator": "passed",
+    "full_test_suite": "183 passed, 15 skipped",
+    "whitespace_check": "passed",
+    "hosted_native_and_official_integrations": "pending"
+  },
+  "limitations": [
+    "Tesseract, LibreOffice, and official SPDX integration cases were skipped in this local environment.",
+    "The verdict is a source review of local changes and does not constitute human engineering approval."
+  ],
+  "artifacts": {
+    "report": "review.md",
+    "walkthrough": "orientation-walkthrough.md",
+    "dispatch_board": "dispatch-board.md",
+    "findings": "findings.json",
+    "diff_state": "diff-state.json",
+    "emission_record": "emission-record.json"
+  }
+}

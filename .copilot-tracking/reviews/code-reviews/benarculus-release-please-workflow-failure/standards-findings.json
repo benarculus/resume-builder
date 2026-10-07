@@ -1,0 +1,85 @@
+{
+  "summary": "Standards review completed at standard depth across the changed files and six confirmed board areas. Severity counts: 0 Critical, 0 High, 0 Medium, 1 Low.",
+  "verdict": null,
+  "severity_counts": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 1
+  },
+  "changed_files": [
+    {
+      "file": "README.md",
+      "lines_changed": "Local versus hosted test-validation guidance",
+      "risk": "Low",
+      "issue_count": 0
+    },
+    {
+      "file": "scripts/validate_repo.py",
+      "lines_changed": "Hosted CI execution-contract validation",
+      "risk": "High",
+      "issue_count": 0
+    },
+    {
+      "file": "tests/test_build_docx.py",
+      "lines_changed": "Parser, renderer, and output-exclusion tests",
+      "risk": "Low",
+      "issue_count": 0
+    },
+    {
+      "file": "tests/test_ocr_extract.py",
+      "lines_changed": "Deterministic OCR and native-tool gate tests",
+      "risk": "Low",
+      "issue_count": 0
+    },
+    {
+      "file": "tests/test_spdx_sbom.py",
+      "lines_changed": "Independent SPDX expectations and CLI failure tests",
+      "risk": "Low",
+      "issue_count": 0
+    },
+    {
+      "file": "tests/test_structure.py",
+      "lines_changed": "Fixture mutation helpers, release-version cases, and CI policy tests",
+      "risk": "Low",
+      "issue_count": 1
+    },
+    {
+      "file": "tests/test_validate_resume_length.py",
+      "lines_changed": "Length boundary, conversion, and rendered-body parity tests",
+      "risk": "Low",
+      "issue_count": 0
+    },
+    {
+      "file": "tests/conftest.py",
+      "lines_changed": "Shared native-tool fixtures",
+      "risk": "Low",
+      "issue_count": 0
+    }
+  ],
+  "findings": [
+    {
+      "number": 1,
+      "title": "Reuse drift assertions through a helper, not pytest test functions",
+      "severity": "Low",
+      "category": "Maintainability",
+      "skill": "python-foundational",
+      "file": "tests/test_structure.py",
+      "lines": "482-493",
+      "problem": "The parameterized release-version test invokes two functions whose names and signatures identify them as pytest tests, and temporarily replaces the module-level `load_validator` function so those test bodies use its fixture. This couples one test to other test entry points and their signatures instead of expressing reusable assertions directly.",
+      "current_code": "monkeypatch.setattr(sys.modules[__name__], \"load_validator\", lambda: validator)\nwith pytest.MonkeyPatch.context() as patch:\n    test_release_please_config_rejects_version_seed_drift(patch, cases)\nfor target, filename, field in (...):\n    with pytest.MonkeyPatch.context() as patch:\n        test_release_please_config_rejects_consumer_version_drift(\n            patch, cases, target, filename, field\n        )",
+      "suggested_fix": "Extract fixture setup and drift assertions into ordinary helpers with explicit validator and temporary-directory parameters. Call those helpers from both standalone pytest cases and the multi-version test, without replacing the module-level loader.",
+      "post_review_resolution": "Addressed after the reviewed snapshot: assert_version_seed_drift_rejected and assert_consumer_version_drift_rejected now contain the reusable assertions. Pytest cases and the multi-version test call these helpers with an explicit validator; the module-level loader is no longer monkeypatched."
+    }
+  ],
+  "positive_changes": [
+    "New regression tests generally use explicit expected values and temporary fixtures, keeping important expectations independent of production-derived values.",
+    "The shared native-tool fixtures scope local skips and hosted failures to the relevant integrations; README guidance explains the distinction.",
+    "The README and changes record avoid representing locally skipped integrations as passed hosted evidence."
+  ],
+  "testing_recommendations": [
+    "Obtain the provisioned hosted Python 3.12/native-tool/official-SPDX run recorded as pending before describing integrations as fully validated."
+  ],
+  "recommended_actions": [],
+  "out_of_scope_observations": []
+}
