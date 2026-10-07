@@ -308,6 +308,8 @@ def validate_ci_execution_contract() -> None:
             "working-directory", "."
         ) != ".":
             raise AssertionError("hosted CI must run pytest from the repository root")
+        if "shell" in run_defaults:
+            raise AssertionError("hosted CI must not override the required command shell")
 
     steps = job.get("steps")
     if not isinstance(steps, list):
@@ -338,6 +340,8 @@ def validate_ci_execution_contract() -> None:
         index, step = matches[0]
         if "if" in step:
             raise AssertionError(f"hosted CI {description} step must not be conditional")
+        if "shell" in step:
+            raise AssertionError(f"hosted CI {description} step must not override its command shell")
         if "continue-on-error" in step and step["continue-on-error"] is not False:
             raise AssertionError(f"hosted CI {description} step must not continue on error")
         environment = step.get("env", {})

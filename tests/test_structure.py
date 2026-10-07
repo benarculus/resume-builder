@@ -210,6 +210,12 @@ def test_ci_execution_contract_rejects_reduced_or_failable_pytest(
             "          env -u PYTEST_ADDOPTS GITHUB_ACTIONS=true\n"
             "          pytest -q\n",
         ),
+        (
+            "custom shell",
+            "      - name: Run pytest\n"
+            "        shell: bash {0} || true\n"
+            "        run: env -u PYTEST_ADDOPTS GITHUB_ACTIONS=true pytest -q\n",
+        ),
     )
     for name, replacement in mutations:
         weakened = tmp_path / f"ci-pytest-{name.replace(' ', '-')}.yml"
@@ -239,6 +245,17 @@ def test_ci_execution_contract_rejects_missing_or_late_native_provisioning(
 
     mutations = [
         checked_replace(original, native_step, "", count=1),
+        checked_replace(
+            original,
+            native_step,
+            checked_replace(
+                native_step,
+                "        run:",
+                "        shell: bash {0} || true\n        run:",
+                count=1,
+            ),
+            count=1,
+        ),
         checked_replace(
             original,
             native_step,
@@ -276,7 +293,7 @@ def test_ci_execution_contract_rejects_missing_or_late_native_provisioning(
         weakened = tmp_path / f"ci-native-{index}.yml"
         weakened.write_text(contents, encoding="utf-8")
         monkeypatch.setattr(validator, "CI_WORKFLOW", weakened)
-        with pytest.raises(AssertionError, match="native|provision"):
+        with pytest.raises(AssertionError, match="native|provision|shell"):
             validator.validate_ci_execution_contract()
 
 
@@ -336,6 +353,24 @@ def test_ci_execution_contract_rejects_job_bypasses_and_writable_permissions(
                 count=1,
             ),
         ),
+        (
+            "workflow custom shell",
+            checked_replace(
+                original,
+                "permissions:\n",
+                "defaults:\n  run:\n    shell: bash {0} || true\n\npermissions:\n",
+                count=1,
+            ),
+        ),
+        (
+            "job custom shell",
+            checked_replace(
+                original,
+                "  validate:\n",
+                "  validate:\n    defaults:\n      run:\n        shell: bash {0} || true\n",
+                count=1,
+            ),
+        ),
     )
     for name, contents in mutations:
         weakened = tmp_path / f"ci-bypass-{name.replace(' ', '-')}.yml"
@@ -343,7 +378,7 @@ def test_ci_execution_contract_rejects_job_bypasses_and_writable_permissions(
         monkeypatch.setattr(validator, "CI_WORKFLOW", weakened)
         with pytest.raises(
             AssertionError,
-            match="conditional|continue on error|permissions|pytest|hosted tool gates",
+            match="conditional|continue on error|permissions|pytest|hosted tool gates|shell",
         ):
             validator.validate_ci_execution_contract()
 
