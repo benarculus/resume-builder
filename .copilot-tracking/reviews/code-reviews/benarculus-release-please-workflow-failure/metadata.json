@@ -1,0 +1,170 @@
+{
+  "schema_version": "1",
+  "branch": "benarculus-release-please-workflow-failure",
+  "head_commit": "23dfd6a168fb5b74850539c3d953ea84fca29e04",
+  "reviewed_at": "2026-10-07T14:05:56Z",
+  "verdict": "approve_with_comments",
+  "files_changed": [
+    "scripts/validate_repo.py",
+    "tests/conftest.py",
+    "tests/test_build_docx.py",
+    "tests/test_ocr_extract.py",
+    "tests/test_spdx_sbom.py",
+    "tests/test_structure.py",
+    "tests/test_validate_resume_length.py"
+  ],
+  "findings_count": {
+    "critical": 0,
+    "high": 0,
+    "medium": 1,
+    "low": 1
+  },
+  "reviewer": "code-review",
+  "summary": "Standard-depth review of local test-maintainability changes. One Medium CI execution-contract gap and one Low test-maintainability concern; Functional perspective did not complete after retry. Hosted integrations remain unverified.",
+  "changed_files": [
+    {
+      "file": "README.md",
+      "lines_changed": "Local/hosted validation guidance",
+      "risk": "Low",
+      "issue_count": 0
+    },
+    {
+      "file": "scripts/validate_repo.py",
+      "lines_changed": "CI execution-contract validation",
+      "risk": "High",
+      "issue_count": 1
+    },
+    {
+      "file": "tests/test_build_docx.py",
+      "lines_changed": "Parser and renderer regression coverage",
+      "risk": "Low",
+      "issue_count": 0
+    },
+    {
+      "file": "tests/test_ocr_extract.py",
+      "lines_changed": "OCR decision cases and native-tool gates",
+      "risk": "Low",
+      "issue_count": 0
+    },
+    {
+      "file": "tests/test_spdx_sbom.py",
+      "lines_changed": "Independent SPDX expectations and CLI failures",
+      "risk": "Low",
+      "issue_count": 0
+    },
+    {
+      "file": "tests/test_structure.py",
+      "lines_changed": "Release fixture, mutation, and CI-policy tests",
+      "risk": "Low",
+      "issue_count": 1
+    },
+    {
+      "file": "tests/test_validate_resume_length.py",
+      "lines_changed": "Length boundaries, conversion errors, and parity",
+      "risk": "Low",
+      "issue_count": 0
+    },
+    {
+      "file": "tests/conftest.py",
+      "lines_changed": "Shared native-tool gate fixtures",
+      "risk": "Low",
+      "issue_count": 0
+    }
+  ],
+  "findings": [
+    {
+      "number": 1,
+      "title": "[Security] CI contract misses pytest options persisted between steps",
+      "severity": "Medium",
+      "category": "CI/CD integrity",
+      "skill": "code-review-security",
+      "file": "scripts/validate_repo.py",
+      "lines": "297-302",
+      "problem": "The validator rejects PYTEST_ADDOPTS in workflow/job/required-step env mappings but does not inspect values written to GITHUB_ENV by earlier steps. GitHub Actions propagates those values to the required pytest command, so a future step could persist an option that excludes the structural tests while the validator still accepts the workflow. The checked-in workflow has no detected setter; this is a guard gap, not an active bypass.",
+      "current_code": "for scope in (ci, job): environment = scope.get(\"env\", {}); reject direct PYTEST_ADDOPTS/GITHUB_ACTIONS keys",
+      "suggested_fix": "Extend the policy and mutation tests to cover prior-step GITHUB_ENV writes, or require a test invocation that explicitly clears inherited PYTEST_ADDOPTS."
+    },
+    {
+      "number": 2,
+      "title": "[Standards] Reuse drift assertions through a helper, not pytest test functions",
+      "severity": "Low",
+      "category": "Maintainability",
+      "skill": "python-foundational",
+      "file": "tests/test_structure.py",
+      "lines": "482-493",
+      "problem": "The multi-version case invokes other pytest test functions and temporarily replaces the module-level loader to reuse their setup and assertions, coupling test entry points and signatures.",
+      "current_code": "monkeypatch.setattr(sys.modules[__name__], \"load_validator\", lambda: validator); test_release_please_config_rejects_version_seed_drift(...); test_release_please_config_rejects_consumer_version_drift(...)",
+      "suggested_fix": "Extract reusable ordinary assertion/fixture helpers with explicit validator and temporary-directory parameters."
+    }
+  ],
+  "positive_changes": [
+    "Release-version fixtures are release-independent and preserve synchronized and drifted behavior.",
+    "Mutation targets are checked and semantic JSON cases are separated from raw-source policy checks.",
+    "New independent parser, SPDX, length, renderer, and OCR regressions cover previously identified gaps.",
+    "Local native-tool skips are distinguished from hosted failures in code and documentation."
+  ],
+  "testing_recommendations": [
+    "Add a CI mutation test that writes PYTEST_ADDOPTS through GITHUB_ENV before pytest.",
+    "Obtain fully provisioned hosted Python 3.12 results for OCR, LibreOffice, and official SPDX integrations."
+  ],
+  "recommended_actions": [
+    "Address the Medium CI execution-contract bypass gap before relying on the guard for full-suite enforcement.",
+    "Consider extracting the release-drift assertions from pytest test functions.",
+    "Keep hosted integration acceptance pending until a fully provisioned run passes."
+  ],
+  "out_of_scope_observations": [
+    {
+      "file": ".github/workflows/ci.yml",
+      "observation": "The workflow is unchanged and contains no detected GITHUB_ENV setter; the finding is a gap in the new validator's future-workflow guard."
+    },
+    {
+      "file": "PR #18",
+      "observation": "Remote pull-request metadata and status checks are not part of this local_changes target."
+    }
+  ],
+  "recommended_specialist_reviews": [
+    {
+      "concern": "Optional deeper security review of the workflow-policy parsing and CI execution boundary",
+      "signals_matched": [
+        "parsing",
+        "CI execution contract"
+      ],
+      "backing": "security-review skill",
+      "availability": "available",
+      "action": "Optional /security-review; not executed because this request reviewed the current diff at standard code-review depth."
+    }
+  ],
+  "risk_assessment": "Medium: no product-runtime or workflow-file changes, but the new CI contract does not account for PYTEST_ADDOPTS persisted by an earlier step through GITHUB_ENV.",
+  "review_target": {
+    "kind": "local_changes",
+    "branch": "benarculus-release-please-workflow-failure",
+    "head_sha": "23dfd6a168fb5b74850539c3d953ea84fca29e04"
+  },
+  "execution_limitations": [
+    "Orientation worker could not write its artifact after retry; the parent produced the factual walkthrough inline.",
+    "Functional perspective skipped after two worker invocations failed to produce findings; one complete retry contract was supplied.",
+    "No tests were executed during code review.",
+    "Hosted native/official integration validation remains pending."
+  ],
+  "post_review_remediation": {
+    "requested_by_user": true,
+    "findings_addressed": [
+      "Medium CI GITHUB_ENV/PYTEST_ADDOPTS bypass: workflow command explicitly clears PYTEST_ADDOPTS and pins GITHUB_ACTIONS=true; mutation test verifies sanitized acceptance and unsanitized rejection.",
+      "Low pytest-test-function reuse: drift assertions extracted into explicit reusable helpers."
+    ],
+    "validation": {
+      "structural_tests": "97 passed",
+      "repository_validation": "passed",
+      "full_suite": "183 passed, 15 skipped",
+      "git_diff_check": "passed",
+      "hosted_native_integrations": "pending"
+    },
+    "note": "This is post-review remediation evidence; the recorded verdict remains the pre-remediation snapshot and does not represent a second review."
+  },
+  "artifacts": {
+    "dispatch_manifest": "dispatch-manifest.json",
+    "dispatch_board": "dispatch-board.md",
+    "walkthrough": "walkthrough.md",
+    "emission_record": "emission-record.json"
+  }
+}

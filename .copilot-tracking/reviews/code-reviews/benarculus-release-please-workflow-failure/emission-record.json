@@ -1,0 +1,6 @@
+{
+  "mode": "canonical",
+  "target": "local review artifact",
+  "status": "completed",
+  "summary": "Saved review.md and metadata.json. No PR/MR target was selected, so no native or external review/comment was emitted."
+}

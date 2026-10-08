@@ -115,6 +115,12 @@ python scripts/validate_repo.py
 pytest -q
 ```
 
+Use `pytest -q -rs` to see why any cases were skipped. Without Tesseract or
+LibreOffice, local runs skip only the corresponding OCR or document-conversion
+integration cases; deterministic OCR decisions, length boundaries, parser
+rejections, and rendered-content checks still run. Install the system
+prerequisites above to exercise those integrations locally.
+
 Hosted CI additionally installs the official SPDX validator on Python 3.12:
 
 ```bash
@@ -122,6 +128,12 @@ python -m pip install --require-hashes --only-binary=:all: -r requirements-spdx-
 ```
 
 That lock targets the hosted Linux/Python 3.12 release environment. On the repository owner's local Python 3.9 environment, official-validator integration cases skip explicitly; the repository contract and structural mutations still run, while hosted CI is authoritative for official conformance.
+
+On GitHub Actions, missing Tesseract, LibreOffice, or the official SPDX validator
+is a test failure, not an optional skip. Structural validation also protects the
+full-suite pytest invocation and native-tool installation against removal,
+conditional execution, and failure-tolerant bypasses. A green local run with
+skips is not evidence that those integrations passed in CI.
 
 The validation script checks skill frontmatter, `plugin.json`, marketplace metadata, exact runtime dependency pins, the reviewed SPDX validator lock, the job-requirements producer/consumer contract, and the security-sensitive workflow contracts. Those workflow checks include full-SHA action pins, the least-privilege GitHub App release token, the ordered official-conformance and release-contract SBOM gates, OpenSSF Scorecard permissions, and dependency-gate structure. The test suite covers those policies, exercises official SPDX rejection cases, validates the repository-owned release contract, and opens a generated `.docx` to check its sections.
 

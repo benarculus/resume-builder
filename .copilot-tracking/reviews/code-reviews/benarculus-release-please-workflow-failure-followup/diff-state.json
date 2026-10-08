@@ -1,0 +1,61 @@
+{
+  "reviewTarget": {
+    "kind": "local_changes",
+    "repository": "benarculus/resume-builder",
+    "branch": "benarculus-release-please-workflow-failure",
+    "headSha": "23dfd6a168fb5b74850539c3d953ea84fca29e04"
+  },
+  "reviewProfile": "standard",
+  "changeBrief": "The local change set strengthens hosted CI's full-suite execution contract, adds shared local-versus-hosted native-tool gates, expands regression tests across resume, OCR, SPDX, release, and length behavior, and documents integration skip semantics.",
+  "changeRiskEvidence": {
+    "changeScope": {
+      "state": "observed",
+      "evidence": "Nine source/workflow/test/documentation files are in review scope; generated .copilot-tracking artifacts are excluded."
+    },
+    "pathCriticality": {
+      "state": "observed",
+      "evidence": "The CI workflow and repository contract validator affect validation enforcement; no authentication, persistence, or production application code is changed."
+    },
+    "history": {
+      "state": "unavailable",
+      "evidence": "There are no commits ahead of the merge base; the target consists of local uncommitted changes."
+    },
+    "testPresence": {
+      "state": "observed",
+      "evidence": "The change adds tests for the CI contract, fixture gates, parser/input boundaries, output parity, and integration errors."
+    },
+    "coverage": {
+      "state": "unavailable",
+      "evidence": "No coverage report for the changed behavior was available."
+    },
+    "rollback": {
+      "state": "observed",
+      "evidence": "Changes are reversible workflow, validator, test, and documentation edits; no data migrations or irreversible operations are introduced."
+    }
+  },
+  "recommendedDepth": "standard",
+  "selectedDepth": "standard",
+  "selectedPerspectives": [
+    "functional",
+    "standards",
+    "readiness",
+    "security"
+  ],
+  "outOfScope": [
+    "Generated planning, research, PR-reference, and earlier review artifacts under .copilot-tracking/",
+    "Hosted native-tool and official SPDX integration execution, unavailable in this local environment"
+  ],
+  "diffMetadata": {
+    "trackedChangedFiles": 8,
+    "untrackedSourceFiles": 1,
+    "reviewedFiles": 9,
+    "stat": "1521 insertions, 195 deletions"
+  },
+  "hotspots": [
+    "validate_ci_execution_contract",
+    "GITHUB_ENV and PYTEST_ADDOPTS sanitization",
+    "native-tool fixture skip/fail behavior",
+    "release version drift mutation helpers",
+    "resume word-count parity with rendered DOCX content"
+  ]
+}

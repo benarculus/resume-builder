@@ -276,6 +276,96 @@ def validate_spdx_validation_lock() -> None:
         raise AssertionError("hosted CI must install the hash-locked SPDX validator environment")
 
 
+def validate_ci_execution_contract() -> None:
+    ci = yaml.safe_load(CI_WORKFLOW.read_text(encoding="utf-8"))
+    if not isinstance(ci, dict) or ci.get("permissions") != {"contents": "read"}:
+        raise AssertionError("hosted CI workflow permissions must remain read-only")
+
+    jobs = ci.get("jobs")
+    if not isinstance(jobs, dict):
+        raise AssertionError("hosted CI must define the validation job")
+    job = jobs.get("validate")
+    if not isinstance(job, dict):
+        raise AssertionError("hosted CI must define the validation job")
+    if "needs" in job:
+        raise AssertionError("hosted CI validation job must not depend on prerequisite jobs")
+    if "if" in job:
+        raise AssertionError("hosted CI validation job must not be conditional")
+    if "continue-on-error" in job and job["continue-on-error"] is not False:
+        raise AssertionError("hosted CI validation job must not continue on error")
+    if "permissions" in job and job["permissions"] != {"contents": "read"}:
+        raise AssertionError("hosted CI validation job permissions must remain read-only")
+
+    for scope in (ci, job):
+        environment = scope.get("env", {})
+        if not isinstance(environment, dict) or any(
+            key in environment for key in ("PYTEST_ADDOPTS", "GITHUB_ACTIONS")
+        ):
+            raise AssertionError("hosted CI must not override pytest options or hosted tool gates")
+        defaults = scope.get("defaults", {})
+        if not isinstance(defaults, dict):
+            raise AssertionError("hosted CI defaults must be a mapping")
+        run_defaults = defaults.get("run", {})
+        if not isinstance(run_defaults, dict) or run_defaults.get(
+            "working-directory", "."
+        ) != ".":
+            raise AssertionError("hosted CI must run pytest from the repository root")
+        if "shell" in run_defaults:
+            raise AssertionError("hosted CI must not override the required command shell")
+
+    steps = job.get("steps")
+    if not isinstance(steps, list):
+        raise AssertionError("hosted CI validation job must define its steps")
+
+    required_commands = (
+        (
+            "Install system OCR and document-conversion dependencies",
+            "sudo apt-get update && sudo apt-get install -y --no-install-recommends "
+            "tesseract-ocr libreoffice",
+            "native OCR and document-conversion tools",
+        ),
+        (
+            "Run pytest",
+            "env -u PYTEST_ADDOPTS GITHUB_ACTIONS=true pytest -q",
+            "complete pytest suite",
+        ),
+    )
+    positions: list[int] = []
+    for step_name, expected_command, description in required_commands:
+        matches = [
+            (index, step)
+            for index, step in enumerate(steps)
+            if isinstance(step, dict) and step.get("name") == step_name
+        ]
+        if len(matches) != 1:
+            raise AssertionError(f"hosted CI must run the required {description} step exactly once")
+        index, step = matches[0]
+        if "if" in step:
+            raise AssertionError(f"hosted CI {description} step must not be conditional")
+        if "shell" in step:
+            raise AssertionError(f"hosted CI {description} step must not override its command shell")
+        if "continue-on-error" in step and step["continue-on-error"] is not False:
+            raise AssertionError(f"hosted CI {description} step must not continue on error")
+        environment = step.get("env", {})
+        if not isinstance(environment, dict) or any(
+            key in environment for key in ("PYTEST_ADDOPTS", "GITHUB_ACTIONS")
+        ):
+            raise AssertionError("hosted CI must not override pytest options or hosted tool gates")
+        if step.get("working-directory", ".") != ".":
+            raise AssertionError("hosted CI must run pytest from the repository root")
+        command = step.get("run")
+        if (
+            not isinstance(command, str)
+            or len(command.strip().splitlines()) != 1
+            or " ".join(command.split()) != expected_command
+        ):
+            raise AssertionError(f"hosted CI must run the required {description} command")
+        positions.append(index)
+
+    if positions[0] >= positions[1]:
+        raise AssertionError("hosted CI must provision native tools before running pytest")
+
+
 def validate_dependabot_policy() -> None:
     config = yaml.safe_load(DEPENDABOT.read_text(encoding="utf-8"))
     if not isinstance(config, dict) or config.get("version") != 2:
@@ -815,6 +905,7 @@ def main() -> int:
     validate_workflow_pins()
     validate_requirement_pins()
     validate_spdx_validation_lock()
+    validate_ci_execution_contract()
     validate_dependabot_policy()
     validate_dependency_check_workflows()
     validate_release_please_workflow()
@@ -824,8 +915,8 @@ def main() -> int:
     validate_job_requirements_contract()
     print(
         f"Validated {len(skill_files)} skills, plugin and marketplace JSON, "
-        "workflow SHA pins, release-token, SPDX publication, and Scorecard hardening, Dependabot policy, "
-        "dependency gates, exact dependency pins, and job-requirements round-trip."
+        "workflow SHA pins, CI execution, release-token, SPDX publication, and Scorecard hardening, "
+        "Dependabot policy, dependency gates, exact dependency pins, and job-requirements round-trip."
     )
     return 0
 

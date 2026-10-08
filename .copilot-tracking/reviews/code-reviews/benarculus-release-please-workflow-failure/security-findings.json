@@ -1,0 +1,63 @@
+{
+  "summary": "Security review identified one medium CI-integrity gap in the new structural execution contract.",
+  "verdict": null,
+  "severity_counts": {
+    "critical": 0,
+    "high": 0,
+    "medium": 1,
+    "low": 0
+  },
+  "changed_files": [
+    {
+      "file": "scripts/validate_repo.py",
+      "lines_changed": "Hosted CI execution-contract validation",
+      "risk": "High",
+      "issue_count": 1
+    },
+    {
+      "file": "tests/test_structure.py",
+      "lines_changed": "CI workflow mutation coverage",
+      "risk": "Low",
+      "issue_count": 0
+    },
+    {
+      "file": "tests/conftest.py",
+      "lines_changed": "Native-tool test gates",
+      "risk": "Low",
+      "issue_count": 0
+    }
+  ],
+  "findings": [
+    {
+      "number": 1,
+      "title": "CI contract check misses pytest options persisted between steps",
+      "severity": "Medium",
+      "category": "CI/CD integrity",
+      "skill": "code-review-security",
+      "file": "scripts/validate_repo.py",
+      "lines": "297-302",
+      "problem": "The new contract rejects `PYTEST_ADDOPTS` in workflow-, job-, and required-step `env` mappings, but it does not inspect values written to `$GITHUB_ENV` by earlier steps. GitHub Actions makes those values available to later steps, including the unchanged `pytest -q` step. A future step could therefore persist an option such as `--ignore=tests/test_structure.py`, and the structural validator would still accept the workflow while pytest omits the tests that protect the validator. The checked-in workflow does not currently contain such a setter; this is a gap in the newly added guard, not evidence of an active bypass.",
+      "current_code": "for scope in (ci, job):\n    environment = scope.get(\"env\", {})\n    if not isinstance(environment, dict) or any(\n        key in environment for key in (\"PYTEST_ADDOPTS\", \"GITHUB_ACTIONS\")\n    ):\n        raise AssertionError(\"hosted CI must not override pytest options or hosted tool gates\")",
+      "suggested_fix": "Extend the contract and regression mutations to cover earlier-step environment persistence through `$GITHUB_ENV`, or make the required test command explicitly clear inherited `PYTEST_ADDOPTS` and require that sanitized form. Add a temporary workflow case that writes a pytest-selection option from a preceding step and verify the guard still ensures the full suite runs.",
+      "post_review_resolution": "Addressed after the reviewed snapshot: the checked-in pytest step clears PYTEST_ADDOPTS and pins GITHUB_ACTIONS=true; a workflow-mutation test persists hostile values through GITHUB_ENV, confirms the sanitized contract passes, and confirms an unsanitized command is rejected. Targeted and full tests passed."
+    }
+  ],
+  "positive_changes": [
+    "The new CI validator uses `yaml.safe_load` and checks read-only permissions, required command ordering, conditional execution, failure tolerance, and direct environment overrides.",
+    "The shared native-tool fixtures distinguish local optional skips from hosted failures without import-time checks.",
+    "New parsing, subprocess, and output-exclusion tests use controlled temporary inputs."
+  ],
+  "testing_recommendations": [
+    "Add a workflow mutation with a preceding step that appends `PYTEST_ADDOPTS=--ignore=tests/test_structure.py` to `$GITHUB_ENV`; verify the execution contract prevents the option from suppressing required tests.",
+    "Confirm through provisioned hosted CI that OCR, LibreOffice, and official SPDX integrations execute without missing-tool skips."
+  ],
+  "recommended_actions": [
+    "Harden the CI execution contract against environment values persisted by prior workflow steps, then add a regression case for that propagation."
+  ],
+  "out_of_scope_observations": [
+    {
+      "file": ".github/workflows/ci.yml",
+      "observation": "The workflow itself is unchanged and contains no detected `$GITHUB_ENV` setter; the concern is a future bypass of the new structural validator."
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "mode": "canonical",
+  "target": "local review artifact",
+  "status": "completed",
+  "summary": "Fresh local-changes code review persisted as review.md; no native PR or external comments were emitted."
+}

@@ -1,0 +1,110 @@
+{
+  "branch": "benarculus-release-please-workflow-failure",
+  "base": null,
+  "reviewTarget": {
+    "kind": "local_changes",
+    "provider": "unknown",
+    "id": null,
+    "url": null,
+    "baseRef": null,
+    "headRef": "benarculus-release-please-workflow-failure",
+    "headSha": "23dfd6a168fb5b74850539c3d953ea84fca29e04"
+  },
+  "reviewProfile": "standard",
+  "files": [
+    "README.md",
+    "scripts/validate_repo.py",
+    "tests/test_build_docx.py",
+    "tests/test_ocr_extract.py",
+    "tests/test_spdx_sbom.py",
+    "tests/test_structure.py",
+    "tests/test_validate_resume_length.py",
+    "tests/conftest.py"
+  ],
+  "untrackedFiles": [
+    "tests/conftest.py"
+  ],
+  "extensions": [
+    ".md",
+    ".py"
+  ],
+  "diffPatchPath": ".copilot-tracking/pr/review/benarculus-release-please-workflow-failure/pr-reference.xml",
+  "findingsFolder": ".copilot-tracking/reviews/code-reviews/benarculus-release-please-workflow-failure/",
+  "reviewStateProvenance": {
+    "scope": "human-confirmed",
+    "changeRiskEvidence": "human-confirmed",
+    "recommendedDepth": "automation-derived",
+    "depthTier": "human-confirmed",
+    "depthRationale": "human-confirmed"
+  },
+  "changeBrief": "Uncommitted changes improve release-version test fixtures, add independent regression coverage for parser/SPDX/length/renderer/OCR contracts, enforce the hosted pytest/native-tool contract, and document local versus hosted integration validation. Main source surface is tests plus scripts/validate_repo.py and README.md. Risk centers on structural CI policy parsing and whether tests reliably detect intended regressions; product runtime behavior and workflow configuration are unchanged. The 15 native/official integration cases were skipped locally and require fully provisioned hosted CI.",
+  "changeRiskEvidence": [
+    {
+      "signal": "change-scope",
+      "availability": "observed",
+      "evidence": "Seven modified tracked files, one untracked Python test helper, approximately 1,600 changed lines; test/CI policy and contributor documentation only."
+    },
+    {
+      "signal": "path-criticality",
+      "availability": "qualitative",
+      "evidence": "scripts/validate_repo.py parses workflow/config data and newly enforces test execution; no production auth, persistence, network, or product runtime path changes."
+    },
+    {
+      "signal": "history",
+      "availability": "unavailable",
+      "evidence": "No committed branch diff; HEAD equals origin/main merge base, so there is no change-history range for this local work."
+    },
+    {
+      "signal": "test-presence",
+      "availability": "observed",
+      "evidence": "Five test modules changed and tests/conftest.py adds shared native-tool gates; supplied record reports all original tests retained."
+    },
+    {
+      "signal": "coverage",
+      "availability": "unavailable",
+      "evidence": "No coverage report or changed-line coverage measurement supplied."
+    },
+    {
+      "signal": "rollback",
+      "availability": "qualitative",
+      "evidence": "No product/runtime behavior, dependency, release metadata, or workflow edits; changes are tests, CI-validator logic, and docs and are straightforward to revert."
+    }
+  ],
+  "recommendedDepth": "standard",
+  "depthTier": "standard",
+  "depthRationale": "User approved standard depth as recommended: the source diff is broad but primarily test-focused, product/runtime and workflow files are unchanged, and missing coverage/history plus pending integrations argue against basic review.",
+  "selectedPerspectives": [
+    "functional",
+    "standards",
+    "security",
+    "readiness"
+  ],
+  "hotspots": [
+    "scripts/validate_repo.py:validate_ci_execution_contract",
+    "tests/test_structure.py:CI execution contract mutations",
+    "tests/test_spdx_sbom.py:independent SPDX expectations and CLI boundary"
+  ],
+  "specialistSignals": {
+    "security": [
+      "Parsing/configuration validation changes in scripts/validate_repo.py"
+    ],
+    "supplyChain": [],
+    "responsibleAI": [],
+    "accessibility": [],
+    "sustainability": [],
+    "privacy": []
+  },
+  "outOfScope": [
+    "Untracked .copilot-tracking research/plan/critique/changes/RPI review artifacts; supporting process records, not source changes under review.",
+    "PR #18 and remote CI state; this target is local changes with no provider-resolved PR context."
+  ],
+  "task": {
+    "kind": "perspective_batch",
+    "outputs": {
+      "functional": ".copilot-tracking/reviews/code-reviews/benarculus-release-please-workflow-failure/functional-findings.json",
+      "standards": ".copilot-tracking/reviews/code-reviews/benarculus-release-please-workflow-failure/standards-findings.json",
+      "security": ".copilot-tracking/reviews/code-reviews/benarculus-release-please-workflow-failure/security-findings.json",
+      "readiness": ".copilot-tracking/reviews/code-reviews/benarculus-release-please-workflow-failure/readiness-findings.json"
+    }
+  }
+}

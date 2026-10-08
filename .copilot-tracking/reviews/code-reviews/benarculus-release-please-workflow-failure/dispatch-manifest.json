@@ -1,0 +1,118 @@
+{
+  "reviewTarget": {
+    "kind": "local_changes",
+    "provider": "unknown",
+    "id": null,
+    "url": null,
+    "baseRef": null,
+    "headRef": "benarculus-release-please-workflow-failure",
+    "headSha": "23dfd6a168fb5b74850539c3d953ea84fca29e04"
+  },
+  "reviewProfile": "standard",
+  "recommendedPerspectives": [
+    "functional",
+    "standards",
+    "security",
+    "readiness"
+  ],
+  "selectedPerspectives": [
+    "functional",
+    "standards",
+    "security",
+    "readiness"
+  ],
+  "recommendedDepth": "standard",
+  "depthTier": "standard",
+  "depthRationale": "User approved the recommended standard depth.",
+  "phaseGates": {
+    "orientationConfirmed": true,
+    "humanAccepted": true,
+    "walkbackComplete": true,
+    "emissionReady": false
+  },
+  "currentPhase": "review_complete",
+  "nextActions": [
+    {
+      "id": "hosted-integration-gate",
+      "kind": "validation",
+      "target": "Fully provisioned hosted Python 3.12 run",
+      "reason": "The local record reports 15 native/official integration skips; obtain same-candidate hosted evidence before claiming full integration success."
+    }
+  ],
+  "orientationMethod": "inline fallback after two orientation-agent invocations could not write the required artifact",
+  "humanDecision": "Approved all six board areas, recommended standard-profile perspectives, and standard depth.",
+  "perspectiveResults": {
+    "functional": "skipped_after_two_invocations; worker could not produce findings after the parent supplied a complete retry contract",
+    "standards": "complete; one Low candidate verified at the cited diff lines",
+    "security": "complete; one Medium candidate verified at the cited diff lines",
+    "readiness": "complete; no findings"
+  },
+  "postReviewRemediation": {
+    "requestedByUser": true,
+    "boardItemsAddressed": ["board-1", "board-2"],
+    "validation": "97 structural tests passed; repository validation passed; full suite 183 passed/15 skipped; diff check passed",
+    "remaining": "Provisioned hosted integration validation"
+  },
+  "boardItems": [
+    {
+      "id": "board-1",
+      "area": "Release fixtures and mutation helpers",
+      "status": "remediated_after_review",
+      "register": "register-2",
+      "summary": "Verify release-independent versions and checked fixture mutations.",
+      "preliminarySignal": "tests/test_structure.py changes version-drift fixtures and configuration mutations; verify the tests reject actual mismatches across versions without sharing or losing the intended policy oracle.",
+      "links": ["tests/test_structure.py"],
+      "selectableSymbols": ["drift_version", "checked_replace", "mutate_release_config", "test_release_please_versions_are_release_independent"]
+    },
+    {
+      "id": "board-2",
+      "area": "Hosted CI execution contract",
+      "status": "remediated_after_review",
+      "register": "register-2",
+      "summary": "Verify structural enforcement for hosted test execution and native provisioning.",
+      "preliminarySignal": "scripts/validate_repo.py adds validate_ci_execution_contract and tests add temporary workflow mutations; verify the validator accepts intended folded YAML while rejecting bypasses of pytest and native-tool provisioning.",
+      "links": ["scripts/validate_repo.py", "tests/test_structure.py", "tests/conftest.py"],
+      "selectableSymbols": ["validate_ci_execution_contract", "test_ci_execution_contract_accepts_required_hosted_setup", "test_ci_execution_contract_rejects_reduced_or_failable_pytest", "_require_native_tool"]
+    },
+    {
+      "id": "board-3",
+      "area": "Parser, SPDX, and CLI contracts",
+      "status": "complete",
+      "register": "register-2",
+      "summary": "Verify independent expectations and explicit failure behavior.",
+      "preliminarySignal": "tests/test_build_docx.py and tests/test_spdx_sbom.py add parser invalid-input, exact runtime-package expectations, preparer-preservation, and CLI error cases; verify those tests fail for the intended regressions.",
+      "links": ["tests/test_build_docx.py", "tests/test_spdx_sbom.py"],
+      "selectableSymbols": ["test_job_requirements_parser_rejects_invalid_items", "test_runtime_package_parser_returns_independent_normalized_pins", "test_release_contract_rejects_sbom_missing_independent_pillow_requirement", "test_preparer_cli_reports_invalid_arguments_and_inputs"]
+    },
+    {
+      "id": "board-4",
+      "area": "Resume length and rendered-content parity",
+      "status": "complete",
+      "register": "register-2",
+      "summary": "Verify exact policy/report boundaries and independent rendered-body parity.",
+      "preliminarySignal": "tests/test_validate_resume_length.py and tests/test_build_docx.py add word/page endpoint, report, conversion, render-parity, invalid-payload, and unmet-content cases; compare expectations to the documented contracts.",
+      "links": ["tests/test_validate_resume_length.py", "tests/test_build_docx.py"],
+      "selectableSymbols": ["assert_main_report", "test_main_enforces_exact_word_boundaries_and_reports_full_contract", "test_count_words_matches_independent_rendered_body", "test_build_docx_excludes_actual_unmet_ids_and_content_from_saved_document"]
+    },
+    {
+      "id": "board-5",
+      "area": "OCR behavior and native-tool gating",
+      "status": "complete",
+      "register": "register-2",
+      "summary": "Verify deterministic OCR decisions and hosted/local native-tool behavior.",
+      "preliminarySignal": "tests/test_ocr_extract.py adds controlled confidence, rotation, and page errors; tests/conftest.py gates native integrations at runtime. Verify native integrations remain present and cannot silently skip on hosted CI.",
+      "links": ["tests/test_ocr_extract.py", "tests/conftest.py", "tests/test_validate_resume_length.py"],
+      "selectableSymbols": ["_mean_confidence", "ocr_best_rotation", "_require_native_tool", "requires_tesseract", "requires_soffice"]
+    },
+    {
+      "id": "board-6",
+      "area": "Contributor validation guidance",
+      "status": "complete",
+      "register": "register-1",
+      "summary": "Check documentation for accurate validation and skip claims.",
+      "preliminarySignal": "README.md distinguishes optional local integration skips from mandatory hosted execution; verify statements match the changed gating code and supplied execution record.",
+      "links": ["README.md"],
+      "selectableSymbols": ["Validation"]
+    }
+  ]
+}

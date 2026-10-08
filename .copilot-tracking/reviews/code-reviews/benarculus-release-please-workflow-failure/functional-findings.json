@@ -1,0 +1,29 @@
+{
+  "summary": "Functional perspective skipped after two invocations could not produce a review. No findings are asserted by this perspective.",
+  "verdict": null,
+  "perspective_status": "skipped_after_retry",
+  "skip_reason": "Both attempts reported that the required code-review skill/output contract was unavailable in the worker context. The parent supplied a complete retry prompt; the worker remained blocked.",
+  "severity_counts": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "changed_files": [
+    "README.md",
+    "scripts/validate_repo.py",
+    "tests/test_build_docx.py",
+    "tests/test_ocr_extract.py",
+    "tests/test_spdx_sbom.py",
+    "tests/test_structure.py",
+    "tests/test_validate_resume_length.py",
+    "tests/conftest.py"
+  ],
+  "findings": [],
+  "positive_changes": [],
+  "testing_recommendations": [],
+  "recommended_actions": [
+    "Functional perspective could not complete; this limitation is recorded in the merged report."
+  ],
+  "out_of_scope_observations": []
+}

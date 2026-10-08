@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -106,6 +107,173 @@ def write_prepared_document(tmp_path: Path, document: dict | None = None) -> Pat
     path.write_text(json.dumps(document or spdx_document()), encoding="utf-8")
     load_preparer().prepare_spdx_sbom(path, "0.2.0")
     return path
+
+
+def test_runtime_package_parser_returns_independent_normalized_pins(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    validator = load_contract_validator()
+    requirements = tmp_path / "requirements.txt"
+    requirements.write_text(
+        "# Runtime dependencies\n"
+        "Python_DOCX==1.2.0\n"
+        "Some.pkg_name==4.5.6\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "REQUIREMENTS", requirements)
+
+    assert validator.expected_runtime_packages() == {
+        "python-docx": "1.2.0",
+        "some-pkg-name": "4.5.6",
+    }
+
+
+def test_runtime_package_parser_rejects_non_exact_pins(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    validator = load_contract_validator()
+    requirements = tmp_path / "requirements.txt"
+    monkeypatch.setattr(validator, "REQUIREMENTS", requirements)
+    invalid_lines = (
+        "pillow",
+        "pillow>=12.3.0",
+        "pillow==12.3.0 # inline comment",
+    )
+    for invalid_line in invalid_lines:
+        requirements.write_text(f"{invalid_line}\n", encoding="utf-8")
+        with pytest.raises(
+            AssertionError, match="runtime requirement must be exactly pinned"
+        ):
+            validator.expected_runtime_packages()
+
+
+def test_release_contract_rejects_sbom_missing_independent_pillow_requirement(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    validator = load_contract_validator()
+    requirements = tmp_path / "requirements.txt"
+    requirements.write_text(
+        "python-docx==1.2.0\n"
+        "pytesseract==0.3.13\n"
+        "pymupdf==1.26.7\n"
+        "pillow==12.3.0\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "REQUIREMENTS", requirements)
+
+    expected_packages = {
+        "python-docx": "1.2.0",
+        "pytesseract": "0.3.13",
+        "pymupdf": "1.26.7",
+        "pillow": "12.3.0",
+    }
+    source_id = "SPDXRef-Package-resume-builder"
+    packages = [
+        {
+            "name": "resume-builder",
+            "SPDXID": source_id,
+            "versionInfo": "0.2.0",
+            "supplier": "Organization: benarculus",
+            "originator": "Organization: benarculus",
+        }
+    ]
+    packages.extend(
+        {
+            "name": name,
+            "SPDXID": f"SPDXRef-Package-{name}",
+            "versionInfo": version,
+        }
+        for name, version in expected_packages.items()
+    )
+    relationships = [
+        {
+            "spdxElementId": "SPDXRef-DOCUMENT",
+            "relationshipType": "DESCRIBES",
+            "relatedSpdxElement": source_id,
+        },
+        *(
+            {
+                "spdxElementId": source_id,
+                "relationshipType": "CONTAINS",
+                "relatedSpdxElement": package["SPDXID"],
+            }
+            for package in packages[1:]
+        ),
+    ]
+    document = {
+        "SPDXID": "SPDXRef-DOCUMENT",
+        "packages": packages,
+        "relationships": relationships,
+    }
+    assert {package["name"] for package in packages[1:]} == set(expected_packages)
+    document["packages"] = [
+        package for package in document["packages"] if package["name"] != "pillow"
+    ]
+    path = tmp_path / "missing-pillow.spdx.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(
+        AssertionError, match="exactly one package at each exact runtime version"
+    ):
+        validator.validate_release_sbom_contract(path, "0.2.0")
+
+
+@pytest.mark.parametrize(
+    "scenario",
+    ("missing", "duplicate", "wrong-version"),
+    ids=("missing-root", "duplicate-root", "wrong-root-version"),
+)
+def test_preparer_rejects_invalid_source_metadata_without_changing_input(
+    tmp_path: Path, scenario: str
+) -> None:
+    document = spdx_document()
+    if scenario == "missing":
+        document["packages"] = [
+            package
+            for package in document["packages"]
+            if package["name"] != "resume-builder"
+        ]
+    elif scenario == "duplicate":
+        document["packages"].append(dict(document["packages"][0]))
+    else:
+        document["packages"][0]["versionInfo"] = "0.3.0"
+    path = tmp_path / "invalid-source.spdx.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    original_content = path.read_bytes()
+
+    with pytest.raises(
+        AssertionError,
+        match="SBOM must contain exactly one matching resume-builder source package",
+    ):
+        load_preparer().prepare_spdx_sbom(path, "0.2.0")
+
+    assert path.read_bytes() == original_content
+
+
+def test_preparer_cli_reports_invalid_arguments_and_inputs(
+    tmp_path: Path,
+) -> None:
+    malformed_json = tmp_path / "malformed.spdx.json"
+    malformed_json.write_text("{", encoding="utf-8")
+    missing_input = tmp_path / "missing.spdx.json"
+    scenarios = (
+        ([sys.executable, str(PREPARER)], "usage: prepare_spdx_sbom.py"),
+        (
+            [sys.executable, str(PREPARER), str(malformed_json), "0.2.0"],
+            "SPDX SBOM preparation failed:",
+        ),
+        (
+            [sys.executable, str(PREPARER), str(missing_input), "0.2.0"],
+            "SPDX SBOM preparation failed:",
+        ),
+    )
+    for command, diagnostic in scenarios:
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+
+        assert result.returncode != 0
+        assert diagnostic in result.stderr
+        assert not result.stdout.strip()
+        assert "Prepared SPDX SBOM metadata" not in result.stderr
 
 
 def run_official_validator(path: Path) -> subprocess.CompletedProcess[str]:
