@@ -41,6 +41,8 @@ brew install --cask libreoffice
 
 ### Python runtime dependencies
 
+Python 3.11 or newer is required. Pillow 13.0.0, one of the pinned runtime dependencies, dropped Python 3.10 support.
+
 The same scripts also depend on Python packages (`pytesseract`, `pymupdf`, `pillow`, `python-docx`) that must be installed separately from the system binaries above. This is required to run `career-document-builder`'s OCR extraction and `resume-drafter`'s length validation and document rendering, regardless of which install path below you use. It is distinct from `requirements-dev.txt`, which is only needed by repository contributors running the test suite.
 
 If you have a checkout of this repository, install the pinned versions from [`requirements.txt`](requirements.txt):
@@ -52,7 +54,7 @@ python -m pip install -r requirements.txt
 Otherwise (for example after a direct or marketplace plugin install with no local checkout), install the same pinned versions directly — check [`requirements.txt`](requirements.txt) for the current pins, which at the time of writing are:
 
 ```bash
-python -m pip install python-docx==1.2.0 pytesseract==0.3.13 pymupdf==1.26.7 pillow==12.3.0
+python -m pip install python-docx==1.2.0 pytesseract==0.3.13 pymupdf==1.26.7 pillow==13.0.0
 ```
 
 ### Direct plugin install
@@ -127,7 +129,7 @@ Hosted CI additionally installs the official SPDX validator on Python 3.12:
 python -m pip install --require-hashes --only-binary=:all: -r requirements-spdx-validation.txt
 ```
 
-That lock targets the hosted Linux/Python 3.12 release environment. On the repository owner's local Python 3.9 environment, official-validator integration cases skip explicitly; the repository contract and structural mutations still run, while hosted CI is authoritative for official conformance.
+That lock targets the hosted Linux/Python 3.12 release environment. Official-validator integration cases skip explicitly on local runs unless that validation environment is installed; the repository contract and structural mutations still run, while hosted CI is authoritative for official conformance.
 
 On GitHub Actions, missing Tesseract, LibreOffice, or the official SPDX validator
 is a test failure, not an optional skip. Structural validation also protects the
