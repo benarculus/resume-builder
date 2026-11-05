@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/benarculus/resume-builder/compare/v0.2.0...v0.2.1) (2026-11-05)
+
+
+### Bug Fixes
+
+* **ci:** allow pinned action updates ([#27](https://github.com/benarculus/resume-builder/issues/27)) ([4d77dde](https://github.com/benarculus/resume-builder/commit/4d77dde68de58729789143cc2e20e8a4663f6bbc))
+
 ## [0.2.0](https://github.com/benarculus/resume-builder/compare/v0.1.0...v0.2.0) (2026-10-08)
 
 
