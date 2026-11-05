@@ -42,23 +42,7 @@ RELEASE_PLEASE_CONFIG = ROOT / "release-please-config.json"
 RELEASE_PLEASE_MANIFEST = ROOT / ".release-please-manifest.json"
 VERSION_FILE = ROOT / "version.txt"
 SYFT_CONFIG = ROOT / ".syft.yaml"
-CREATE_APP_TOKEN_SHA = "bcd2ba49218906704ab6c1aa796996da409d3eb1"
-CREATE_APP_TOKEN_VERSION = "v3.2.0"
-RELEASE_PLEASE_ACTION_SHA = "45996ed1f6d02564a971a2fa1b5860e934307cf7"
-RELEASE_PLEASE_ACTION_VERSION = "v5.0.0"
-SCORECARD_ACTION_SHA = "2d1146689b8cda280b9bc96326124645441f03bc"
-SCORECARD_ACTION_VERSION = "v2.4.4"
-UPLOAD_ARTIFACT_SHA = "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
-UPLOAD_ARTIFACT_VERSION = "v7.0.1"
-DOWNLOAD_ARTIFACT_SHA = "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c"
-DOWNLOAD_ARTIFACT_VERSION = "v8.0.1"
-SBOM_ACTION_SHA = "3ad7283483fc7af8ff2b4ea19663c2d5ca935e26"
-SBOM_ACTION_VERSION = "v0.24.2"
 SYFT_VERSION = "v1.52.0"
-SETUP_PYTHON_SHA = "5fda3b95a4ea91299a34e894583c3862153e4b97"
-SETUP_PYTHON_VERSION = "v7.0.0"
-CODEQL_ACTION_SHA = "1c5b675653bb5c22dbe9b12b556ec555138e09fd"
-CODEQL_ACTION_VERSION = "v4.38.1"
 MALWARE_REUSABLE_OWNER_REPO = "benarculus/malware-advisory-check"
 MALWARE_REUSABLE_WORKFLOW = (
     f"{MALWARE_REUSABLE_OWNER_REPO}/.github/workflows/reusable-malware-advisory-check.yml"
@@ -214,6 +198,13 @@ def validate_workflow_pins() -> None:
                 raise AssertionError(f"{workflow}: workflow action must be pinned to a full SHA with version comment: {line.strip()}")
 
 
+def uses_pinned_action(step: dict, action: str) -> bool:
+    uses = step.get("uses")
+    return isinstance(uses, str) and re.fullmatch(
+        rf"{re.escape(action)}@[0-9a-f]{{40}}", uses
+    ) is not None
+
+
 def validate_requirement_pins() -> None:
     for requirements in REQUIREMENTS:
         for line in requirements.read_text(encoding="utf-8").splitlines():
@@ -261,7 +252,7 @@ def validate_spdx_validation_lock() -> None:
         step
         for step in ci_job.get("steps", [])
         if isinstance(step, dict)
-        and step.get("uses") == f"actions/setup-python@{SETUP_PYTHON_SHA}"
+        and uses_pinned_action(step, "actions/setup-python")
     ]
     if len(setup_steps) != 1 or setup_steps[0].get("with") != {
         "python-version": "3.12"
@@ -483,8 +474,8 @@ def validate_release_please_workflow() -> None:
     token_step, release_step = steps
     if token_step.get("id") != "app-token":
         raise AssertionError("release-please workflow must expose the app-token step output")
-    if token_step.get("uses") != f"actions/create-github-app-token@{CREATE_APP_TOKEN_SHA}":
-        raise AssertionError("GitHub App token action must use the approved pinned release")
+    if not uses_pinned_action(token_step, "actions/create-github-app-token"):
+        raise AssertionError("GitHub App token action must use a full SHA pin")
     if token_step.get("with") != {
         "client-id": "${{ secrets.RELEASE_PLEASE_APP_CLIENT_ID }}",
         "private-key": "${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}",
@@ -496,8 +487,8 @@ def validate_release_please_workflow() -> None:
     }:
         raise AssertionError("GitHub App token must be scoped to this repository and required permissions")
 
-    if release_step.get("uses") != f"googleapis/release-please-action@{RELEASE_PLEASE_ACTION_SHA}":
-        raise AssertionError("release-please action must use the approved pinned release")
+    if not uses_pinned_action(release_step, "googleapis/release-please-action"):
+        raise AssertionError("release-please action must use a full SHA pin")
     if release_step.get("with") != {
         "token": "${{ steps.app-token.outputs.token }}",
         "config-file": "release-please-config.json",
@@ -506,13 +497,6 @@ def validate_release_please_workflow() -> None:
         raise AssertionError("release-please must consume only the ephemeral GitHub App token")
 
     raw_text = RELEASE_PLEASE_WORKFLOW.read_text(encoding="utf-8")
-    expected_pins = (
-        (CREATE_APP_TOKEN_SHA, CREATE_APP_TOKEN_VERSION),
-        (RELEASE_PLEASE_ACTION_SHA, RELEASE_PLEASE_ACTION_VERSION),
-    )
-    for sha, version in expected_pins:
-        if not re.search(rf"@{sha}\s+#\s+{re.escape(version)}\b", raw_text):
-            raise AssertionError(f"release-please workflow must document pinned action version {version}")
     forbidden = ("RELEASE_PLEASE_TOKEN", "pull_request_target", "secrets: inherit")
     if any(value in raw_text for value in forbidden):
         raise AssertionError("release-please workflow contains a forbidden broad or long-lived token pattern")
@@ -653,12 +637,12 @@ def validate_publish_release_workflow() -> None:
         )
     if "gh api" in "\n".join(str(step.get("run", "")) for step in generate_steps):
         raise AssertionError("read-only SBOM generation must not query draft releases")
-    if sbom.get("uses") != f"anchore/sbom-action@{SBOM_ACTION_SHA}":
-        raise AssertionError("SPDX generation must use the approved pinned SBOM action")
-    if setup_python.get("uses") != f"actions/setup-python@{SETUP_PYTHON_SHA}" or (
+    if not uses_pinned_action(sbom, "anchore/sbom-action"):
+        raise AssertionError("SPDX generation must use a full SHA pin")
+    if not uses_pinned_action(setup_python, "actions/setup-python") or (
         setup_python.get("with") != {"python-version": "3.12"}
     ):
-        raise AssertionError("SPDX validation must use the approved Python 3.12 action")
+        raise AssertionError("SPDX validation must use Python 3.12 with a full SHA-pinned action")
     expected_install = (
         "python -m pip install --require-hashes --only-binary=:all: "
         "-r requirements-spdx-validation.txt"
@@ -693,10 +677,10 @@ def validate_publish_release_workflow() -> None:
         raise AssertionError("officially valid SPDX output must pass the release contract")
     if "continue-on-error" in contract:
         raise AssertionError("release SBOM contract validation must remain fail-closed")
-    if upload.get("uses") != f"actions/upload-artifact@{UPLOAD_ARTIFACT_SHA}":
-        raise AssertionError("validated SPDX artifact must use the approved pinned uploader")
-    if download.get("uses") != f"actions/download-artifact@{DOWNLOAD_ARTIFACT_SHA}":
-        raise AssertionError("release publication must use the approved pinned downloader")
+    if not uses_pinned_action(upload, "actions/upload-artifact"):
+        raise AssertionError("validated SPDX artifact uploader must use a full SHA pin")
+    if not uses_pinned_action(download, "actions/download-artifact"):
+        raise AssertionError("release publication downloader must use a full SHA pin")
     attach_script = str(attach.get("run", ""))
     if "gh release upload" not in attach_script or "shasum -a 256" not in attach_script:
         raise AssertionError("release publication must upload and checksum-verify the SPDX asset")
@@ -731,15 +715,6 @@ def validate_publish_release_workflow() -> None:
         )
 
     raw_text = PUBLISH_RELEASE_WORKFLOW.read_text(encoding="utf-8")
-    expected_pins = (
-        (SETUP_PYTHON_SHA, SETUP_PYTHON_VERSION),
-        (SBOM_ACTION_SHA, SBOM_ACTION_VERSION),
-        (UPLOAD_ARTIFACT_SHA, UPLOAD_ARTIFACT_VERSION),
-        (DOWNLOAD_ARTIFACT_SHA, DOWNLOAD_ARTIFACT_VERSION),
-    )
-    for sha, version in expected_pins:
-        if not re.search(rf"@{sha}\s+#\s+{re.escape(version)}\b", raw_text):
-            raise AssertionError(f"release publication must document pinned action version {version}")
     forbidden = ("pull_request_target", "secrets:", "RELEASE_PLEASE_APP_PRIVATE_KEY")
     if any(value in raw_text for value in forbidden):
         raise AssertionError("release publication must not expose privileged triggers or repository secrets")
@@ -779,36 +754,28 @@ def validate_scorecard_workflow() -> None:
     checkout, analysis, artifact, sarif = steps
     if checkout.get("with") != {"persist-credentials": "false"}:
         raise AssertionError("Scorecard checkout must not persist credentials")
-    if analysis.get("uses") != f"ossf/scorecard-action@{SCORECARD_ACTION_SHA}":
-        raise AssertionError("Scorecard analysis must use the approved pinned release")
+    if not uses_pinned_action(analysis, "ossf/scorecard-action"):
+        raise AssertionError("Scorecard analysis must use a full SHA pin")
     if analysis.get("with") != {
         "results_file": "results.sarif",
         "results_format": "sarif",
         "publish_results": "true",
     }:
         raise AssertionError("Scorecard must publish SARIF results with OIDC")
-    if artifact.get("uses") != f"actions/upload-artifact@{UPLOAD_ARTIFACT_SHA}":
-        raise AssertionError("Scorecard artifact upload must use the approved pinned release")
+    if not uses_pinned_action(artifact, "actions/upload-artifact"):
+        raise AssertionError("Scorecard artifact upload must use a full SHA pin")
     if artifact.get("with") != {
         "name": "scorecard-results",
         "path": "results.sarif",
         "retention-days": "5",
     }:
         raise AssertionError("Scorecard SARIF artifact must use the approved retention policy")
-    if sarif.get("uses") != f"github/codeql-action/upload-sarif@{CODEQL_ACTION_SHA}":
-        raise AssertionError("Scorecard SARIF upload must use the approved pinned CodeQL release")
+    if not uses_pinned_action(sarif, "github/codeql-action/upload-sarif"):
+        raise AssertionError("Scorecard SARIF upload must use a full SHA pin")
     if sarif.get("with") != {"sarif_file": "results.sarif"}:
         raise AssertionError("Scorecard SARIF upload must publish the generated results")
 
     raw_text = SCORECARD_WORKFLOW.read_text(encoding="utf-8")
-    expected_pins = (
-        (SCORECARD_ACTION_SHA, SCORECARD_ACTION_VERSION),
-        (UPLOAD_ARTIFACT_SHA, UPLOAD_ARTIFACT_VERSION),
-        (CODEQL_ACTION_SHA, CODEQL_ACTION_VERSION),
-    )
-    for sha, version in expected_pins:
-        if not re.search(rf"@{sha}\s+#\s+{re.escape(version)}\b", raw_text):
-            raise AssertionError(f"Scorecard workflow must document pinned action version {version}")
     if "pull_request_target" in raw_text or "secrets:" in raw_text:
         raise AssertionError("Scorecard workflow must not use privileged PR triggers or repository secrets")
 

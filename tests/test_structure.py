@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -63,6 +64,19 @@ def mutate_release_config(config: dict, mutation: str) -> None:
         matches[0]["jsonpath"] = "$.plugins[1].version"
     else:
         raise AssertionError(f"unknown release-config mutation: {mutation}")
+
+
+def bump_action_pin(text: str, action: str) -> str:
+    pattern = re.compile(
+        rf"(?m)^(?P<prefix>[ \t]*(?:-\s+)?uses:\s+{re.escape(action)}@)"
+        r"[0-9a-f]{40}(?P<comment>\s+#\s+)v\d+(?:\.\d+)*\b"
+    )
+    updated, count = pattern.subn(
+        lambda match: f"{match.group('prefix')}{'a' * 40}{match.group('comment')}v99.0.0",
+        text,
+    )
+    assert count, f"workflow action pin not found: {action}"
+    return updated
 
 
 @pytest.mark.parametrize(
@@ -793,6 +807,85 @@ def test_scorecard_workflow_rejects_credential_persistence(
 
     with pytest.raises(AssertionError, match="must not persist credentials"):
         validator.validate_scorecard_workflow()
+
+
+def test_action_contracts_accept_full_sha_version_updates(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    validator = load_validator()
+    workflow_updates = (
+        (
+            "ci.yml",
+            "CI_WORKFLOW",
+            ("actions/setup-python",),
+        ),
+        (
+            "release-please.yml",
+            "RELEASE_PLEASE_WORKFLOW",
+            ("actions/create-github-app-token", "googleapis/release-please-action"),
+        ),
+        (
+            "publish-release.yml",
+            "PUBLISH_RELEASE_WORKFLOW",
+            (
+                "actions/setup-python",
+                "anchore/sbom-action",
+                "actions/upload-artifact",
+                "actions/download-artifact",
+            ),
+        ),
+        (
+            "scorecard.yml",
+            "SCORECARD_WORKFLOW",
+            (
+                "ossf/scorecard-action",
+                "actions/upload-artifact",
+                "github/codeql-action/upload-sarif",
+            ),
+        ),
+        (
+            "codeql-analysis.yml",
+            None,
+            (
+                "github/codeql-action/init",
+                "github/codeql-action/autobuild",
+                "github/codeql-action/analyze",
+            ),
+        ),
+    )
+    changed_workflows = []
+    for filename, variable, actions in workflow_updates:
+        original = (ROOT / ".github/workflows" / filename).read_text(encoding="utf-8")
+        for action in actions:
+            original = bump_action_pin(original, action)
+        changed = tmp_path / filename
+        changed.write_text(original, encoding="utf-8")
+        changed_workflows.append(changed)
+        if variable is not None:
+            monkeypatch.setattr(validator, variable, changed)
+
+    monkeypatch.setattr(validator, "WORKFLOWS", tuple(changed_workflows))
+    validator.validate_workflow_pins()
+    validator.validate_spdx_validation_lock()
+    validator.validate_release_please_workflow()
+    validator.validate_publish_release_workflow()
+    validator.validate_scorecard_workflow()
+
+
+def test_pinned_action_identity_requires_expected_action_and_full_sha() -> None:
+    validator = load_validator()
+    assert validator.uses_pinned_action(
+        {"uses": f"actions/setup-python@{'a' * 40}"},
+        "actions/setup-python",
+    )
+    assert not validator.uses_pinned_action(
+        {"uses": "actions/setup-python@v7"},
+        "actions/setup-python",
+    )
+    assert not validator.uses_pinned_action(
+        {"uses": f"actions/checkout@{'a' * 40}"},
+        "actions/setup-python",
+    )
 
 
 def test_workflow_action_pin_pattern_requires_sha_and_version_comment() -> None:
