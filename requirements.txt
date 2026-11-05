@@ -1,3 +1,4 @@
+# Runtime dependencies require Python 3.11 or newer; Pillow 13.0.0 dropped Python 3.10 support.
 python-docx==1.2.0
 pytesseract==0.3.13
 pymupdf==1.26.7
