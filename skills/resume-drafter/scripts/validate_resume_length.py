@@ -21,7 +21,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-import fitz  # pymupdf
+import pymupdf
 
 WORD_BUDGET_MIN = 475
 WORD_BUDGET_MAX = 600
@@ -138,7 +138,7 @@ def convert_docx_to_pdf(docx_path: Path, output_dir: Path) -> Path:
 def count_rendered_pages(docx_path: Path) -> int:
     with tempfile.TemporaryDirectory() as tmpdir:
         pdf_path = convert_docx_to_pdf(docx_path, Path(tmpdir))
-        with fitz.open(pdf_path) as document:
+        with pymupdf.open(pdf_path) as document:
             return document.page_count
 
 

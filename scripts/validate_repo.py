@@ -62,8 +62,8 @@ LOCKED_REQUIREMENT = re.compile(
 )
 EXPECTED_SPDX_VALIDATION_LOCK = {
     "beartype": (
-        "0.22.9",
-        "d16c9bbc61ea14637596c5f6fbff2ee99cbe3573e46a716401734ef50c3060c2",
+        "0.23.1",
+        "4461b4dc57e3fdd6c8a8464b22cf118002eea107c33e9fef651c69068ab3cce3",
     ),
     "boolean.py": (
         "5.0",

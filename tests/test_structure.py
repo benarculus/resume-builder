@@ -913,8 +913,18 @@ def test_spdx_validation_lock_uses_reviewed_hashes_and_hosted_python() -> None:
     ("old", "new", "message"),
     [
         (
+            "beartype==0.23.1",
+            "beartype==0.23.0",
+            "reviewed wheel resolution",
+        ),
+        (
             "spdx-tools==0.8.5",
             "spdx-tools==0.8.4",
+            "reviewed wheel resolution",
+        ),
+        (
+            "4461b4dc57e3fdd6c8a8464b22cf118002eea107c33e9fef651c69068ab3cce3",
+            "8b805f246b32931c74f2b321ea0939fe5bb2ff43c12a3eff19cc4c854b832e1d",
             "reviewed wheel resolution",
         ),
         (

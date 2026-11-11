@@ -9,6 +9,7 @@ from pathlib import Path
 from types import ModuleType
 
 import pytest
+import pymupdf
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "skills/resume-drafter/scripts/validate_resume_length.py"
@@ -65,6 +66,44 @@ def test_over_budget_fixture_exceeds_the_word_budget() -> None:
     word_count = validator.count_words(payload)
 
     assert word_count > validator.WORD_BUDGET_MAX
+
+
+@pytest.mark.parametrize(
+    ("payload_path", "within_word_budget"),
+    ((WITHIN_BUDGET_FIXTURE, True), (OVER_BUDGET_FIXTURE, False)),
+)
+def test_fresh_process_emits_only_json_without_document_conversion(
+    tmp_path: Path, payload_path: Path, within_word_budget: bool
+) -> None:
+    pdf_path = tmp_path / "rendered.pdf"
+    with pymupdf.open() as document:
+        document.new_page()
+        document.save(pdf_path)
+
+    code = """
+import importlib.util
+import sys
+from pathlib import Path
+
+spec = importlib.util.spec_from_file_location("validate_resume_length", sys.argv[1])
+validator = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(validator)
+pdf_path = Path(sys.argv[3])
+validator.convert_docx_to_pdf = lambda docx_path, output_dir: pdf_path
+sys.argv = [sys.argv[1], "--docx", "unused.docx", "--payload", sys.argv[2]]
+sys.exit(validator.main())
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code, str(SCRIPT), str(payload_path), str(pdf_path)],
+        capture_output=True,
+        text=True,
+    )
+
+    report = json.loads(result.stdout)
+    assert result.returncode == (0 if within_word_budget else 1)
+    assert report["withinWordBudget"] is within_word_budget
+    assert report["pageCount"] == 1
+    assert report["withinPageCap"] is True
 
 
 @pytest.mark.usefixtures("requires_soffice")

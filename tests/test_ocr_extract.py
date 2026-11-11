@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
-import fitz
+import pymupdf
 import pytest
 from PIL import Image, ImageDraw, ImageFont
 
@@ -144,7 +144,7 @@ def test_ocr_best_rotation_selects_the_180_degree_candidate(
 @pytest.mark.parametrize("page", [0, 3])
 def test_extract_from_pdf_rejects_out_of_range_pages(tmp_path: Path, page: int) -> None:
     pdf_path = tmp_path / "two-pages.pdf"
-    document = fitz.open()
+    document = pymupdf.open()
     document.new_page()
     document.new_page()
     document.save(pdf_path)
@@ -236,7 +236,7 @@ def test_ocr_extract_reads_text_from_a_scanned_pdf(tmp_path: Path) -> None:
     # stretch/distort the text, which otherwise degrades OCR accuracy.
     with Image.open(image_path) as source_image:
         image_size = source_image.size
-    document = fitz.open()
+    document = pymupdf.open()
     page = document.new_page(width=image_size[0], height=image_size[1])
     page.insert_image(page.rect, filename=str(image_path))
     document.save(pdf_path)
@@ -255,7 +255,7 @@ def test_ocr_extract_reads_text_from_a_scanned_pdf(tmp_path: Path) -> None:
 
 def _build_two_page_pdf(tmp_path: Path, first_text: str, second_text: str) -> Path:
     pdf_path = tmp_path / "two-page-award.pdf"
-    document = fitz.open()
+    document = pymupdf.open()
     for index, page_text in enumerate((first_text, second_text)):
         image = Image.new("RGB", (600, 200), color="white")
         draw = ImageDraw.Draw(image)
