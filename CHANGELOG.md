@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/benarculus/resume-builder/compare/v0.2.1...v0.2.2) (2026-11-11)
+
+
+### Bug Fixes
+
+* **deps:** update packages with reviewed SPDX wheel hash ([#29](https://github.com/benarculus/resume-builder/issues/29)) ([51cff0b](https://github.com/benarculus/resume-builder/commit/51cff0bb623566113022b56284d53ed6e516fa53))
+
 ## [0.2.1](https://github.com/benarculus/resume-builder/compare/v0.2.0...v0.2.1) (2026-11-07)
 
 
