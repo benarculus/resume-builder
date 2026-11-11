@@ -15,7 +15,7 @@ import csv
 import io
 from pathlib import Path
 
-import fitz  # pymupdf
+import pymupdf
 import pytesseract
 from PIL import Image
 
@@ -81,7 +81,7 @@ def extract_from_pdf(path: Path, page: int | None = None) -> str:
     no marker, for targeted re-OCR of a single page in an otherwise
     normally-readable PDF.
     """
-    with fitz.open(path) as document:
+    with pymupdf.open(path) as document:
         if page is not None:
             if not 1 <= page <= document.page_count:
                 raise ValueError(f"page {page} is out of range for a {document.page_count}-page PDF")
@@ -90,7 +90,7 @@ def extract_from_pdf(path: Path, page: int | None = None) -> str:
     return "\n\n".join(page_texts)
 
 
-def _ocr_pdf_page(page: "fitz.Page") -> str:
+def _ocr_pdf_page(page: "pymupdf.Page") -> str:
     pixmap = page.get_pixmap(dpi=RENDER_DPI)
     image = Image.frombytes("RGB", (pixmap.width, pixmap.height), pixmap.samples)
     return ocr_best_rotation(image)
