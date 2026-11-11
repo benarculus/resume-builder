@@ -155,8 +155,8 @@ def test_release_contract_rejects_sbom_missing_independent_pillow_requirement(
     requirements.write_text(
         "python-docx==1.2.0\n"
         "pytesseract==0.3.13\n"
-        "pymupdf==1.26.7\n"
-        "pillow==12.3.0\n",
+        "pymupdf==1.28.2\n"
+        "pillow==13.0.0\n",
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "REQUIREMENTS", requirements)
@@ -164,8 +164,8 @@ def test_release_contract_rejects_sbom_missing_independent_pillow_requirement(
     expected_packages = {
         "python-docx": "1.2.0",
         "pytesseract": "0.3.13",
-        "pymupdf": "1.26.7",
-        "pillow": "12.3.0",
+        "pymupdf": "1.28.2",
+        "pillow": "13.0.0",
     }
     source_id = "SPDXRef-Package-resume-builder"
     packages = [

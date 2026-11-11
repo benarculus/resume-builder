@@ -54,7 +54,7 @@ python -m pip install -r requirements.txt
 Otherwise (for example after a direct or marketplace plugin install with no local checkout), install the same pinned versions directly — check [`requirements.txt`](requirements.txt) for the current pins, which at the time of writing are:
 
 ```bash
-python -m pip install python-docx==1.2.0 pytesseract==0.3.13 pymupdf==1.26.7 pillow==13.0.0
+python -m pip install python-docx==1.2.0 pytesseract==0.3.13 pymupdf==1.28.2 pillow==13.0.0
 ```
 
 ### Direct plugin install
