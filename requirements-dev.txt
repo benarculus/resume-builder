@@ -1,4 +1,4 @@
 # Development requirements inherit the Python 3.11 minimum from requirements.txt.
 -r requirements.txt
-pytest==9.1.1
+pytest==9.2.0
 PyYAML==6.0.3
